@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+.pytest_cache/
+.coverage
+.tmp_coverage.json
+
+# Local artifacts
+/reports/
+test-results/
+/reporting/
+.benchmarks/
+*.log
+build_output*.txt
+tsc_errors.log
+vitest-*.log
+
+# JavaScript
+node_modules/
+
+# OS/editor noise
+.DS_Store
+Thumbs.db

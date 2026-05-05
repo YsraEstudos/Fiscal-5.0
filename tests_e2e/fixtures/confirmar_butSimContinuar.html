@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>E2E Confirmar butSimContinuar</title>
+  </head>
+  <body data-scenario="confirmar_butSimContinuar" data-confirm-button="butSimContinuar">
+    <h1>Confirmar via butSimContinuar</h1>
+    <button id="runScenario">Run</button>
+    <button
+      id="butSimContinuar"
+      onclick="this.setAttribute('data-clicked','true')"
+      type="button"
+    >
+      Sim, continuar
+    </button>
+    <div id="status">idle</div>
+    <div>processados: <span id="processedCount">0</span></div>
+    <div>ignorados: <span id="ignoredCount">0</span></div>
+    <div id="items">
+      <div class="item" data-item-id="6001">Item 6001</div>
+    </div>
+    <ul id="log"></ul>
+    <script src="/fixtures/harness-runtime.js"></script>
+  </body>
+</html>

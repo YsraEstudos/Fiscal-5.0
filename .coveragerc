@@ -1,0 +1,10 @@
+[run]
+branch = True
+source = reporting_service
+omit =
+  tests_py/*
+
+[report]
+show_missing = True
+skip_covered = False
+precision = 1

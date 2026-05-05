@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>E2E Happy</title>
+  </head>
+  <body data-scenario="happy" data-inject-dist="true">
+    <h1>Happy Path</h1>
+    <button id="runScenario">Run</button>
+    <div id="status">idle</div>
+    <div>processados: <span id="processedCount">0</span></div>
+    <div>ignorados: <span id="ignoredCount">0</span></div>
+    <div id="items">
+      <div class="item" data-item-id="1001">Item 1001</div>
+    </div>
+    <ul id="log"></ul>
+    <script src="/fixtures/harness-runtime.js"></script>
+  </body>
+</html>

@@ -1,0 +1,97 @@
+import { CONFIG } from '../../config/constants.ts';
+import { normalizarTrilhaExecucao } from '../../workflow/item-trace.ts';
+import { clone } from '../../utils/misc.ts';
+import { inicializarAcoes } from './actions.ts';
+import { ESTADO_PADRAO } from './defaults.ts';
+import { garantirDefaultsEstado, migrarEstadoSalvo, type EstadoSalvoRaw } from './migrations.ts';
+import {
+    normalizarEstimativa,
+    normalizarPainelPosicao,
+    normalizarPainelScrollTop,
+    normalizarPainelSecoes,
+    normalizarProgresso,
+    normalizarReportingConfig,
+} from './normalizers.ts';
+import type { AcaoEstado, EstadoApp } from './types.ts';
+
+let cache: EstadoApp | null = null;
+let cacheTimestamp = 0;
+const CACHE_TTL = 100;
+
+function carregarEstadoAtual(salvo: EstadoSalvoRaw): EstadoApp {
+    let estado: EstadoApp = {
+        ...ESTADO_PADRAO,
+        ...salvo,
+        acoes: { ...(salvo['acoes'] as Record<string, AcaoEstado> || {}) },
+    };
+    estado.perfilConfigs = { ...(salvo['perfilConfigs'] as typeof estado.perfilConfigs || {}) };
+    estado.progresso = normalizarProgresso(salvo['progresso']);
+    estado.painelPosicao = normalizarPainelPosicao(salvo['painelPosicao']);
+    estado.painelSecoes = normalizarPainelSecoes(salvo['painelSecoes']);
+    estado.painelScrollTop = normalizarPainelScrollTop(salvo['painelScrollTop']);
+    estado.estimativa = normalizarEstimativa(salvo['estimativa']);
+    estado.trilhaExecucao = normalizarTrilhaExecucao(salvo['trilhaExecucao']);
+    estado.reporting = normalizarReportingConfig(salvo['reporting']);
+    estado.pausarEmReincidencia = salvo['pausarEmReincidencia'] !== undefined
+        ? !!salvo['pausarEmReincidencia']
+        : true;
+
+    estado = inicializarAcoes(estado);
+    return garantirDefaultsEstado(estado);
+}
+
+export function get(): EstadoApp {
+    const agora = Date.now();
+    if (cache && (agora - cacheTimestamp) < CACHE_TTL) return cache;
+
+    try {
+        const raw = localStorage.getItem(CONFIG.STORAGE_KEY);
+        const salvo: EstadoSalvoRaw = (raw ? JSON.parse(raw) : null) || {};
+        const schemaVersion = Number(salvo['schemaVersion']);
+
+        cache = !schemaVersion || schemaVersion < CONFIG.SCHEMA_VERSION
+            ? migrarEstadoSalvo(salvo, set)
+            : carregarEstadoAtual(salvo);
+
+        cacheTimestamp = agora;
+        return cache;
+    } catch (e) {
+        console.error('[KM] Erro ao carregar estado:', e);
+        cache = clone(ESTADO_PADRAO) as EstadoApp;
+        cacheTimestamp = agora;
+        return cache;
+    }
+}
+
+export function set(novoEstado: EstadoApp): void {
+    novoEstado.schemaVersion = CONFIG.SCHEMA_VERSION;
+    cache = novoEstado;
+    cacheTimestamp = Date.now();
+    localStorage.setItem(CONFIG.STORAGE_KEY, JSON.stringify(novoEstado));
+}
+
+export function update(modificador: ((estado: EstadoApp) => void) | Partial<EstadoApp>): EstadoApp {
+    const estado = get();
+    if (typeof modificador === 'function') modificador(estado);
+    else Object.assign(estado, modificador);
+    set(estado);
+    return estado;
+}
+
+export function persistirAcoes(estado: EstadoApp): void {
+    const nome = estado.perfilAtivo || 'default';
+    estado.perfis = estado.perfis || {};
+    estado.perfis[nome] = clone(estado.acoes) as Record<string, AcaoEstado>;
+    estado.perfilConfigs = estado.perfilConfigs || {};
+    const atual = estado.perfilConfigs[nome] || {};
+    estado.perfilConfigs[nome] = {
+        ...atual,
+        reporting: normalizarReportingConfig(estado.reporting),
+    };
+}
+
+export function invalidar(): void {
+    cache = null;
+    cacheTimestamp = 0;
+}
+

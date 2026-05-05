@@ -1,0 +1,727 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+let state;
+const mockEstadoGet = vi.fn(() => state);
+const mockEstadoSet = vi.fn((novo) => {
+  state = novo;
+});
+const mockEstadoUpdate = vi.fn((fn) => {
+  if (typeof fn === "function") fn(state);
+  else Object.assign(state, fn);
+  return state;
+});
+const mockPersistirAcoes = vi.fn();
+const mockSincronizarItemAtual = vi.fn();
+const mockObterItemIdAtual = vi.fn(() => null);
+const mockAplicarParaItemAtual = vi.fn();
+const mockGetValoresParaItem = vi.fn();
+const mockDetectarAvisoCritico = vi.fn(() => null);
+const mockEncontrarItensPendentes = vi.fn(() => []);
+const mockEncontrarItensPendentesInfo = vi.fn(() => ({ elegiveis: [], ignorados: 0 }));
+const mockObterResumoPendentesServidor = vi.fn(() => null);
+const mockPaginaOcupada = vi.fn(() => ({ ocupado: false }));
+const mockVerificarSessao = vi.fn(() => true);
+const mockExtrairItemKey = vi.fn(() => "320780");
+const mockDetectarModoUnspsc = vi.fn(() => "modal");
+const mockUnspscDescricaoDefinida = vi.fn(() => false);
+const mockInteragir = vi.fn(async () => true);
+const mockLog = vi.fn();
+const mockTocar = vi.fn();
+const mockTouchSessionNoServico = vi.fn(async () => ({ ok: true }));
+const mockResolverOuCriarSessionRunId = vi.fn(() => "session_trace");
+const mockIsAtivo = vi.fn(() => false);
+const mockTempoRestante = vi.fn(() => 0);
+const mockCooldownSet = vi.fn();
+const mockCooldownLimpar = vi.fn();
+const mockGarantirTotalPlanejado = vi.fn();
+const mockRegistrarInicioItem = vi.fn((estado, itemId, now) => {
+  estado.estimativa = {
+    ...(estado.estimativa || {}),
+    itemAtualId: itemId,
+    itemAtualInicioTs: now,
+  };
+  return true;
+});
+const mockResetarRodada = vi.fn((_estado, { totalPlanejado = 0, fonteTotal = null } = {}) => ({
+  totalPlanejado,
+  fonteTotal,
+  itemAtualId: null,
+  itemAtualInicioTs: null,
+  primeiroItemId: null,
+  primeiroItemDuracaoMs: null,
+  tempoMedioReferenciaMs: null,
+  restantes: totalPlanejado,
+  etaRestanteMs: null,
+  previsaoTerminoTs: null,
+  ultimoItemConcluidoTs: null,
+}));
+
+const mockConfirmar = vi.fn(async () => false);
+const mockProsseguir = vi.fn(async () => false);
+const mockAtuar = vi.fn(async () => false);
+const mockNcm = vi.fn(async () => false);
+const mockLei116Servico = vi.fn(async () => false);
+const mockAbaFiscal = vi.fn(async () => false);
+const mockAbaClassificacao = vi.fn(async () => false);
+const mockUnspsc = vi.fn(async () => false);
+const mockLupaUnspsc = vi.fn(async () => false);
+const mockPesquisar = vi.fn(async () => false);
+const mockResultado = vi.fn(async () => false);
+const mockSelecionar = vi.fn(async () => false);
+const mockColetarMidia = vi.fn(async () => false);
+const mockColetarAcompanhamento = vi.fn(async () => false);
+const mockGerarRelatorioItem = vi.fn(async () => false);
+
+vi.mock("../src/core/estado-manager.ts", () => ({
+  get: mockEstadoGet,
+  set: mockEstadoSet,
+  update: mockEstadoUpdate,
+  persistirAcoes: mockPersistirAcoes,
+  normalizarReportingConfig: (cfg) => cfg,
+}));
+vi.mock("../src/core/log-manager.ts", () => ({ log: mockLog }));
+vi.mock("../src/core/cooldown-manager.ts", () => ({
+  isAtivo: mockIsAtivo,
+  tempoRestante: mockTempoRestante,
+  set: mockCooldownSet,
+  limpar: mockCooldownLimpar,
+}));
+vi.mock("../src/interaction/audio-manager.ts", () => ({ tocar: mockTocar }));
+vi.mock("../src/core/aspnet-lifecycle.ts", () => ({
+  hook: vi.fn(),
+  subscribe: vi.fn(),
+}));
+vi.mock("../src/interaction/interacao.ts", () => ({
+  interagir: mockInteragir,
+  setRegistrarInteracao: vi.fn(),
+}));
+vi.mock("../src/workflow/pagina-verificador.ts", () => ({
+  paginaOcupada: mockPaginaOcupada,
+  detectarAvisoCritico: mockDetectarAvisoCritico,
+  obterConfirmacao: vi.fn(() => ({ modalAberto: false })),
+  encontrarItensPendentesInfo: mockEncontrarItensPendentesInfo,
+  encontrarItensPendentes: mockEncontrarItensPendentes,
+  obterResumoPendentesServidor: mockObterResumoPendentesServidor,
+  verificarSessao: mockVerificarSessao,
+  extrairItemKey: mockExtrairItemKey,
+  isMensagemNcmInvalido: vi.fn(() => false),
+  isMensagemNbsInvalido: vi.fn(() => false),
+  getModalUnspscContainer: vi.fn(() => null),
+  isModalUnspscAberto: vi.fn(() => false),
+  detectarModoUnspsc: mockDetectarModoUnspsc,
+  unspscDescricaoDefinida: mockUnspscDescricaoDefinida,
+}));
+vi.mock("../src/data/item-map-manager.ts", () => ({
+  sincronizarItemAtual: mockSincronizarItemAtual,
+  obterItemIdAtual: mockObterItemIdAtual,
+  aplicarParaItemAtual: mockAplicarParaItemAtual,
+  getValoresParaItem: mockGetValoresParaItem,
+  getValorAcao: vi.fn(() => null),
+}));
+vi.mock("../src/workflow/estimativa.ts", () => ({
+  garantirTotalPlanejado: mockGarantirTotalPlanejado,
+  registrarInicioItem: mockRegistrarInicioItem,
+  registrarConclusaoItem: vi.fn(() => ({ duracaoMs: 6500, restantes: 0 })),
+  resetarRodada: mockResetarRodada,
+}));
+vi.mock("../src/workflow/handlers/flow-control.ts", () => ({
+  confirmar: mockConfirmar,
+  prosseguir: mockProsseguir,
+  setAtualizarBotaoToggle: vi.fn(),
+}));
+vi.mock("../src/workflow/handlers/atuar.ts", () => ({ atuar: mockAtuar }));
+vi.mock("../src/workflow/handlers/ncm.ts", () => ({
+  ncm: mockNcm,
+  lei116Servico: mockLei116Servico,
+  abaFiscal: mockAbaFiscal,
+  abaClassificacao: mockAbaClassificacao,
+}));
+vi.mock("../src/workflow/handlers/unspsc.ts", () => ({
+  unspsc: mockUnspsc,
+  lupaUnspsc: mockLupaUnspsc,
+  pesquisar: mockPesquisar,
+  resultado: mockResultado,
+  selecionar: mockSelecionar,
+}));
+vi.mock("../src/workflow/handlers/coleta.ts", () => ({
+  coletarMidia: mockColetarMidia,
+  coletarAcompanhamento: mockColetarAcompanhamento,
+}));
+vi.mock("../src/workflow/handlers/report.ts", () => ({
+  gerarRelatorioItem: mockGerarRelatorioItem,
+}));
+vi.mock("../src/utils/misc.ts", () => ({
+  isTestMode: vi.fn(() => true),
+  sleep: vi.fn(async () => { }),
+  valoresSaoIguais: vi.fn((a, b) => a === b),
+}));
+vi.mock("../src/utils/text.ts", () => ({
+  normalizarEspacos: (valor) => String(valor || "").trim(),
+}));
+vi.mock("../src/utils/selectors.ts", () => ({
+  buscarElementoDeep: vi.fn(() => null),
+}));
+vi.mock("../src/reporting/session.ts", () => ({
+  resolverOuCriarSessionRunId: mockResolverOuCriarSessionRunId,
+  getReportingConfig: vi.fn(() => ({ serviceUrl: "" })),
+  touchSessionNoServico: mockTouchSessionNoServico,
+}));
+
+const mod = await import("../src/workflow/executor.ts");
+
+function buildState(overrides = {}) {
+  return {
+    ativo: true,
+    pausado: false,
+    pausarEmReincidencia: true,
+    minimizado: false,
+    globalActionDelayMs: 0,
+    clickCooldownMs: 0,
+    perfilAtivo: "default",
+    perfis: { default: {} },
+    perfilConfigs: { default: { reporting: { sessionRunId: null } } },
+    progresso: { atual: 0, total: 0, ultimoProcessado: null, concluidosIds: [] },
+    logs: [],
+    estatisticas: { processados: 0, erros: 0, ultimoErro: null },
+    painelPosicao: null,
+    itemAtualKey: null,
+    itemAtualTelaId: null,
+    reportingSessionMap: {},
+    estimativa: {
+      totalPlanejado: 0,
+      fonteTotal: null,
+      itemAtualId: null,
+      itemAtualInicioTs: null,
+      primeiroItemId: null,
+      primeiroItemDuracaoMs: null,
+      tempoMedioReferenciaMs: null,
+      duracaoTotalConcluidosMs: 0,
+      duracaoAmostras: 0,
+      restantes: 0,
+      etaRestanteMs: null,
+      previsaoTerminoTs: null,
+      ultimoItemConcluidoTs: null,
+    },
+    trilhaExecucao: {
+      runId: null,
+      startedAtTs: null,
+      lastEventSeq: 0,
+      itemAtualKey: null,
+      items: {},
+    },
+    itemFlags: {},
+    itemMapAtivo: false,
+    itemMap: {},
+    itemMapJson: "",
+    itemMapUltimoAplicadoId: null,
+    reporting: { sessionRunId: null, serviceUrl: "" },
+    acoes: {},
+    ...overrides,
+  };
+}
+
+function buildLink(key) {
+  const link = document.createElement("a");
+  link.dataset.key = key;
+  return link;
+}
+
+describe("workflow/executor", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    document.body.innerHTML = '<div id="statusRobo"></div>';
+    state = buildState();
+
+    mockDetectarAvisoCritico.mockReturnValue(null);
+    mockEncontrarItensPendentes.mockReturnValue([]);
+    mockEncontrarItensPendentesInfo.mockReturnValue({ elegiveis: [], ignorados: 0 });
+    mockObterResumoPendentesServidor.mockReturnValue(null);
+    mockPaginaOcupada.mockReturnValue({ ocupado: false });
+    mockVerificarSessao.mockReturnValue(true);
+    mockDetectarModoUnspsc.mockReturnValue("modal");
+    mockUnspscDescricaoDefinida.mockReturnValue(false);
+    mockSincronizarItemAtual.mockReturnValue(null);
+    mockObterItemIdAtual.mockReturnValue(null);
+    mockGetValoresParaItem.mockImplementation((estado, itemId) => {
+      const key = itemId == null ? null : String(itemId).trim();
+      if (!estado?.itemMapAtivo || !key) return null;
+      return estado.itemMap?.[key] || null;
+    });
+    mockInteragir.mockResolvedValue(true);
+    mockIsAtivo.mockReturnValue(false);
+    mockTempoRestante.mockReturnValue(0);
+    mockResolverOuCriarSessionRunId.mockReturnValue("session_trace");
+    mod.setUICallbacks({
+      atualizarBotaoToggle: vi.fn(),
+      atualizarIndicadorProgresso: vi.fn(),
+    });
+    mod.registrarInteracao("reset");
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    state.ativo = false;
+    mod.limpar();
+  });
+
+  it("ordena ações respeitando ordem customizada do estado", () => {
+    state.acoes = {
+      ncm: { ordem: 20 },
+      atuar: { ordem: 1 },
+      prosseguir: { ordem: 2 },
+    };
+
+    const ordenadas = mod.getAcoesOrdenadas(state);
+
+    expect(ordenadas.find((acao) => acao.id === "atuar").ordem).toBe(1);
+    expect(ordenadas.find((acao) => acao.id === "prosseguir").ordem).toBe(2);
+    expect(ordenadas.find((acao) => acao.id === "ncm").ordem).toBe(20);
+  });
+
+  it("reseta a trilha da rodada ao iniciar o ciclo", () => {
+    mockSincronizarItemAtual.mockReturnValue(null);
+
+    mod.iniciar();
+
+    expect(state.trilhaExecucao.runId).toBe("session_trace");
+    expect(state.trilhaExecucao.startedAtTs).not.toBeNull();
+    expect(state.trilhaExecucao.lastEventSeq).toBe(0);
+  });
+
+  it("desativa o robô quando detecta sessão expirada", async () => {
+    mockVerificarSessao.mockReturnValue(false);
+
+    await mod.executarCiclo("test");
+
+    expect(state.ativo).toBe(false);
+    expect(mockLog).toHaveBeenCalledWith("🔐 Sessão expirada detectada!", "error");
+    expect(mockTocar).toHaveBeenCalledWith("error");
+  });
+
+  it("respeita o delay global antes de continuar o ciclo", async () => {
+    state.globalActionDelayMs = 5000;
+    mod.registrarInteracao("ncm");
+
+    await mod.executarCiclo("test");
+
+    const status = document.getElementById("statusRobo");
+    expect(status.textContent).toContain("Aguardando delay global");
+    expect(mockSincronizarItemAtual).not.toHaveBeenCalled();
+  });
+
+  it("aguarda quando a página está ocupada", async () => {
+    mockPaginaOcupada.mockReturnValue({ ocupado: true, motivo: "asp_async_postback" });
+
+    await mod.executarCiclo("test");
+
+    const status = document.getElementById("statusRobo");
+    expect(status.textContent).toBe("⏳ Aguardando server (asp_async_postback)...");
+    expect(mockSincronizarItemAtual).not.toHaveBeenCalled();
+  });
+
+  it("registra item_aberto quando o item é sincronizado na tela", async () => {
+    mockSincronizarItemAtual.mockImplementation(() => {
+      state.itemAtualKey = "320780";
+      state.itemAtualTelaId = "320780";
+      return "320780";
+    });
+
+    await mod.executarCiclo("test");
+
+    expect(state.trilhaExecucao.items["320780"].events.map((evento) => evento.tipo)).toContain("item_aberto");
+    expect(mockRegistrarInicioItem).toHaveBeenCalled();
+  });
+
+  it("registra pausa por reincidência antes de pausar o robô", async () => {
+    mockSincronizarItemAtual.mockImplementation(() => {
+      state.itemAtualKey = "320780";
+      state.itemAtualTelaId = "320780";
+      return "320780";
+    });
+    mockDetectarAvisoCritico.mockReturnValue({
+      tipo: "reincidencia_etapa",
+      fonte: "lblExecucoes",
+      mensagem: "Esta é a 2º vez...",
+      numeroExecucoes: 2,
+    });
+
+    await mod.executarCiclo("test");
+
+    expect(state.pausado).toBe(true);
+    expect(state.trilhaExecucao.items["320780"].events.map((evento) => evento.tipo)).toContain("pausado_por_reincidencia");
+  });
+
+  it("não pausa por reincidência quando a opção está desativada", async () => {
+    state.pausarEmReincidencia = false;
+    mockSincronizarItemAtual.mockImplementation(() => {
+      state.itemAtualKey = "320780";
+      state.itemAtualTelaId = "320780";
+      return "320780";
+    });
+    mockDetectarAvisoCritico.mockReturnValue({
+      tipo: "reincidencia_etapa",
+      fonte: "lblExecucoes",
+      mensagem: "Esta é a 2º vez...",
+      numeroExecucoes: 2,
+    });
+
+    await mod.executarCiclo("test");
+
+    expect(state.pausado).toBe(false);
+    const eventos = state.trilhaExecucao.items["320780"]?.events?.map((evento) => evento.tipo) || [];
+    expect(eventos).not.toContain("pausado_por_reincidencia");
+  });
+
+  it("pausa por NCM inválido quando a janela de validação está liberada", async () => {
+    mockSincronizarItemAtual.mockImplementation(() => {
+      state.itemAtualKey = "320780";
+      state.itemAtualTelaId = "320780";
+      state.itemFlags["320780"] = { ncmValidacaoPendenteAte: Date.now() + 10000 };
+      return "320780";
+    });
+    mockDetectarAvisoCritico.mockReturnValue({
+      tipo: "ncm_invalido",
+      mensagem: "NCM informado inválido",
+    });
+
+    await mod.executarCiclo("test");
+
+    expect(state.pausado).toBe(true);
+    expect(state.trilhaExecucao.items["320780"].events.map((evento) => evento.tipo)).toContain("pausado_por_validacao_ncm");
+  });
+
+  it("seleciona um novo item pendente e prepara o estado do item", async () => {
+    const link = document.createElement("a");
+    mockEncontrarItensPendentes.mockReturnValue([link]);
+    mockEncontrarItensPendentesInfo.mockReturnValue({ elegiveis: [link], ignorados: 1 });
+    mockExtrairItemKey.mockReturnValue("777");
+
+    await mod.executarCiclo("test");
+
+    expect(state.itemAtualKey).toBe("777");
+    expect(state.itemAtualTelaId).toBeNull();
+    expect(state.itemFlags["777"]).toEqual(
+      expect.objectContaining({
+        unspscFeito: false,
+        ncmValidacaoPendenteAte: 0,
+        ncmValidacaoAvisada: false,
+        reporting: expect.objectContaining({
+          mediaDone: false,
+          acompanhamentoDone: false,
+          reportDone: false,
+        }),
+      }),
+    );
+    expect(mockInteragir).toHaveBeenCalledWith(link, null, "selecionarItemNormal");
+    expect(mockCooldownSet).toHaveBeenCalledWith("selecionarItemNormal:777", expect.any(Number));
+    expect(mockLog).toHaveBeenCalledWith("⏭️ Ignorados 1 item(ns) em atuação", "info");
+    expect(mockLog).toHaveBeenCalledWith("🔖 Iniciando item ID: 777", "info");
+  });
+
+  it("aguarda abertura do mesmo item quando o cooldown ainda está ativo", async () => {
+    const link = document.createElement("a");
+    state.itemAtualKey = "777";
+    mockEncontrarItensPendentes.mockReturnValue([link]);
+    mockEncontrarItensPendentesInfo.mockReturnValue({ elegiveis: [link], ignorados: 0 });
+    mockExtrairItemKey.mockReturnValue("777");
+    mockIsAtivo.mockImplementation((key) => key === "selecionarItemNormal:777");
+    mockTempoRestante.mockReturnValue(5000);
+
+    await mod.executarCiclo("test");
+
+    const status = document.getElementById("statusRobo");
+    expect(status.textContent).toBe("⏳ Aguardando abertura do item 777 (5s)...");
+    expect(mockInteragir).not.toHaveBeenCalledWith(link, null, "selecionarItemNormal");
+  });
+
+  it("para a procura quando nao encontra item por um minuto", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-05T12:00:00.000Z"));
+    mockEncontrarItensPendentesInfo.mockReturnValue({ elegiveis: [], ignorados: 0 });
+
+    await mod.executarCiclo("test");
+    vi.setSystemTime(new Date("2026-05-05T12:01:01.000Z"));
+    await mod.executarCiclo("test");
+
+    const status = document.getElementById("statusRobo");
+    expect(state.ativo).toBe(false);
+    expect(status.textContent).toBe("Procura parada: nenhum item encontrado em 1 minuto.");
+    expect(mockLog).toHaveBeenCalledWith("⏹️ Procura parada: nenhum item encontrado em 1 minuto.", "warn");
+  });
+
+  it("atualiza progresso total a partir do JSON ativo ao iniciar", () => {
+    state.itemMapAtivo = true;
+    state.itemMap = {
+      "320780": { ncm: "8471.30.12" },
+      "320781": { ncm: "8471.30.12" },
+    };
+
+    mod.iniciar();
+
+    expect(state.progresso.total).toBe(2);
+    expect(mockResetarRodada).toHaveBeenCalledWith(state, expect.objectContaining({
+      totalPlanejado: 2,
+      fonteTotal: "json",
+    }));
+  });
+
+  it("calcula total dinâmico como concluídos efetivos + pendentes do servidor", async () => {
+    state.progresso.concluidosIds = ["A", "B"];
+    mockObterResumoPendentesServidor.mockReturnValue({
+      primeiro: 1,
+      ultimo: 5,
+      total: 5,
+      texto: "Exibindo SIN 1 a 5 de um total de 5",
+    });
+
+    await mod.executarCiclo("test");
+
+    expect(state.progresso.atual).toBe(2);
+    expect(state.progresso.total).toBe(7);
+  });
+
+  it("ajusta total automaticamente quando pendentes do servidor diminuem", async () => {
+    state.progresso.concluidosIds = ["A", "B"];
+    mockObterResumoPendentesServidor.mockReturnValue({
+      primeiro: 1,
+      ultimo: 5,
+      total: 5,
+      texto: "Exibindo SIN 1 a 5 de um total de 5",
+    });
+    await mod.executarCiclo("test");
+    expect(state.progresso.total).toBe(7);
+    expect(state.pausado).toBe(false);
+
+    mockObterResumoPendentesServidor.mockReturnValue({
+      primeiro: 1,
+      ultimo: 3,
+      total: 3,
+      texto: "Exibindo SIN 1 a 3 de um total de 3",
+    });
+    await mod.executarCiclo("test");
+
+    expect(state.progresso.total).toBe(5);
+    expect(state.pausado).toBe(false);
+  });
+
+  it("no modo JSON calcula concluídos pelo total do lote menos os pendentes do site", async () => {
+    state.itemMapAtivo = true;
+    state.itemMap = {
+      A: { ncm: "8471.30.12" },
+      B: { ncm: "8471.30.12" },
+      C: { ncm: "8471.30.12" },
+      D: { ncm: "8471.30.12" },
+      E: { ncm: "8471.30.12" },
+    };
+    state.progresso.concluidosIds = ["A"];
+    mockObterResumoPendentesServidor.mockReturnValue({
+      primeiro: 1,
+      ultimo: 3,
+      total: 3,
+      texto: "Exibindo SIN 1 a 3 de um total de 3",
+    });
+
+    await mod.executarCiclo("test");
+
+    expect(state.progresso.atual).toBe(2);
+    expect(state.progresso.total).toBe(5);
+    expect(state.estatisticas.processados).toBe(2);
+    expect(state.estimativa.totalPlanejado).toBe(5);
+    expect(state.estimativa.restantes).toBe(3);
+    expect(state.estimativa.fonteTotal).toBe("json");
+  });
+
+  it("no modo JSON usa fallback local quando a paginação do site não está disponível", async () => {
+    state.itemMapAtivo = true;
+    state.itemMap = {
+      A: { ncm: "8471.30.12" },
+      B: { ncm: "8471.30.12" },
+      C: { ncm: "8471.30.12" },
+    };
+    state.progresso.concluidosIds = ["A", "B", "X"];
+    mockObterResumoPendentesServidor.mockReturnValue(null);
+
+    await mod.executarCiclo("test");
+
+    expect(state.progresso.atual).toBe(2);
+    expect(state.progresso.total).toBe(3);
+    expect(state.estimativa.restantes).toBe(1);
+    expect(state.estatisticas.processados).toBe(2);
+  });
+
+  it("no modo JSON continua abrindo o item da lista antes de validar o ID real da tela", async () => {
+    state.itemMapAtivo = true;
+    state.itemMap = {
+      "300": { ncm: "8471.30.12" },
+    };
+    const linkLista = buildLink("84548");
+    mockEncontrarItensPendentesInfo.mockReturnValue({ elegiveis: [linkLista], ignorados: 0 });
+    mockExtrairItemKey.mockImplementation((link) => link?.dataset?.key || null);
+
+    await mod.executarCiclo("test");
+
+    expect(state.pausado).toBe(false);
+    expect(mockInteragir).toHaveBeenCalledTimes(1);
+    expect(mockInteragir).toHaveBeenCalledWith(linkLista, null, "selecionarItemNormal");
+    expect(state.itemAtualKey).toBe("84548");
+    expect(state.estatisticas.erros).toBe(0);
+    expect(state.progresso.atual).toBe(0);
+    expect(state.progresso.total).toBe(1);
+  });
+
+  it("pausa quando o item já aberto na tela não existe no JSON ativo", async () => {
+    state.itemMapAtivo = true;
+    state.itemMap = {
+      "300": { ncm: "8471.30.12" },
+    };
+    mockObterItemIdAtual.mockReturnValue("999");
+    mockSincronizarItemAtual.mockImplementation(() => {
+      state.itemAtualKey = "84548";
+      state.itemAtualTelaId = "999";
+      return "84548";
+    });
+
+    await mod.executarCiclo("test");
+
+    expect(state.pausado).toBe(true);
+    expect(mockInteragir).not.toHaveBeenCalled();
+    expect(state.estatisticas.erros).toBe(1);
+    expect(state.estatisticas.ultimoErro?.tipo).toBe("item_sem_json");
+    expect(mockLog).toHaveBeenCalledWith(expect.stringContaining("Item 999 aberto na tela não existe no JSON ativo"), "error");
+    expect(state.trilhaExecucao.items["999"].status).toBe("pausado");
+    expect(state.trilhaExecucao.items["999"].events.map((evento) => evento.tipo)).toContain("item_sem_json");
+  });
+
+  it("não contabiliza item sem JSON como concluído mesmo quando o site informa pendentes", async () => {
+    state.itemMapAtivo = true;
+    state.itemMap = {
+      A: { ncm: "8471.30.12" },
+      B: { ncm: "8471.30.12" },
+      C: { ncm: "8471.30.12" },
+    };
+    mockObterResumoPendentesServidor.mockReturnValue({
+      primeiro: 1,
+      ultimo: 3,
+      total: 3,
+      texto: "Exibindo SIN 1 a 3 de um total de 3",
+    });
+    mockObterItemIdAtual.mockReturnValue("999");
+    mockSincronizarItemAtual.mockImplementation(() => {
+      state.itemAtualKey = "84548";
+      state.itemAtualTelaId = "999";
+      return "84548";
+    });
+
+    await mod.executarCiclo("test");
+
+    expect(state.pausado).toBe(true);
+    expect(state.progresso.atual).toBe(0);
+    expect(state.progresso.total).toBe(3);
+    expect(state.estimativa.restantes).toBe(3);
+    expect(mockInteragir).not.toHaveBeenCalled();
+  });
+
+  it("usa o resolvedor do ItemMapManager com o ID real da tela antes de pausar", async () => {
+    state.itemMapAtivo = true;
+    state.itemMap = {};
+    mockObterItemIdAtual.mockReturnValue("999");
+    mockSincronizarItemAtual.mockImplementation(() => {
+      state.itemAtualKey = "84548";
+      state.itemAtualTelaId = "999";
+      return "84548";
+    });
+    mockGetValoresParaItem.mockImplementation((_estado, itemId) => (
+      String(itemId).trim() === "999" ? { ncm: "8471.30.12" } : null
+    ));
+
+    await mod.executarCiclo("test");
+
+    expect(state.pausado).toBe(false);
+    expect(mockGetValoresParaItem).toHaveBeenCalledWith(state, "999");
+    expect(state.estatisticas.erros).toBe(0);
+  });
+
+  it("retoma da lista após pausa por item sem JSON sem reaproveitar o itemAtualTelaId antigo", async () => {
+    state.itemMapAtivo = true;
+    state.itemMap = {
+      "84560": { ncm: "8471.30.12" },
+    };
+    state.pausado = false;
+    state.itemAtualKey = "84548";
+    state.itemAtualTelaId = "300994";
+    state.itemMapUltimoAplicadoId = "300994";
+    state.estatisticas.ultimoErro = {
+      tipo: "item_sem_json",
+      mensagem: "Item 300994 aberto na tela não existe no JSON ativo.",
+      timestamp: new Date().toISOString(),
+    };
+
+    const linkLista = buildLink("84560");
+    mockEncontrarItensPendentesInfo.mockReturnValue({ elegiveis: [linkLista], ignorados: 0 });
+    mockExtrairItemKey.mockImplementation((link) => link?.dataset?.key || null);
+    mockSincronizarItemAtual.mockImplementation(() => state.itemAtualKey);
+    mockObterItemIdAtual.mockReturnValue(null);
+
+    await mod.executarCiclo("test");
+
+    expect(state.pausado).toBe(false);
+    expect(state.itemAtualTelaId).toBeNull();
+    expect(state.itemMapUltimoAplicadoId).toBeNull();
+    expect(state.itemAtualKey).toBe("84560");
+    expect(mockInteragir).toHaveBeenCalledWith(linkLista, null, "selecionarItemNormal");
+    expect(state.estatisticas.erros).toBe(0);
+  });
+
+  it("não limpa itemAtualTelaId antigo fora da tela de lista para preservar o contexto do detalhe", async () => {
+    state.itemMapAtivo = true;
+    state.itemMap = {
+      "300994": { ncm: "8526.10.00" },
+    };
+    state.itemAtualKey = "84550";
+    state.itemAtualTelaId = "300994";
+    state.itemMapUltimoAplicadoId = "300994";
+    mockSincronizarItemAtual.mockImplementation(() => state.itemAtualKey);
+    mockObterItemIdAtual.mockReturnValue(null);
+    mockEncontrarItensPendentesInfo.mockReturnValue({ elegiveis: [], ignorados: 0 });
+    document.body.innerHTML = '<div id="statusRobo"></div><div id="pagina-detalhe"></div>';
+
+    await mod.executarCiclo("test");
+
+    expect(state.itemAtualTelaId).toBe("300994");
+    expect(state.itemMapUltimoAplicadoId).toBe("300994");
+    expect(state.pausado).toBe(false);
+  });
+
+  it("libera prosseguir no fluxo inline somente quando readonly confirma o UNSPSC", async () => {
+    state.itemAtualKey = "320780";
+    state.itemAtualTelaId = "320780";
+    state.itemFlags["320780"] = { unspscFeito: false };
+    mockDetectarModoUnspsc.mockReturnValue("inline");
+    mockUnspscDescricaoDefinida.mockReturnValue(true);
+    const resultados = [];
+    mockProsseguir.mockImplementation(async (_estado, _status, ctx) => {
+      resultados.push(ctx.itemJaTemUnspsc(_estado));
+      return false;
+    });
+
+    await mod.executarCiclo("test");
+
+    expect(mockProsseguir).toHaveBeenCalled();
+    expect(resultados).toContain(true);
+  });
+
+  it("no modo JSON deduplica concluídos e usa fallback filtrado pelo JSON quando não há resumo do site", async () => {
+    state.itemMapAtivo = true;
+    state.itemMap = {
+      A: { ncm: "8471.30.12" },
+      C: { ncm: "8471.30.12" },
+    };
+    state.progresso.concluidosIds = ["A", "A", "B"];
+    mockObterResumoPendentesServidor.mockReturnValue(null);
+
+    await mod.executarCiclo("test");
+
+    expect(state.progresso.atual).toBe(1);
+    expect(state.progresso.total).toBe(2);
+  });
+});

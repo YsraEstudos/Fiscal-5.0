@@ -1,0 +1,809 @@
+
+
+
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head id="ctl00_ctl00"><title>
+	KM-AYOSHII 
+</title><meta id="ctl00_ctl02" http-equiv="X-UA-Compatible" content="IE=edge" /><meta id="ctl00_ctl03" name="SKYPE_TOOLBAR" content="SKYPE_TOOLBAR_PARSER_COMPATIBLE" /><script type="text/javascript" src="https://me.kis.v2.scr.kaspersky-labs.com/FD126C42-EBFA-4E12-B309-BB3FDD723AC1/main.js?attr=MKaZb6X8JIqzEaTgCSlbdAPAc_HRIbukvh7D-L_vETI6m4Wi_OxmG6MaqP5t08_y5Sgd52ty-1JKIis1X62lUBvHKrLBkE2_TjhugPtQ5EQZIW11vTjYAc293_rX2k8OPsrtu8UTFzP705MrO1DnfL5-kIKXVAmjAD1DHSnYboX0s_V3MlZShFjLB8zgzBV4" charset="UTF-8"></script><script src="/Scripts/jquery-1.10.2.js"></script>
+<script src="/Scripts/jquery-1.12.4.js"></script>
+<script src="/Scripts/jquery-3.6.0.js"></script>
+<script src="/Scripts/jquery-ui-1.13.1.js"></script>
+<script src="/Scripts/jquery-ui-1.14.1.js"></script>
+<script src="/Scripts/jquery.tooltipster.js"></script>
+
+
+        <script type="text/javascript" src="temp/0314131230.dropzone.js" defer ></script>
+        <script type="text/javascript" src="temp/0314131230.wheelzoom.js" defer ></script>
+
+        <script type="text/javascript" src="temp/0314131230.jquery.scrollto.js" defer ></script>
+        <script type="text/javascript" src="temp/0314131230.shortcut_v01.js" defer ></script>
+        <script type="text/javascript" src="temp/1118112138.km_main_v04.js" ></script>
+        <script type="text/javascript" src="temp/0627104655.categorias_v05.js" defer></script>
+        <script type="text/javascript" src="temp/1118112138.autocompletar_v05.js"defer ></script>
+        <script type="text/javascript" src="temp/0314131230.select2.min.js" defer></script>
+        
+        <script type="text/javascript" src="temp/1123234705.klassmatt-core.js" defer ></script>
+        <script type="text/javascript" src="temp/0314131230.tooltipster.bundle.min.js" defer ></script>        
+        <script type="text/javascript" src="temp/0314131230.jquery.scroll-follow.js" defer ></script>
+        <script type="text/javascript" src="temp/1118112138.Siscomex.js" defer></script>
+        
+        <link type="text/css" rel="stylesheet" href="temp/0622085733.TopMenu_v05.css" />
+        <link type="text/css" rel="stylesheet" href="temp/1118112138.Klassmatt_v05.css" />
+        <link type="text/css" rel="stylesheet" href="temp/0401152346.jquery-ui.css" />
+        <link type="text/css" rel="stylesheet" href="temp/0401152346.select2.min.css" />
+
+        <link   type="text/css" rel="stylesheet" href="temp/0622085733.midia_css.css" />
+        <link   type="text/css" rel="stylesheet" href="temp/0816225728.klassmatt-core.css" />
+    
+    
+
+    <title>Klassmatt</title>
+    <link href="temp/0622085733.SIN_Lista_v5.css" type="text/css"
+        rel="stylesheet" />
+    <script type="text/javascript" src="temp/0902105207.SIN_Lista_v06.js"></script>   
+    <script type="text/javascript">
+        $(document).ready(function () {
+            SIN_Lista_PageLoad();
+       
+
+            $(".txtDados").hide();
+
+            $(".rbOpcoes input").change(function () {                                           
+                if (($(this).val() == "xlsx/carga") || ($(this).val() == "xlsx/carga/dev")) {
+                    $(".txtDados").show();
+                    //$(".txtDados").css("top",  $(this).position().top+2);
+                } else {
+                    $(".txtDados").hide();
+                }    
+            })
+
+
+        });
+
+    </script>
+
+    <script type="text/javascript">
+        validaJanela();
+
+        var abaSelecionada = localStorage.getItem('abaSelecionada');
+        var tamanhoTela = localStorage.getItem('tamanhoTela');
+        var conteudoFechado = localStorage.getItem('conteudoFechado');
+        var corPagina = localStorage.getItem('corPagina');
+        var tracker = $.parseJSON(localStorage.getItem('tracker'));
+
+    </script>
+</head>
+
+<body id="ctl00_PageBody" ms_positioning="GridLayout">
+
+    <form name="aspnetForm" method="post" action="./SIN_Lista.aspx?atalho=1&amp;k=4484adavduu5zdohrvshhuhry3te_3&amp;rk=3cf49121a2d52621150" id="aspnetForm" enctype="multipart/form-data">
+<div>
+<input type="hidden" name="__EVENTTARGET" id="__EVENTTARGET" value="" />
+<input type="hidden" name="__EVENTARGUMENT" id="__EVENTARGUMENT" value="" />
+<input type="hidden" name="__VSK" id="__VSK" value="2cc743fb-e21c-449f-9be5-4417281bef2f" />
+<input type="hidden" name="__VIEWSTATE" id="__VIEWSTATE" value="" />
+</div>
+
+<script type="text/javascript">
+//<![CDATA[
+var theForm = document.forms['aspnetForm'];
+if (!theForm) {
+    theForm = document.aspnetForm;
+}
+function __doPostBack(eventTarget, eventArgument) {
+    if (!theForm.onsubmit || (theForm.onsubmit() != false)) {
+        theForm.__EVENTTARGET.value = eventTarget;
+        theForm.__EVENTARGUMENT.value = eventArgument;
+        theForm.submit();
+    }
+}
+//]]>
+</script>
+
+
+<script src="/WebResource.axd?d=64gVMV4giMrz1LO1sHZAf7Ufw7rVHELoxKDODBbEP3TsqwgJpAPvnKxf-CwB--d11o_N2_9U8SXqi96kF1BcNxeiSt2fn1bb80waOiVVig81&amp;t=638901428248157332" type="text/javascript"></script>
+
+<script type="text/javascript" src="/ajax/common.ashx"></script><script type="text/javascript" src="/ajax/klassmatt.SIN_Lista,klassmatt.ashx"></script><script type="text/javascript" src="/ajax/klassmatt.Klassmatt_Master,klassmatt.ashx"></script><script>AtalhoAlteracao=1;</script><script>AtalhoUsuario=0;</script><script>AtalhoPadrao=1;</script><script>VarProjeto='AYOSHII';</script><script>VarUsuario='ISRAEL.MACHADO';</script>
+<script type="text/javascript">
+//<![CDATA[
+var v_km_traducao_idioma = 'PT-BR';var v_km_traducao_data = 'dd/MM/yyyy';var v_km_caracteres_permitidos = '÷°±¹²³ªµ.{|}_:;<=>?@!""#$%&( )*+,-/\\ÇÁÃÂÉÊÍÓÕÔÚabcçáãâéêíóõôú{|}_:<=>( )*+-±./\\ÇÁÃÂÉÊÍÓÕÔÚabcçáãâéêíóõôú';//]]>
+</script>
+<script> VAR_PATH = '' </script>
+<script type="text/javascript">
+//<![CDATA[
+var v_km_caracteres_permitidos = '÷°±¹²³ªµ.{|}_:;<=>?@!""#$%&( )*+,-/\\ÇÁÃÂÉÊÍÓÕÔÚabcçáãâéêíóõôú{|}_:<=>( )*+-±./\\ÇÁÃÂÉÊÍÓÕÔÚabcçáãâéêíóõôú';//]]>
+</script>
+
+<script src="/ScriptResource.axd?d=Ce1eQJLnWohFO09F10B583WEy8awY0t4CtbmH9XfXXu4KtYskDyyn_yahJuCWdaIngN1hMcImA4b7CMxzGvYEZBGzMOiTBxEBEiIjwzqOkseXjl8YYEdpnF1hKyTtF7ZBd68N-uZ1_vybjJWzJSSyBI4qtjJpzb6XCttYooz5o41&amp;t=5c0e0825" type="text/javascript"></script>
+<script src="/ScriptResource.axd?d=O8JbXaWwNrAawKNOu1meaQxB01SwAlnIgv85hQds0O-fsk6G_8B6Vobf10UWtRdXsFAXSSaBnOMRZ_vQlJ-6_Vi0eD41pwCfs7sPC1d4ls9XNQ4E6zYAf0ni3TinPLcdcrnkMnA5YKoTCcykCak26MNPDttxQgUeNE-ne5gG0LR7hxIeVN33lU4HCnQV8jGo0&amp;t=5c0e0825" type="text/javascript"></script>
+<div>
+
+	<input type="hidden" name="__EVENTVALIDATION" id="__EVENTVALIDATION" value="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" />
+</div>
+    <script type="text/javascript">
+//<![CDATA[
+Sys.WebForms.PageRequestManager._initialize('ctl00$ScriptManager1', 'aspnetForm', ['tctl00$Body$TopMenu1$upPesquisa','upPesquisa'], [], [], 10800, 'ctl00');
+//]]>
+</script>
+
+    <div class="pg-2" id="pg-2">
+        <div class="load">
+            <div class="load-bar">
+                <div class="content-bar">
+                </div>
+            </div>
+            <div class="overlay w">
+            </div>
+        </div>
+
+        
+    
+<div class="ks-header">
+    <div class="ks-container">
+
+        <div class="ks-header__col config">
+            <div class="ks-top-menu">
+                <span class="ks-top-menu__icone icon-menu"></span>
+            </div>
+
+
+        </div>
+
+        <div class="ks-header__col logo">
+            <img id="image1" src="img/LogotipoKlassmatt-02.png" style="border-width:0px;" />
+        </div>
+
+        <div class="ks-header__col info">
+            <small>
+                Você está em</small>
+            <span class="icon-arrow-right2 info__icon" style="display: inline !important"></span>
+            <span id="lbllocalizacao" style="display: inline !important">Acompanhamento das Solicitações</span>
+
+        </div>
+
+        <div class="ks-header__col menu">
+            <div class="ks-header__info">
+                <span id="lblUsuario" style="background-color:DarkRed;font-size: 8px;">&nbsp;&nbsp;--ISRAEL DE SENA XAVIER MACHADO//AYOSHII/KLASSMATT_AYOSHII/KLASSSQL-04-NEW/JAN_3--&nbsp;&nbsp;</span>
+            </div>
+
+            <ul class="ks-menu">
+                
+                        <li> 
+                            <a id="lbutopcao" href="javascript:__doPostBack(&#39;ctl00$Body$TopMenu1$dlmenu$ctl00$lbutopcao&#39;,&#39;&#39;)">Principal</a>
+                        </li>
+                    
+                        <li> 
+                            <a id="lbutopcao" href="javascript:__doPostBack(&#39;ctl00$Body$TopMenu1$dlmenu$ctl01$lbutopcao&#39;,&#39;&#39;)">SLA</a>
+                        </li>
+                    
+                        <li> 
+                            <a id="lbutopcao" href="javascript:__doPostBack(&#39;ctl00$Body$TopMenu1$dlmenu$ctl02$lbutopcao&#39;,&#39;&#39;)">Alterar Etapa</a>
+                        </li>
+                    
+                        <li> 
+                            <a id="lbutopcao" href="javascript:__doPostBack(&#39;ctl00$Body$TopMenu1$dlmenu$ctl03$lbutopcao&#39;,&#39;&#39;)">Sair</a>
+                        </li>
+                    
+                        <li> 
+                            <a id="lbutopcao" href="javascript:__doPostBack(&#39;ctl00$Body$TopMenu1$dlmenu$ctl04$lbutopcao&#39;,&#39;&#39;)">ml</a>
+                        </li>
+                    
+                        <li> 
+                            <a onclick="javascript:{OpenWindowsWHR(&#39;Usuario_Edita.aspx?JanelaAuxiliar=1&amp;id=2174F673607C862957BF29331A9B284A&#39;, 1024, 700, &#39;True&#39;); return false};" id="lbutopcao" href="javascript:__doPostBack(&#39;ctl00$Body$TopMenu1$dlmenu$ctl05$lbutopcao&#39;,&#39;&#39;)">ad</a>
+                        </li>
+                    
+            </ul>
+        </div> 
+    </div> 
+    <div class="ks-menu__dropdown">
+        <div class="ks-container">
+            <div class="dt">
+                <div class="ks-menu__dropdown__col">
+                    <ul class="aba-pesquisa">
+                        <li>
+                            <div class="ks-search-box">
+                                <div id="upPesquisa">
+	
+                                        <input name="ctl00$Body$TopMenu1$IdItemPesquisa" type="text" maxlength="18" id="IdItemPesquisa" class="form-control" btn-send="btn-buscar" />
+                                        <button onclick="__doPostBack('ctl00$Body$TopMenu1$btnItem','')" id="btnItem" class="ks-search-box__icon btn-buscar"><i class="icon-search"></i></button>
+                                    
+</div>
+                            </div>
+                        </li>
+
+                        <li>
+                            <br />
+                            <h3>
+                                Histórico de acesso<span class="ml5 fs10">(Mais recente no topo)</span>
+                            </h3>
+
+                        </li>
+                    </ul>
+                </div>
+                <div class="ks-menu__dropdown__col">
+
+                    <h3>
+                        Outros</h3>
+                    
+
+                    
+
+                    <ul id="ddlPadroes">
+                        <hr class="kl-menu-bar" />
+                        <li><a href="javascript:{OpenNewTab('Padroes.aspx?ddlStatus=4')}" class="link-view"><span class="icon-arrow-right2"></span>
+                            Padrões Em Análise</a></li>
+                        <li><a href="javascript:{OpenNewTab('Padroes.aspx?ddlStatus=6')}" class="link-view"><span class="icon-arrow-right2"></span>
+                            Padrões Em Revisão</a></li>
+                    </ul>
+
+                    
+
+                   
+
+                </div>
+                <div class="ks-menu__dropdown__col">
+                    <h3>
+                        Atalhos</h3>
+                    
+
+                    <table id="tabAtalhos">
+
+
+                        <tr>
+                            <td>Shift +</td>
+                            <td>
+                                Comando</td>
+                        </tr>
+                        <tr>
+                            <td align="center">S</td>
+                            <td>
+                                Acompanhamento</td>
+                        </tr>
+                        <tr>
+                            <td align="center">P</td>
+                            <td>
+                                Padrões</td>
+                        </tr>
+                        <tr>
+                            <td align="center">I</td>
+                            <td>
+                                Itens</td>
+                        </tr>
+                        <tr>
+                            <td align="center">M</td>
+                            <td>
+                                Menu Principal</td>
+                        </tr>
+                        <tr>
+                            <td align="center">N</td>
+                            <td>
+                                Nova Aba</td>
+                        </tr>
+                        <tr>
+                            <td align="center">F</td>
+                            <td>
+                                Fabricantes</td>
+                        </tr>
+                        <tr>
+                            <td align="center">G</td>
+                            <td>
+                                Glossário</td>
+                        </tr>
+                        <tr>
+                            <td align="center">L</td>
+                            <td>
+                                Lotes</td>
+                        </tr>
+                        <tr>
+                            <td align="center">U</td>
+                            <td>
+                                Usuários</td>
+                        </tr>
+                        <tr>
+                            <td align="center">Z</td>
+                            <td>
+                                Vassoura (na listagem de solicitações)</td>
+                        </tr>
+                        <tr>
+                            <td align="center">D</td>
+                            <td>
+                                Dados Técnicos</td>
+                        </tr>
+                        <tr>
+                            <td align="center">V</td>
+                            <td>
+                                Nomes Válidos</td>
+                        </tr>
+
+                    </table>
+                </div>
+            </div>
+        </div>
+        <!-- <ul class="ks-menu__dropdown__tabs">
+      <li onclick="mostraAba('aba-pesquisa')">
+        Acesso Rápido
+      </li>
+      <li class="is-active" onclick="mostraAba('aba-config')">
+        Configurações
+      </li>
+      <li onclick="mostraAba('aba-outros')">
+        Outros
+      </li>
+      <li id="divAtalhos" onclick="mostraAba(&#39;aba-atalhos&#39;)">
+        Atalhos
+      </li>
+    </ul> -->
+    </div>
+    <div class="ks-overlay"></div>
+</div>
+
+<div id="div_back" style="opacity:0.25;left:0px;width:84px;z-index:507;height:40px;position:absolute;top:0px;visibility:hidden;background-color:black;filter:alpha(opacity=25);">
+</div>
+
+    <div class="kl-view ">
+        <div class="kl-msg">
+            <div class="d-table">
+                <div class="d pr">
+                    <span id="Label1">Exibir:</span>
+                </div>
+                <div class="d pr">
+                    <select name="ctl00$Body$ddlOpcao" id="ddlOpcao" class="ttn" onchange="pesquisar(1, &#39;&#39;)">
+	<option value="SOMENTE_REC_ACAO">Somente as Solicita&#231;&#245;es que requerem minha atua&#231;&#227;o</option>
+	<option value="2">Solicita&#231;&#245;es que requerem minha atua&#231;&#227;o e as minhas Solicita&#231;&#245;es pendentes</option>
+	<option value="" disabled="disabled">------------------------------------------------------------------------------------------------------------------------</option>
+	<option value="M|CATALOGACAO">Solicita&#231;&#245;es que aguardam CATALOGACAO e requerem minha atua&#231;&#227;o</option>
+	<option value="M|FINALIZACAO">Solicita&#231;&#245;es que aguardam FINALIZACAO e requerem minha atua&#231;&#227;o</option>
+	<option value="M|FISCAL-INTEGRA">Solicita&#231;&#245;es que aguardam FISCAL-INTEGRA e requerem minha atua&#231;&#227;o</option>
+	<option selected="selected" value="M|FISCAL-KLASSMATT">Solicita&#231;&#245;es que aguardam FISCAL-KLASSMATT e requerem minha atua&#231;&#227;o</option>
+	<option value="M|REAVALIACAO-CATALOG">Solicita&#231;&#245;es que aguardam REAVALIACAO-CATALOG e requerem minha atua&#231;&#227;o</option>
+	<option value="M|REAVALIACAO-REVISAO">Solicita&#231;&#245;es que aguardam REAVALIACAO-REVISAO e requerem minha atua&#231;&#227;o</option>
+	<option value="M|RETORNO-REVISAO">Solicita&#231;&#245;es que aguardam RETORNO-REVISAO e requerem minha atua&#231;&#227;o</option>
+	<option value="" disabled="disabled">------------------------------------------------------------------------------------------------------------------------</option>
+	<option value="T|APROVACAO-EXPIRADA">Solicita&#231;&#245;es que aguardam APROVACAO-EXPIRADA</option>
+	<option value="T|APROVACAO-FINAL">Solicita&#231;&#245;es que aguardam APROVACAO-FINAL</option>
+	<option value="T|APROVACAO-FINAL-SUP">Solicita&#231;&#245;es que aguardam APROVACAO-FINAL-SUP</option>
+	<option value="T|APROVACAO-INTEGRA">Solicita&#231;&#245;es que aguardam APROVACAO-INTEGRA</option>
+	<option value="T|APROVACAO-KLASSMATT">Solicita&#231;&#245;es que aguardam APROVACAO-KLASSMATT</option>
+	<option value="T|APROVACAO-REVISAO">Solicita&#231;&#245;es que aguardam APROVACAO-REVISAO</option>
+	<option value="T|CATALOGACAO">Solicita&#231;&#245;es que aguardam CATALOGACAO</option>
+	<option value="T|COMPLEMENTACAO">Solicita&#231;&#245;es que aguardam COMPLEMENTACAO</option>
+	<option value="T|ENVIO-ERP">Solicita&#231;&#245;es que aguardam ENVIO-ERP</option>
+	<option value="T|ERRO-INTEGRACAO">Solicita&#231;&#245;es que aguardam ERRO-INTEGRACAO</option>
+	<option value="T|FINALIZACAO">Solicita&#231;&#245;es que aguardam FINALIZACAO</option>
+	<option value="T|FISCAL-AYOSHII">Solicita&#231;&#245;es que aguardam FISCAL-AYOSHII</option>
+	<option value="T|FISCAL-INTEGRA">Solicita&#231;&#245;es que aguardam FISCAL-INTEGRA</option>
+	<option value="T|FISCAL-KLASSMATT">Solicita&#231;&#245;es que aguardam FISCAL-KLASSMATT</option>
+	<option value="T|LIBERACAO">Solicita&#231;&#245;es que aguardam LIBERACAO</option>
+	<option value="T|REAVALIACAO-APROV">Solicita&#231;&#245;es que aguardam REAVALIACAO-APROV</option>
+	<option value="T|REAVALIACAO-CATALOG">Solicita&#231;&#245;es que aguardam REAVALIACAO-CATALOG</option>
+	<option value="T|REAVALIACAO-FISCAL">Solicita&#231;&#245;es que aguardam REAVALIACAO-FISCAL</option>
+	<option value="T|REAVALIACAO-REVISAO">Solicita&#231;&#245;es que aguardam REAVALIACAO-REVISAO</option>
+	<option value="T|RETORNO-ERP">Solicita&#231;&#245;es que aguardam RETORNO-ERP</option>
+	<option value="T|RETORNO-REVISAO">Solicita&#231;&#245;es que aguardam RETORNO-REVISAO</option>
+	<option value="T|REVISAO">Solicita&#231;&#245;es que aguardam REVISAO</option>
+	<option value="T|REVISAO-EXPIRADA">Solicita&#231;&#245;es que aguardam REVISAO-EXPIRADA</option>
+	<option value="T|REVISAO-PROJETOS">Solicita&#231;&#245;es que aguardam REVISAO-PROJETOS</option>
+	<option value="" disabled="disabled">------------------------------------------------------------------------------------------------------------------------</option>
+	<option value="3">Todas as Solicita&#231;&#245;es Pendentes</option>
+	<option value="4">Todas as Solicita&#231;&#245;es Aprovadas</option>
+	<option value="5">Todas as Solicita&#231;&#245;es Canceladas</option>
+	<option value="6">Todas as Solicita&#231;&#245;es</option>
+
+</select>
+                </div>
+                <div class="d pr ttn">
+                    <select name="ctl00$Body$ddlNoPadrao" id="ddlNoPadrao" class="ttn" onchange="pesquisar(1, &#39;&#39;)">
+	<option selected="selected" value="T">No Padr&#227;o e Texto Livre</option>
+	<option value="P">Somente no Padr&#227;o</option>
+	<option value="L">Somente Texto Livre</option>
+
+</select>
+                </div>
+                <div class="d">
+                    <select name="ctl00$Body$ddlOrigem" id="ddlOrigem" class="ttn" onchange="pesquisar(1, &#39;&#39;)">
+	<option selected="selected" value="T">Todas</option>
+	<option value="A">SIN (Saneamento e Manual)</option>
+	<option value="I">SINs Saneamento</option>
+	<option value="M">SINs Manuais</option>
+	<option value="S">Somente SAI</option>
+	<option value="L">Somente SLA</option>
+	<option value="SIN">Somente SLA SIN</option>
+	<option value="SAI">Somente SLA SAI</option>
+
+</select>
+                </div>
+            </div>
+            <div class="d-table">
+                <div style="display: table-row">
+                    <div class="d pr">
+                        <span id="Label2">Filtrar por:</span>
+                    </div>
+                    <div class="d pr">
+                        <select name="ctl00$Body$ddlCampo" id="ddlCampo" class="ttn" onchange="ddlCampo_onchange(this.value,&#39;&#39;, this)">
+	<option selected="selected" value="SIN.Id">N&#250;mero</option>
+	<option value="SIN.DataHoraSol">Data Solicita&#231;&#227;o</option>
+	<option value="SIN.DataUtlAlteracao">Data Ult. Altera</option>
+	<option value="sin.Solicitante">Solicitante</option>
+	<option value="sin.Analista">Analista</option>
+	<option value="sin.nome">Nome V&#225;lido</option>
+	<option value="sin.NomeEtapaAtual">Nome Etapa</option>
+	<option value="sin.MacroEtapa">Macro Etapa</option>
+	<option value="sin.descricao">Descricao</option>
+	<option value="sin.Tipo">Tipo do Item</option>
+	<option value="sin.Codigo">C&#243;digo do Item da SIN</option>
+	<option value="item.Codigo">C&#243;digo Item Resultante</option>
+	<option value="SIN.IdLote">Lote</option>
+	<option value="SIN.IdLista">Lista</option>
+	<option value="SIN.IdEmpresaSol">Empresa Solic.</option>
+	<option value="empresas_utl">Empresas Util.</option>
+	<option value="sin.idpadrao">Padr&#227;o Descritivo</option>
+	<option value="sin.idItem">IdItem Resultante</option>
+	<option value="e.pais">Pa&#237;s</option>
+	<option value="sin.idWf">Fluxo</option>
+	<option value="sin.IdSolPrincipal">Solicita&#231;&#227;o Principal</option>
+	<option value="Lote_Atua.IdLote">Lote de Atua&#231;&#227;o</option>
+	<option value="Lote_Trabalho.IdLote">Lote de Trabalho</option>
+
+</select>
+                    </div>
+                    <div class="d pr">
+                        <select name="ctl00$Body$ddlOperador" id="ddlOperador" class="ttn" onchange="ddlOperador_onchange(this.value)">
+	<option selected="selected" value="Igual">Igual a</option>
+	<option value="Diferente">Diferente de</option>
+	<option value="Maior">Maior do que</option>
+	<option value="Menor">Menor do que</option>
+	<option value="Iniciado">Iniciado por</option>
+	<option value="Contem">Que cont&#233;m</option>
+	<option value="NaoContem">Que n&#227;o cont&#233;m</option>
+
+</select>
+                    </div>
+                    <div class="d pr">
+                        <textarea name="ctl00$Body$txtValor" rows="1" cols="20" id="txtValor" class="buscarValor" onpaste="txtValor_onpaste(this, event);" style="white-space:nowrap;display:inline;">
+274867, 274868, 274870, 274872, 274873, 274874, 274998, 275023, 275325, 275631, 275632, 275647, 275653, 275661, 275694, 275836, 276113, 276223, 276260, 276263, 276414, 276420, 276422, 276453, 276686, 277496, 277581</textarea>
+                        <select name="ctl00$Body$ddlcombo" id="ddlcombo" style="display:none;">
+	<option value="1">PRODUTO</option>
+	<option selected="selected" value="2">SERVICO</option>
+
+</select>
+                        <select name="ctl00$Body$ddlPais" id="ddlPais" onchange="pesquisar(1, &#39;&#39;)" style="display:none;">
+	<option selected="selected" value="">&lt; SELECIONE &gt;</option>
+	<option value="BR">BRASIL</option>
+
+</select>
+                    </div>
+                    <div class="d">
+                        <select name="ctl00$Body$ddlAnalista" id="ddlAnalista" onchange="pesquisar(1, &#39;&#39;)" style="display:none;">
+	<option selected="selected" value="">&lt; SELECIONE &gt;</option>
+	<option value="ANA.SOARES">ANA.SOARES</option>
+	<option value="BRENDA.SANTOS">BRENDA.SANTOS</option>
+	<option value="DESIREE.SILVA">DESIREE.SILVA</option>
+	<option value="ERIKA.QUINTANA">ERIKA.QUINTANA</option>
+	<option value="GABRIELA.POERSCHKE">GABRIELA.POERSCHKE</option>
+	<option value="GIANE.PARLATO">GIANE.PARLATO</option>
+	<option value="KATIA.RACCOLTO">KATIA.RACCOLTO</option>
+	<option value="KESSI.OLIVEIRA">KESSI.OLIVEIRA</option>
+	<option value="ROBERTA.ALVES">ROBERTA.ALVES</option>
+	<option value="VITOR.SILVA">VITOR.SILVA</option>
+
+</select>
+                        <select name="ctl00$Body$ddlSolicitante" id="ddlSolicitante" onchange="pesquisar(1, &#39;&#39;)" style="display:none;">
+	<option selected="selected" value="">&lt; SELECIONE &gt;</option>
+	<option value="ALINE.YUKI">ALINE.YUKI</option>
+	<option value="ANDRÉ.PONTREMOLEZ">ANDR&#201;.PONTREMOLEZ</option>
+	<option value="BRYAN.CUENCA">BRYAN.CUENCA</option>
+	<option value="ELIZABETE.TOME">ELIZABETE.TOME</option>
+	<option value="EVELISE.DUARTE">EVELISE.DUARTE</option>
+	<option value="FLAVIANE.FERREIRA">FLAVIANE.FERREIRA</option>
+	<option value="JOAO.SANTOS">JOAO.SANTOS</option>
+	<option value="LARISSA.BRUGNARO">LARISSA.BRUGNARO</option>
+	<option value="LARISSA.CHIAMPI">LARISSA.CHIAMPI</option>
+	<option value="LEONARDO.SCHNEIDER">LEONARDO.SCHNEIDER</option>
+	<option value="LORENA.PERES">LORENA.PERES</option>
+	<option value="LUCIA.WATANABE">LUCIA.WATANABE</option>
+	<option value="MARCOS.FERREIRA">MARCOS.FERREIRA</option>
+	<option value="MATHEUS.CODATO">MATHEUS.CODATO</option>
+	<option value="ROBERTA.CORAL">ROBERTA.CORAL</option>
+	<option value="THAFANI.OLIVEIRA">THAFANI.OLIVEIRA</option>
+	<option value="THAYNA.LUZ">THAYNA.LUZ</option>
+	<option value="VICTOR.VIEIRA">VICTOR.VIEIRA</option>
+
+</select>
+                        <select name="ctl00$Body$ddlMacroEtapa" id="ddlMacroEtapa" onchange="pesquisar(1, &#39;&#39;)" style="display:none;">
+	<option selected="selected" value="">&lt; SELECIONE &gt;</option>
+	<option value="AGUARDA-PARALELO">AGUARDA-PARALELO</option>
+	<option value="CATALOGACAO">CATALOGACAO</option>
+	<option value="FISCAL">FISCAL</option>
+	<option value="LIBERACAO">LIBERACAO</option>
+	<option value="REVISAO">REVISAO</option>
+	<option value="SOLICITACAO">SOLICITACAO</option>
+
+</select>                        
+                        <select name="ctl00$Body$ddlNomeEtapa" id="ddlNomeEtapa" onchange="pesquisar(1, &#39;&#39;)" style="display:none;">
+	<option selected="selected" value="">&lt; SELECIONE &gt;</option>
+	<option value="APROVACAO-EXPIRADA">APROVACAO-EXPIRADA</option>
+	<option value="APROVACAO-FINAL">APROVACAO-FINAL</option>
+	<option value="APROVACAO-FINAL-SUP">APROVACAO-FINAL-SUP</option>
+	<option value="APROVACAO-INTEGRA">APROVACAO-INTEGRA</option>
+	<option value="APROVACAO-KLASSMATT">APROVACAO-KLASSMATT</option>
+	<option value="APROVACAO-REVISAO">APROVACAO-REVISAO</option>
+	<option value="CATALOGACAO">CATALOGACAO</option>
+	<option value="COMPLEMENTACAO">COMPLEMENTACAO</option>
+	<option value="ENVIO-ERP">ENVIO-ERP</option>
+	<option value="ERRO-INTEGRACAO">ERRO-INTEGRACAO</option>
+	<option value="FINALIZACAO">FINALIZACAO</option>
+	<option value="FISCAL-AYOSHII">FISCAL-AYOSHII</option>
+	<option value="FISCAL-INTEGRA">FISCAL-INTEGRA</option>
+	<option value="FISCAL-KLASSMATT">FISCAL-KLASSMATT</option>
+	<option value="LIBERACAO">LIBERACAO</option>
+	<option value="REAVALIACAO-APROV">REAVALIACAO-APROV</option>
+	<option value="REAVALIACAO-CATALOG">REAVALIACAO-CATALOG</option>
+	<option value="REAVALIACAO-FISCAL">REAVALIACAO-FISCAL</option>
+	<option value="REAVALIACAO-REVISAO">REAVALIACAO-REVISAO</option>
+	<option value="RETORNO-ERP">RETORNO-ERP</option>
+	<option value="RETORNO-REVISAO">RETORNO-REVISAO</option>
+	<option value="REVISAO">REVISAO</option>
+	<option value="REVISAO-EXPIRADA">REVISAO-EXPIRADA</option>
+	<option value="REVISAO-PROJETOS">REVISAO-PROJETOS</option>
+	<option value="SOLICITACAO">SOLICITACAO</option>
+
+</select>
+                        <select name="ctl00$Body$ddlFluxo" id="ddlFluxo" onchange="pesquisar(1, &#39;&#39;)" style="display:none;">
+	<option selected="selected" value="">&lt; SELECIONE &gt;</option>
+	<option value="8">FLUXO PADRAO - ITEM NOVO SEM TRADUCAO</option>
+	<option value="10">FLUXO PADRAO - ALTERACAO DE ITEM SEM TRADUCAO</option>
+	<option value="9">FLUXO PADRAO - SANEAMENTO SEM TRADUCAO</option>
+
+</select>
+                    </div>
+                    
+                    <div class="d pr">
+                        <select name="ctl00$Body$ddlUniao" id="ddlUniao" class="ttn" onchange="ddlUniao_onchange(this.value)">
+	<option value="AND">E tamb&#233;m</option>
+	<option value="OR">Ou Ent&#227;o</option>
+	<option selected="selected" value="-">Mais...</option>
+
+</select>
+                    </div>
+                    
+                    <div class="d pr">
+                        <select name="ctl00$Body$ddlCampo0" id="ddlCampo0" class="ttn" onchange="ddlCampo_onchange(this.value,&#39;0&#39;, this)">
+	<option selected="selected" value="SIN.Id">N&#250;mero</option>
+	<option value="SIN.DataHoraSol">Data Solicita&#231;&#227;o</option>
+	<option value="SIN.DataUtlAlteracao">Data Ult. Altera</option>
+	<option value="sin.Solicitante">Solicitante</option>
+	<option value="sin.Analista">Analista</option>
+	<option value="sin.nome">Nome V&#225;lido</option>
+	<option value="sin.descricao">Descricao</option>
+	<option value="sin.Tipo">Tipo do Item</option>
+	<option value="sin.Codigo">C&#243;digo do Item da SIN</option>
+	<option value="item.Codigo">C&#243;digo Item Resultante</option>
+	<option value="SIN.IdLote">Lote</option>
+	<option value="SIN.IdLista">Lista</option>
+	<option value="SIN.IdEmpresaSol">Empresa Solic.</option>
+	<option value="empresas_utl">Empresas Util.</option>
+	<option value="sin.idpadrao">Padr&#227;o Descritivo</option>
+	<option value="sin.idItem">IdItem Resultante</option>
+	<option value="e.pais">Pa&#237;s</option>
+	<option value="sin.idWf">Fluxo</option>
+	<option value="sc.idcategoria">Categoria</option>
+	<option value="sin.IdSolPrincipal">Solicita&#231;&#227;o Principal</option>
+
+</select>
+                    </div>
+                    <div class="d pr">
+                        <select name="ctl00$Body$ddlOperador0" id="ddlOperador0" class="ttn" onchange="ddlOperador_onchange0(this.value)">
+	<option selected="selected" value="Igual">Igual a</option>
+	<option value="Diferente">Diferente de</option>
+	<option value="Maior">Maior do que</option>
+	<option value="Menor">Menor do que</option>
+	<option value="Iniciado">Iniciado por</option>
+	<option value="Contem">Que cont&#233;m</option>
+	<option value="NaoContem">Que n&#227;o cont&#233;m</option>
+
+</select>
+                    </div>
+                    <div class="d pr">
+                        <textarea name="ctl00$Body$txtValor0" rows="1" cols="20" id="txtValor0" class="buscarValor" onpaste="txtValor_onpaste(this, event);" style="white-space:nowrap;display:inline;">
+&lt; Op&#231;&#227;o Inativa &gt;</textarea>
+                        <select name="ctl00$Body$ddlcombo0" id="ddlcombo0" style="display:none;">
+	<option value="1">PRODUTO</option>
+	<option selected="selected" value="2">SERVICO</option>
+
+</select>
+                        <select name="ctl00$Body$ddlPais0" id="ddlPais0" onchange="pesquisar(1, &#39;&#39;)" style="display:none;">
+	<option selected="selected" value="">&lt; SELECIONE &gt;</option>
+	<option value="BR">BRASIL</option>
+
+</select>
+                    </div>
+                    <div class="d">
+                        <select name="ctl00$Body$ddlAnalista0" id="ddlAnalista0" onchange="pesquisar(1, &#39;&#39;)" style="display:none;">
+	<option selected="selected" value="">&lt; SELECIONE &gt;</option>
+	<option value="ANA.SOARES">ANA.SOARES</option>
+	<option value="BRENDA.SANTOS">BRENDA.SANTOS</option>
+	<option value="DESIREE.SILVA">DESIREE.SILVA</option>
+	<option value="ERIKA.QUINTANA">ERIKA.QUINTANA</option>
+	<option value="GABRIELA.POERSCHKE">GABRIELA.POERSCHKE</option>
+	<option value="GIANE.PARLATO">GIANE.PARLATO</option>
+	<option value="KATIA.RACCOLTO">KATIA.RACCOLTO</option>
+	<option value="KESSI.OLIVEIRA">KESSI.OLIVEIRA</option>
+	<option value="ROBERTA.ALVES">ROBERTA.ALVES</option>
+	<option value="VITOR.SILVA">VITOR.SILVA</option>
+
+</select>
+                        <select name="ctl00$Body$ddlSolicitante0" id="ddlSolicitante0" onchange="pesquisar(1, &#39;&#39;)" style="display:none;">
+	<option selected="selected" value="">&lt; SELECIONE &gt;</option>
+	<option value="ALINE.YUKI">ALINE.YUKI</option>
+	<option value="ANDRÉ.PONTREMOLEZ">ANDR&#201;.PONTREMOLEZ</option>
+	<option value="BRYAN.CUENCA">BRYAN.CUENCA</option>
+	<option value="ELIZABETE.TOME">ELIZABETE.TOME</option>
+	<option value="EVELISE.DUARTE">EVELISE.DUARTE</option>
+	<option value="FLAVIANE.FERREIRA">FLAVIANE.FERREIRA</option>
+	<option value="JOAO.SANTOS">JOAO.SANTOS</option>
+	<option value="LARISSA.BRUGNARO">LARISSA.BRUGNARO</option>
+	<option value="LARISSA.CHIAMPI">LARISSA.CHIAMPI</option>
+	<option value="LEONARDO.SCHNEIDER">LEONARDO.SCHNEIDER</option>
+	<option value="LORENA.PERES">LORENA.PERES</option>
+	<option value="LUCIA.WATANABE">LUCIA.WATANABE</option>
+	<option value="MARCOS.FERREIRA">MARCOS.FERREIRA</option>
+	<option value="MATHEUS.CODATO">MATHEUS.CODATO</option>
+	<option value="ROBERTA.CORAL">ROBERTA.CORAL</option>
+	<option value="THAFANI.OLIVEIRA">THAFANI.OLIVEIRA</option>
+	<option value="THAYNA.LUZ">THAYNA.LUZ</option>
+	<option value="VICTOR.VIEIRA">VICTOR.VIEIRA</option>
+
+</select>
+                        <select name="ctl00$Body$ddlFluxo0" id="ddlFluxo0" onchange="pesquisar(1, &#39;&#39;)" style="display:none;">
+	<option selected="selected" value="">&lt; SELECIONE &gt;</option>
+	<option value="8">FLUXO PADRAO - ITEM NOVO SEM TRADUCAO</option>
+	<option value="10">FLUXO PADRAO - ALTERACAO DE ITEM SEM TRADUCAO</option>
+	<option value="9">FLUXO PADRAO - SANEAMENTO SEM TRADUCAO</option>
+
+</select>
+                    </div>
+                </div>
+            </div>
+            <div class="d-table">
+                <div class="d">
+                    <div id="divTags" class="divTags pull-left">
+                        
+                                <span id="lblMarcadores">Marcadores:</span>
+                                <input type="button" id="btnOperMarcadores" value=" Ou " class="BotaoOperadorMarcadores" />
+                            
+                                <input name="ctl00$Body$DataListTags$ctl01$tagCollection" type="checkbox" id="tagCollection" style="display: none;" class="ckTag" value="!" />
+                                <span id="lblTags" class="labelMarcadores" style="background-color:Silver" onclick="SelecionarMarcadores(&quot;!&quot;, this, &quot;#EE7600&quot;);">
+                                    PRIORIDADE</span>
+                            
+                                <input name="ctl00$Body$DataListTags$ctl02$tagCollection" type="checkbox" id="tagCollection" style="display: none;" class="ckTag" value="N" />
+                                <span id="lblTags" class="labelMarcadores" style="background-color:Silver" onclick="SelecionarMarcadores(&quot;N&quot;, this, &quot;DarkGreen&quot;);">
+                                    NORMAL</span>
+                            
+                                <input name="ctl00$Body$DataListTags$ctl03$tagCollection" type="checkbox" id="tagCollection" style="display: none;" class="ckTag" value="U" />
+                                <span id="lblTags" class="labelMarcadores" style="background-color:Silver" onclick="SelecionarMarcadores(&quot;U&quot;, this, &quot;red&quot;);">
+                                    URGENTE</span>
+                            
+                    </div>
+                    <div class="pull-right">
+                        <input name="ctl00$Body$butFiltrar" type="button" id="butFiltrar" class="btn-upper" value="Filtrar" onclick="pesquisar(1, &#39;&#39;)" />
+                        <div style="width: 30px; display: inline; position: relative;">
+                            <img id="imgLimparFiltro" alt="Limpar filtro" src="imagens/clear.png" class="Atalho"
+                                data-key="Z" onclick="limparFiltro()" />
+                        </div>
+                        
+                        <input type="image" name="ctl00$Body$butFiltrarPelaPesquisa" id="butFiltrarPelaPesquisa" src="Imagens/copiar.png" style="border-width:0px;" />
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="kl-line" id="divBarra">
+        </div>
+        <div class="kl-box template kl-box-table kl-box-auto" style="min-height: 290px;">
+            <div id="DIVResultado">
+            </div>
+        </div>
+    </div>
+    <div class=" ">
+        <p>
+            &nbsp;</p>
+        <div id="divEmpresas" style="border: 1px solid #000; position: absolute;
+            width: 680px; height: 400px; z-index: 901; background: #fff; top: 93px; left: 46px;
+            z-index: 500; padding: 2px; display: none;">
+
+
+
+            <span id="lblHeader" class="Header">Selecione as empresas que deseja adicionar à pesquisa:</span>
+            <img src="imagens/FecharJanela.gif" id="imgFechar" alt="Close" style="position: absolute;
+                top: 4px; left: 658px;" onclick="fecharJanela()" />
+            <div id="divEmpresa" style="border-style: inset; border-width: 2px; overflow: auto;
+                z-index: 124; left: 6px; width: 665px; position: absolute; top: 26px; height: 331px;
+                overflow: scroll;">
+                <table id="ddlEmpresa" cellspacing="0" border="0" style="border-collapse:collapse;">
+	<tr>
+		<td>
+                        &nbsp;
+                        <span id="Span1" class="span1" style="white-space: nowrap">
+                            <label id="lblFIeld">
+                            <input name="ctl00$Body$ddlEmpresa$ctl00$ckField" type="checkbox" id="ckField" class="cid000001 cpai000000" />                            
+                                CLIENTE</label>
+                        </span>
+                    </td>
+	</tr><tr>
+		<td>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                        <span id="Span1" class="span1" style="white-space: nowrap">
+                            <label id="lblFIeld">
+                            <input name="ctl00$Body$ddlEmpresa$ctl01$ckField" type="checkbox" id="ckField" class="ckField cid001000 cpai000001" value="-" />                            
+                                - - CLIENTE / SANEAMENTO</label>
+                        </span>
+                    </td>
+	</tr>
+</table>
+            </div>
+
+
+            <input name="ctl00$Body$btnFiltrarEmpresas" type="button" id="btnFiltrarEmpresas" style="position: absolute; top: 368px;
+                left: 243px; width: auto;" value="Adicionar à pesquisa" onclick="this.click" />
+        </div>
+
+        <div id="divChecklist" style="overflow-y:auto; border: 1px solid #000; position: absolute;
+            width: 680px; height: 400px; z-index: 901; background: #fff; top: 93px; left: 46px;
+            z-index: 500; padding: 2px; display: none;">
+
+            
+
+
+        </div>
+        <div id="div_back" style="z-index: 499; filter: Alpha(opacity=25); left: 0px; width: 100%;
+            position: absolute; top: 0px; height: 100%; background-color: black; opacity: 0.25;
+            display: none;">        </div>
+        
+    </div>
+
+
+
+    </div>
+        
+    <div id="ctl00_footer_content" class="footer-fixed">
+        <div class="kl-container" style="padding: 15px 25px;">
+            
+    
+        <div class="kl-line" id="divLinks">
+            <div class="pull-left">
+            <input type="submit" name="ctl00$footer$butPesquisaItens" value="Pesquisar Itens" id="butPesquisaItens" class="btn-upper" />
+                
+            </div>
+            <a id="lbutExportar" class="pr" href="javascript:__doPostBack(&#39;ctl00$footer$lbutExportar&#39;,&#39;&#39;)" style="color:Blue;">Exportar(Lista)</a>
+
+            <a id="lbutExportarFicha" class="pr" href="javascript:__doPostBack(&#39;ctl00$footer$lbutExportarFicha&#39;,&#39;&#39;)" style="color:Blue;">Exportar Ficha</a>
+
+            
+
+            
+                         
+            
+                
+            
+                                
+            
+                                                                                 
+                                
+        </div>
+        
+        </div>
+    </div>
+
+
+    
+
+<script type="text/javascript">
+//<![CDATA[
+ddlUniao_onchange('-');pesquisar(1, '');$(document).ready(function(){ ddlOperador_onchange('Igual'); });SetarOperadorMarcador(' Ou '); klassmatt_master_page_load(0);//]]>
+</script>
+</form>
+
+
+
+</body>
+</html>

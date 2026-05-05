@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>E2E Em Atuacao</title>
+  </head>
+  <body data-scenario="em_atuacao">
+    <h1>Em Atuação</h1>
+    <button id="runScenario">Run</button>
+    <div id="status">idle</div>
+    <div>processados: <span id="processedCount">0</span></div>
+    <div>ignorados: <span id="ignoredCount">0</span></div>
+    <div id="items">
+      <div class="item emAtuacao" data-item-id="2001">Item 2001 (em atuação)</div>
+      <div class="item" data-item-id="2002">Item 2002 (elegível)</div>
+    </div>
+    <ul id="log"></ul>
+    <script src="/fixtures/harness-runtime.js"></script>
+  </body>
+</html>

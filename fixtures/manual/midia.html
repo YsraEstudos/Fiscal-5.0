@@ -1,0 +1,386 @@
+ 
+
+
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head id="ctl00_ctl00"><title>
+	KM-VAXXINOVA 
+</title><meta id="ctl00_ctl02" http-equiv="X-UA-Compatible" content="IE=edge" /><meta id="ctl00_ctl03" name="SKYPE_TOOLBAR" content="SKYPE_TOOLBAR_PARSER_COMPATIBLE" /><script type="text/javascript" src="https://me.kis.v2.scr.kaspersky-labs.com/FD126C42-EBFA-4E12-B309-BB3FDD723AC1/main.js?attr=PGWnSWIQVafOUqwSHVZ3RhKgLUfU2qlMIB6HtkRbFC8vXbpU96tGbUj2QwR2wrpc7V7fJSP3T2rx9toHMV_BSypCCsfRi1pVE3GYGJHL3N3vj-YV5ThcRRvY8hVzaqme_FRsNZwBW7Bux9HeAGIkRx2dT9XCEblNBcHLoGGED3vLW08D4nmVKoIL981-9Zx-i0WFvuUsYHhGG2tO96Kpc3OJzcNAUThh5VV8R9huI4Q00Hf1DLzmEjsGSmLsrkZdMR4XgHYmVFaqWFMNRXMYBg" charset="UTF-8"></script><script src="/Scripts/jquery-1.10.2.js"></script>
+<script src="/Scripts/jquery-1.12.4.js"></script>
+<script src="/Scripts/jquery-3.6.0.js"></script>
+<script src="/Scripts/jquery-ui-1.13.1.js"></script>
+<script src="/Scripts/jquery-ui-1.14.1.js"></script>
+<script src="/Scripts/jquery.tooltipster.js"></script>
+
+
+        <script type="text/javascript" src="temp/0314131230.dropzone.js" defer ></script>
+        <script type="text/javascript" src="temp/0314131230.wheelzoom.js" defer ></script>
+
+        <script type="text/javascript" src="temp/0314131230.jquery.scrollto.js" defer ></script>
+        <script type="text/javascript" src="temp/0314131230.shortcut_v01.js" defer ></script>
+        <script type="text/javascript" src="temp/0127135910.km_main_v04.js" ></script>
+        <script type="text/javascript" src="temp/0127135910.categorias_v05.js" defer></script>
+        <script type="text/javascript" src="temp/0127135910.autocompletar_v05.js"defer ></script>
+        <script type="text/javascript" src="temp/0314131230.select2.min.js" defer></script>
+        
+        <script type="text/javascript" src="temp/1123234705.klassmatt-core.js" defer ></script>
+        <script type="text/javascript" src="temp/0314131230.tooltipster.bundle.min.js" defer ></script>        
+        <script type="text/javascript" src="temp/0314131230.jquery.scroll-follow.js" defer ></script>
+        <script type="text/javascript" src="temp/0127135910.Siscomex.js" defer></script>
+        
+        <link type="text/css" rel="stylesheet" href="temp/0622085733.TopMenu_v05.css" />
+        <link type="text/css" rel="stylesheet" href="temp/1201095729.Klassmatt_v05.css" />
+        <link type="text/css" rel="stylesheet" href="temp/0319164949.jquery-ui.css" />
+        <link type="text/css" rel="stylesheet" href="temp/0319164949.select2.min.css" />
+
+        <link   type="text/css" rel="stylesheet" href="temp/0622085733.midia_css.css" />
+        <link   type="text/css" rel="stylesheet" href="temp/0817140630.klassmatt-core.css" />
+    
+    
+
+    
+
+    
+
+        <title>Klassmatt</title>
+        <style>
+            body {
+                background: #fff !important;
+            }
+
+            .pg {
+                height: 500px !important;
+                min-height: 500px !important;
+            }
+        </style>
+
+        
+        <script src="temp/0314131230.jquery.fancybox-1.3.4.js" type="text/javascript"></script>
+        <script src="temp/0314131230.jquery.mousewheel-3.0.4.js" type="text/javascript"></script>
+        <script src="temp/0314131230.jquery.easing.1.3.js" type="text/javascript"></script>
+        <script src="temp/0314131230.jquery.elevatezoom.js" type="text/javascript"></script>
+        <link href="temp/0622085733.jquery.fancybox-1.3.4.css" type="text/css" rel="stylesheet" />
+        <link href="temp/0622085733.jquery.bxslider.css" rel="stylesheet" type="text/css" />
+        <script type="text/javascript">
+
+            function abre(q, t) {
+                var src = q.href;
+                //            $(".wme-galeria-g a img").attr("src", src);
+                //            $(".wme-galeria-g a img").attr("data-zoom-image", src);
+
+                //$("#imgMidia").attr("href", src);
+                $(".wme-galeria-g a img").attr("src", src);
+                $('#gallery_01 a').removeClass('active').eq(2 - 1).addClass('active');
+                $("#imgMidia").attr("src", src);
+                //    
+
+                $("#imgMidia").elevateZoom({
+                    /*constrainType: "height", constrainSize: 500,*/
+                    zoomType: "lens",
+                    containLensZoom: true, gallery: 'gallery_01',
+                    cursor: 'pointer', galleryActiveClass: "active", scrollZoom: true,
+                    zoomWindowWidth: 500, zoomWindowHeight: 500
+                });
+                var ez = $('#imgMidia').data('elevateZoom');
+                ez.refresh();
+
+                $("#dadosImgPdf").show();
+                $(document).ready(function () {
+                    $('#idInfos').text(function () {
+                        return t
+                    });
+                });
+            }
+
+            function abrePDF(p, t) {
+                $("#ltEmbed").attr("src", p.href);
+                $("#dadosImgPdf").show(); $(document).ready(function () {
+                    $('#idInfos').text(function () {
+                        t.replace(/.*<B>Usuário:<\/B>\s*(.*)$/, '$1');
+                        t.replace(/.*<B>Adicionada em:<\/B>\s*(\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}).*/, '$1');
+                        return t
+                    });
+                });
+            }
+
+            $().ready(function () {
+
+
+                //            $("html").pasteImageReader(function (results) {
+                //                $("#imgUpload").prop("src", results.dataURL);
+                //                $("#imgUpload").show();
+                //                $("#hdnBase64Image").val(results.dataURL);
+                //            });
+
+                //            $('.carrousel').bxSlider({
+                //                slideWidth: 105,
+                //                minSlides: 0,
+                //                maxSlides: 10,
+                //                slideMargin: 10
+                //            });
+
+                $("a[rel=galeria]").fancybox({
+                    "overlayShow": true,
+                    "transitionIn": "elastic",
+                    "transitionOut": "elastic",
+                    "easingIn": "easeOutBack",
+                    "easingOut": "easeInBack",
+                    "titlePosition": "inside",
+                    "titleFormat": function (title, currentArray, currentIndex, currentOpts) {
+                        return "<span id='fancybox-title-inside' >" + title + "</span>";
+                    }
+                });
+            });
+
+        </script>
+        <style>
+            .pdf-text {
+                text-align: center;
+                align-items:center;
+                margin:0;
+                padding:0;
+            }
+
+            .wme-galeria {
+                width: 98%;
+                display: block;
+                overflow: hidden;
+                padding: 0 0 8px 0;
+            }
+
+            .wme-galeria-g {
+                width: 98%;
+                height: 300px;
+                background: #333;
+                float: left;
+                padding: 5px;
+                border: 1px solid #ccc;
+                background: #f1f1f1;
+                text-align: center;
+            }
+
+            .wme-galeria-g img {
+                max-width: 670px;
+                max-height: 300px;
+                width: auto;
+                height: auto;
+            }
+
+            .wme-galeria-lista {
+                float: left;
+                clear: both;
+                padding-left: 3px;
+                width: 100%;
+                overflow-x: auto;
+            }
+
+            .wme-galeria-lista li {
+                padding: 3px;
+                border: 1px solid #ddd;
+                list-style: none;
+                background: #f1f1f1;
+                float: left;
+                margin: 8px 5px 0 0;
+                text-align: center;
+            }
+
+            .wme-galeria-lista img {
+                max-width: 103px !important;
+                height: 70px;
+            }
+
+            .wme-galeria-lista li:hover {
+                background: #ddd;
+            }
+
+            .carrousel {
+                display:flex;
+                flex-direction:row;
+                height: 160px;
+                overflow: auto;
+                padding: 5px 0;
+            }
+            
+            .carrousel .slide {
+                width: 50px;
+            }
+
+            .carrousel .slide a {
+                margin: 0 5px;
+            }
+
+            .big-link {
+                max-width: 330px;
+                overflow: hidden;
+                display: block;
+            }
+        </style>
+
+    
+
+
+    <script type="text/javascript">
+        validaJanela();
+
+        var abaSelecionada = localStorage.getItem('abaSelecionada');
+        var tamanhoTela = localStorage.getItem('tamanhoTela');
+        var conteudoFechado = localStorage.getItem('conteudoFechado');
+        var corPagina = localStorage.getItem('corPagina');
+        var tracker = $.parseJSON(localStorage.getItem('tracker'));
+
+    </script>
+</head>
+
+<body id="ctl00_PageBody" ms_positioning="GridLayout">
+
+    <form name="aspnetForm" method="post" action="./Midia.aspx?tipo=Itens&amp;id=251133&amp;Alterar=1&amp;Session=Itens&amp;k=3799pyqsgx2dn0ami0l4ut5lnquf_1&amp;kpai=3799pyqsgx2dn0ami0l4ut5lnquf_1&amp;rk=3b3928443f2746422d25" id="aspnetForm" enctype="multipart/form-data">
+<div>
+<input type="hidden" name="__EVENTTARGET" id="__EVENTTARGET" value="" />
+<input type="hidden" name="__EVENTARGUMENT" id="__EVENTARGUMENT" value="" />
+<input type="hidden" name="__VSK" id="__VSK" value="e42c1cd1-e504-40fc-84bc-ec58d8b5d413" />
+<input type="hidden" name="__VIEWSTATE" id="__VIEWSTATE" value="" />
+</div>
+
+<script type="text/javascript">
+//<![CDATA[
+var theForm = document.forms['aspnetForm'];
+if (!theForm) {
+    theForm = document.aspnetForm;
+}
+function __doPostBack(eventTarget, eventArgument) {
+    if (!theForm.onsubmit || (theForm.onsubmit() != false)) {
+        theForm.__EVENTTARGET.value = eventTarget;
+        theForm.__EVENTARGUMENT.value = eventArgument;
+        theForm.submit();
+    }
+}
+//]]>
+</script>
+
+
+<script src="/WebResource.axd?d=R5kvyJEdOyVctizGp4r-4xN68ZNl2P0goB4ysdXhn48flF87Z63LDU8AG1MS5kN6wlo14XiE2CZK4ISrK2KL76kePBfPdjBB-31JscDhklg1&amp;t=638901428248157332" type="text/javascript"></script>
+
+<script type="text/javascript" src="/ajax/common.ashx"></script><script type="text/javascript" src="/ajax/klassmatt.Klassmatt_Master,klassmatt.ashx"></script><script>AtalhoAlteracao=1;</script><script>AtalhoUsuario=1;</script><script>AtalhoPadrao=1;</script><script>VarProjeto='VAXXINOVA';</script><script>VarUsuario='ISRAEL.MACHADO';</script>
+<script type="text/javascript">
+//<![CDATA[
+var v_km_traducao_idioma = 'PT-BR';var v_km_traducao_data = 'dd/MM/yyyy';var v_km_caracteres_permitidos = '÷°±¹²³ªµ.{|}_:;<=>?@!""#$%&( )*+,-/\\ÇÁÃÂÉÊÍÓÕÔÚabcçáãâéêíóõôú{|}_:<=>( )*+-±./\\ÇÁÃÂÉÊÍÓÕÔÚabcçáãâéêíóõôú';//]]>
+</script>
+<script> VAR_PATH = '' </script>
+<script src="/ScriptResource.axd?d=hr9Cj0wqWhKb3xfaXjU3o7bkhpAv72_2ckGTM4rAviTTIGcKhALzZl2exb3mBYWJ2T1pplYHiOkxCw4ZHBtWkJgGAHkGGOvKCUJm9fVdVhAMF3mZ0Ut0dwhJLVvTyBNKOSkSAPvcNrCI0pPPvjwfD5DnLmQ1QhlHivG1NkchlQ01&amp;t=5c0e0825" type="text/javascript"></script>
+<script src="/ScriptResource.axd?d=Tsf9ZYJ3T7Y0V9cHMxpPT7JurfsCKTwttm9AnedcK9niYqTwizv0OWMkj_vJu3sg1PCWp3fyZsDFJ65h3obaezo_b_O4dpvMO7iIL3WBKmpSMVe3DG3ctM_Ys4D_YIMxKoaE6DsGCacJjc3_T2dPjwc0uEmm3_FdrpudGg1zbwSNCW7dMM3vat5Ist37I2EA0&amp;t=5c0e0825" type="text/javascript"></script>
+<div>
+
+	<input type="hidden" name="__VIEWSTATEENCRYPTED" id="__VIEWSTATEENCRYPTED" value="" />
+	<input type="hidden" name="__EVENTVALIDATION" id="__EVENTVALIDATION" value="4fLpJhVdf0V8gn78p7lV7mWDqNxO2+1KJCeO03DOF0D1fRP0QY14Jud8ENAzozwtwmFuWucmrM4r2eFByLqNgfY3+Z+W2vLW+JcESlRT8HRatlNDhX25S0XhKPFcVrZOBRqJQ0GuraXYU2cYZ2b0dZj62HhtOCIEpNbRQkohAyE3x+1oY6KN6n2ZQQFQ8jsztlRfCZAElKGrizCZofW3XuCF3BS4nnyjToqFT4DcH+78MCwkoVw96QoJzaBWxxJ8" />
+</div>
+    <script type="text/javascript">
+//<![CDATA[
+Sys.WebForms.PageRequestManager._initialize('ctl00$ScriptManager1', 'aspnetForm', [], [], [], 10800, 'ctl00');
+//]]>
+</script>
+
+    <div class="pg-2" id="pg-2">
+        <div class="load">
+            <div class="load-bar">
+                <div class="content-bar">
+                </div>
+            </div>
+            <div class="overlay w">
+            </div>
+        </div>
+
+        
+
+    
+
+    
+        <div class="kl-view SemLoad">
+            <div class="row">
+                <div class="col-2">
+                    <div class="kl-box template" style="min-height: 675px;">
+                        <table id="dlMidias" cellspacing="2" cellpadding="2" border="0" style="width:100%;">
+	<tr>
+		<td align="center">
+                                <input type="image" name="ctl00$Body$dlMidias$ctl00$Image12" id="Image12" class="pull-left" src="imagens/foto.gif" style="border-width:0px;" /><br>
+                                <a id="Label1" href="javascript:__doPostBack(&#39;ctl00$Body$dlMidias$ctl00$Label1&#39;,&#39;&#39;)"><B>Fotos</B> (1)</a>
+                            </td>
+	</tr><tr>
+		<td align="center">
+                                <input type="image" name="ctl00$Body$dlMidias$ctl01$Midias_butAdicionar1" id="Midias_butAdicionar1" class="pull-left" src="imagens/novamidia.gif" style="border-width:0px;" />
+                                <br>
+                                <a id="Midias_butAdicionar2" href="javascript:__doPostBack(&#39;ctl00$Body$dlMidias$ctl01$Midias_butAdicionar2&#39;,&#39;&#39;)" style="font-weight:bold;">Adicionar Mídia</a>
+                            </td>
+	</tr>
+</table>
+                    </div>
+                </div>
+                <div class="col-8">
+                    <div class="kl-box template m-left " style="min-height: 630px;">
+                        
+                                
+                                    <div class="wme-galeria">
+                                        <div id="divFotos" class="wme-galeria-g abreFoto" style="min-height: 500px;">
+                                            
+                                            <a href="#" title=" - "><img alt="" id="imgMidia" src="" data-zoom-image=""></a>
+                                            &nbsp;
+                                        </div><fieldset id="dadosImgPdf" style="width:1055px; display:none; text-align:center;">
+                                                <span id="idInfos"></span>
+                                            </fieldset>
+                                        <div class="wme-galeria-lista ">
+                                            <div class="carrousel d-table">
+                                
+                            
+                                
+                                <div>
+                                    
+                                        <div class="slide d">
+                                            <a href="Banco_Imagens/73892607BDD1F9F53B2DF0CE2EED1ABF3170952E.jpeg" rel="galeria"
+                                                title="Tipo do Arquivo: JPEG - Tamanho: 141 KB - Resolução: 865x531 pixels - Adicionada em: 11/02/2026 14:36 - Usuário: LUCILENE.GOMES" onmouseover='abre(this, "Tipo do Arquivo: JPEG - Tamanho: 141 KB - Resolução: 865x531 pixels - Adicionada em: 11/02/2026 14:36 - Usuário: LUCILENE.GOMES")'
+                                                data-image='Banco_Imagens/73892607BDD1F9F53B2DF0CE2EED1ABF3170952E.jpeg'
+                                                data-zoom-image='Banco_Imagens/73892607BDD1F9F53B2DF0CE2EED1ABF3170952E.jpeg'
+                                                download='73892607BDD1F9F53B2DF0CE2EED1ABF3170952E.jpeg'>
+                                                <img id="imgMidia" src="Banco_Imagens/73892607BDD1F9F53B2DF0CE2EED1ABF3170952E.jpeg" style="border-width:0px;" />
+                                            </a>
+                                        <input type="image" name="ctl00$Body$rptMedias$ctl01$ImageButton2" id="ImageButton2" class="SemLoad" src="imagens/Exclui.gif" onclick="return confirm(&#39;Tem certeza que deseja excluir esta mídia?&#39;);" style="border-width:0px;" />
+                                        </div>
+                                    
+                                    
+                                </div>
+                            
+                                </div> </div> </div> 
+                            
+                        <!--
+                    style="width: 420px; position: relative; height: 211px" 
+                    onTipoMidia_Change(document.getElementById('ddlTipo'))-->
+                        
+                    </div>
+                    <div class="kl-line">
+                    </div>
+                </div>
+            <hr class="bar" />
+            <div class="line">
+                <input type="submit" name="ctl00$Body$cmdFechar" value="Fechar" onclick="window.close();updateParentOnClose();" id="cmdFechar" />
+            </div>
+        </div>
+        </div>
+    
+
+
+
+    </div>
+        
+    
+
+
+    
+
+<script type="text/javascript">
+//<![CDATA[
+ klassmatt_master_page_load(0);//]]>
+</script>
+</form>
+
+
+
+</body>
+</html>

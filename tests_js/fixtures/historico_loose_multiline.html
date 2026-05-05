@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="utf-8" />
+    <title>Historico Loose Multiline</title>
+</head>
+
+<body>
+    <!--
+    Fixture para testar que o parseHistoricoLoose NÃO divide descrições
+    multi-linha (como SOLICITACAO ALTERADA com muitos [DT]) em eventos falsos.
+
+    Estrutura: layout sem classes hist-* (Rodonaves plain fieldset).
+    Esperado: 3 eventos reais (não dezenas de linhas [DT] como eventos separados).
+  -->
+    <fieldset>
+        <legend>quarta-feira, 11 de fevereiro de 2026</legend>
+        <a id="hlinkUsuario"
+            href="javascript:OpenWindowsWHR('USUARIO_show.aspx?id=1', 600, 400, 1)">ANA.BRESSAN*</a><br>
+        14:29:06 - SOLICITACAO ALTERADA[DT] ACESSORIO de [] para [N/A][DT] ACIONAMENTO de [] para [N/A][DT] ALIMENTACAO
+        de [] para [N/A][DT] ALTURA de [] para [N/A][DT] CAPACIDADE de [] para [N/A][DT] COMPRIMENTO de [] para
+        [N/A][DT] CONEXAO de [] para [N/A][DT] DIAMETRO de [] para [1,4MM][DT] MATERIAL CORPO de [] para [ACO]<br>
+        14:29:16 - Solicitação enviada para FINALIZAÇÃO<br>
+        14:29:21 - Solicitação enviada para APROVACAO-KLASSMATT<br>
+    </fieldset>
+
+    <fieldset>
+        <legend>sexta-feira, 24 de outubro de 2025</legend>
+        <a id="hlinkUsuario" href="javascript:OpenWindowsWHR('USUARIO_show.aspx?id=2', 600, 400, 1)">*admin*</a><br>
+        10:40:45 - SAI CRIADA PARA SANEAMENTO EM 24/10/2025<br>
+    </fieldset>
+</body>
+
+</html>

@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>KM Fiscal Reports - Dashboard</title>
+<style>
+*{box-sizing:border-box}
+:root{
+  --bg:#efe9dc;
+  --panel:#f8f5ef;
+  --panel2:#f0ebe1;
+  --line:#d6cdbd;
+  --text:#2c2a26;
+  --muted:#6f695f;
+  --accent:#0f5959;
+  --accent2:#c5532d;
+  --ok:#1f8a46;
+  --warn:#9d6800;
+  --error:#af2c2c;
+}
+html,body{height:100%;margin:0;padding:0}
+body{
+  font-family:"Palatino Linotype","Book Antiqua",Georgia,serif;
+  background:
+    radial-gradient(circle at 15% 0%, #f5efe3, transparent 45%),
+    radial-gradient(circle at 100% 100%, #e7e0d3, transparent 45%),
+    var(--bg);
+  color:var(--text);
+  display:flex;
+  flex-direction:column;
+}
+header{
+  background:linear-gradient(90deg,#183f3f,#0f2d2d);
+  color:#f9f3e6;
+  border-bottom:3px solid #cfbc94;
+  padding:12px 16px;
+  display:flex;
+  align-items:center;
+  gap:12px;
+}
+header h1{margin:0;font-size:18px;letter-spacing:.3px}
+.badge{font-size:11px;background:var(--accent2);color:#fff;border-radius:999px;padding:3px 10px;font-weight:700}
+.health{font-size:12px;color:#f3e9d1}
+.header-actions{margin-left:auto;display:flex;gap:8px}
+button{
+  border:1px solid var(--line);
+  border-radius:8px;
+  background:#fff;
+  color:var(--text);
+  padding:6px 10px;
+  font-size:12px;
+  cursor:pointer;
+}
+button:hover{border-color:var(--accent);color:var(--accent)}
+button:disabled{opacity:.45;cursor:not-allowed}
+button.danger{border-color:#e4b5a7;background:#fff5f2;color:#a43a3a}
+.flash{display:none;padding:9px 12px;border-bottom:1px solid var(--line);font-size:12px}
+.flash.show{display:block}
+.flash.ok{background:#ebf7ef;color:var(--ok)}
+.flash.warn{background:#fff6e6;color:var(--warn)}
+.flash.err{background:#faecec;color:var(--error)}
+.layout{
+  flex:1;
+  min-height:0;
+  display:grid;
+  grid-template-columns:minmax(270px,330px) minmax(290px,420px) minmax(480px,1fr);
+}
+.panel{display:flex;flex-direction:column;min-height:0;border-right:1px solid var(--line);background:var(--panel)}
+.panel:last-child{border-right:none}
+.panel-head{padding:12px 14px;background:var(--panel2);border-bottom:1px solid var(--line)}
+.panel-head h2{margin:0;font-size:14px}
+.muted{color:var(--muted);font-size:11px}
+.panel-body{padding:12px;overflow:auto}
+.tools{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.session-card{
+  border:1px solid var(--line);
+  border-radius:10px;
+  background:#fff;
+  padding:10px;
+  margin-bottom:8px;
+  cursor:pointer;
+}
+.session-card.active{border-color:var(--accent);box-shadow:0 0 0 2px rgba(15,89,89,.12)}
+.session-top{display:flex;align-items:center;gap:8px}
+.status-chip{margin-left:auto;border-radius:999px;padding:2px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.3px}
+.status-chip.processing{background:#e0efef;color:var(--accent)}
+.status-chip.finished{background:#e9f6ed;color:var(--ok)}
+.status-chip.idle{background:#f0ede7;color:#746c60}
+.session-id{font-family:"Consolas","Cascadia Code",monospace;font-size:11px;color:#4d473e;word-break:break-all;margin-top:4px}
+.session-grid{margin-top:8px;display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:11px}
+.session-grid b{display:block;font-size:10px;text-transform:uppercase;color:#403b34}
+.item-row{border:1px solid var(--line);border-radius:10px;background:#fff;padding:10px;margin-bottom:8px;cursor:pointer}
+.item-row.active{border-color:var(--accent);box-shadow:0 0 0 2px rgba(15,89,89,.12)}
+.item-top{display:flex;align-items:center;gap:8px}
+.item-id{font-family:"Consolas","Cascadia Code",monospace;font-size:13px;font-weight:700}
+.item-md{font-size:10px;padding:2px 7px;border-radius:999px;background:#e8f3ea;color:var(--ok)}
+.item-md.no{background:#f0ece4;color:#7d7465}
+.item-files{margin-top:8px;display:flex;gap:4px;flex-wrap:wrap}
+.file-chip{font-size:10px;border-radius:999px;padding:2px 6px}
+.file-chip.done{background:#e7f3eb;color:var(--ok)}
+.file-chip.running{background:#e4eef8;color:#1f5ea2}
+.file-chip.error{background:#fbeaea;color:var(--error)}
+.file-chip.pending{background:#f1eee8;color:#7a7267}
+.preview-tools{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.preview-meta{margin-top:6px;font-size:11px;color:var(--muted)}
+.preview-layout{display:grid;grid-template-columns:minmax(210px,250px) 1fr;gap:10px;height:100%}
+.toc{border:1px solid var(--line);border-radius:10px;background:#fff;padding:10px;overflow:auto}
+.toc h3{margin:0 0 8px 0;font-size:12px}
+.toc a{display:block;text-decoration:none;font-size:11px;padding:3px 5px;border-radius:6px;color:#4b463d}
+.toc a:hover,.toc a.active{background:#e8efed;color:var(--accent)}
+.toc a.l2{padding-left:14px}
+.toc a.l3{padding-left:22px}
+.toc a.l4,.toc a.l5,.toc a.l6{padding-left:30px}
+.md-pane{border:1px solid var(--line);border-radius:10px;background:#fff;overflow:auto;padding:16px;line-height:1.6}
+.md-pane h1,.md-pane h2,.md-pane h3,.md-pane h4{font-family:"Book Antiqua","Palatino Linotype",Georgia,serif;color:#211f1b}
+.md-pane h1{font-size:24px;border-bottom:2px solid #ece4d4;padding-bottom:6px}
+.md-pane h2{font-size:20px;margin-top:22px}
+.md-pane h3{font-size:16px;margin-top:18px}
+.md-pane code{font-family:"Consolas","Cascadia Code",monospace;background:#f4f1ea;padding:1px 4px;border-radius:4px}
+.md-pane pre{background:#f5f1e8;border:1px solid #e4dbc8;border-radius:8px;padding:10px;overflow:auto}
+.md-pane table{width:100%;border-collapse:collapse;margin:10px 0}
+.md-pane th,.md-pane td{border:1px solid #ddd1b9;padding:6px;text-align:left}
+.md-pane blockquote{border-left:3px solid #ccb489;background:#faf7f0;padding:6px 10px;margin:8px 0}
+.empty{text-align:center;color:var(--muted);padding:24px}
+@media (max-width: 1080px){
+  .layout{grid-template-columns:1fr}
+  .panel{border-right:none;border-bottom:1px solid var(--line)}
+  .preview-layout{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>KM Fiscal Reports</h1>
+  <span class="badge" id="version">v-</span>
+  <span class="health" id="health">Conectando...</span>
+  <div class="header-actions">
+    <button id="btnRefreshAll">Atualizar Tudo</button>
+  </div>
+</header>
+<div class="flash" id="flash"></div>
+<div class="layout">
+  <section class="panel">
+    <div class="panel-head">
+      <h2>Sessões</h2>
+      <div class="muted" id="sessionsCounter">0 sessão(ões)</div>
+      <div class="tools">
+        <button class="danger" id="btnDeleteCurrent">Excluir Sessão Atual</button>
+        <button class="danger" id="btnDeleteSelected">Excluir Selecionadas</button>
+      </div>
+    </div>
+    <div class="panel-body" id="sessionList"><div class="empty">Carregando sessões...</div></div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <h2>Itens da Sessão</h2>
+      <div class="muted" id="selectedSession">Nenhuma sessão selecionada</div>
+    </div>
+    <div class="panel-body" id="itemList"><div class="empty">Selecione uma sessão para carregar os itens.</div></div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <h2 id="previewTitle">Preview</h2>
+      <div class="preview-tools">
+        <button id="btnShowItem">Ver Item Selecionado</button>
+        <button id="btnShowSession">Ver Consolidado</button>
+        <button id="btnRefreshPreview">Atualizar Preview</button>
+      </div>
+      <div class="preview-meta" id="previewMeta">Sem conteúdo carregado.</div>
+    </div>
+    <div class="panel-body">
+      <div class="preview-layout">
+        <aside class="toc" id="tocPanel">
+          <h3>Índice</h3>
+          <div id="tocList" class="muted">Sem índice disponível.</div>
+        </aside>
+        <article class="md-pane" id="mdContent"><div class="empty">Selecione uma sessão para visualizar o markdown.</div></article>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+const API = '';
+const state = {
+  sessions: [],
+  items: [],
+  currentSession: null,
+  selectedItemId: null,
+  previewScope: 'session',
+  selectedSessions: new Set(),
+  evtSource: null,
+};
+
+function escapeHtml(value){
+  const div = document.createElement('div');
+  div.textContent = String(value ?? '');
+  return div.innerHTML;
+}
+
+function showFlash(message, kind){
+  const el = document.getElementById('flash');
+  el.textContent = message;
+  el.className = 'flash show ' + (kind || 'ok');
+  clearTimeout(showFlash._timer);
+  showFlash._timer = setTimeout(() => { el.className = 'flash'; }, 3500);
+}
+
+function fmtDate(raw){
+  if(!raw) return '-';
+  const d = new Date(raw);
+  if(Number.isNaN(d.getTime())) return String(raw);
+  return d.toLocaleString('pt-BR');
+}
+
+function fmtDuration(seconds){
+  if(seconds == null || Number.isNaN(Number(seconds))) return '-';
+  const s = Math.max(0, Number(seconds));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = Math.floor(s % 60);
+  if(h > 0) return `${h}h ${m}m`;
+  if(m > 0) return `${m}m ${sec}s`;
+  return `${sec}s`;
+}
+
+function statusLabel(status){
+  if(status === 'processing') return 'processando';
+  if(status === 'finished') return 'finalizada';
+  return 'ociosa';
+}
+
+function updateActionButtons(){
+  document.getElementById('btnDeleteCurrent').disabled = !state.currentSession;
+  document.getElementById('btnDeleteSelected').disabled = state.selectedSessions.size === 0;
+  document.getElementById('btnShowItem').disabled = !state.currentSession || !state.selectedItemId;
+  document.getElementById('btnShowSession').disabled = !state.currentSession;
+  document.getElementById('btnRefreshPreview').disabled = !state.currentSession;
+}
+
+async function loadHealth(){
+  try{
+    const r = await fetch(API + '/health');
+    const d = await r.json();
+    document.getElementById('version').textContent = 'v' + d.version;
+    const engines = d.ocrEngines || {};
+    const parts = [];
+    if(engines.tesseract) parts.push('Tesseract');
+    if(engines.paddleocr) parts.push('PaddleOCR');
+    if(engines.pdf2image) parts.push('pdf2image');
+    document.getElementById('health').textContent = parts.length ? `OCR: ${parts.join(' | ')}` : 'Sem OCR disponível';
+  }catch(_){
+    document.getElementById('health').textContent = 'Serviço indisponível';
+  }
+}
+
+function renderSessions(){
+  const el = document.getElementById('sessionList');
+  document.getElementById('sessionsCounter').textContent = `${state.sessions.length} sessão(ões)`;
+  if(!state.sessions.length){
+    el.innerHTML = '<div class="empty">Nenhuma sessão encontrada.</div>';
+    return;
+  }
+
+  const validIds = new Set(state.sessions.map(s => s.sessionRunId));
+  for(const sid of Array.from(state.selectedSessions)){
+    if(!validIds.has(sid)) state.selectedSessions.delete(sid);
+  }
+
+  el.innerHTML = state.sessions.map((s) => {
+    const active = state.currentSession === s.sessionRunId ? 'active' : '';
+    const checked = state.selectedSessions.has(s.sessionRunId) ? 'checked' : '';
+    const source = s.source && s.source.projectName ? `${s.source.projectName} / ${s.source.sessionRunId}` : s.sessionRunId;
+    return `
+      <div class="session-card ${active}" data-session-id="${escapeHtml(s.sessionRunId)}">
+        <div class="session-top">
+          <input type="checkbox" class="session-check" data-session-id="${escapeHtml(s.sessionRunId)}" ${checked}>
+          <span class="status-chip ${escapeHtml(s.status || 'idle')}">${escapeHtml(statusLabel(s.status || 'idle'))}</span>
+        </div>
+        <div class="session-id">${escapeHtml(s.sessionRunId)}</div>
+        <div class="muted">Origem: ${escapeHtml(source)}</div>
+        <div class="session-grid">
+          <div><b>Início</b>${escapeHtml(fmtDate(s.startedAt || s.firstTouchedAt))}</div>
+          <div><b>Fim</b>${escapeHtml(fmtDate(s.endedAt || s.updatedAt))}</div>
+          <div><b>Itens Feitos</b>${escapeHtml(String(s.itemsDone ?? 0))} / ${escapeHtml(String(s.itemCount ?? 0))}</div>
+          <div><b>Duração</b>${escapeHtml(fmtDuration(s.durationSeconds))}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function loadSessions(){
+  try{
+    const r = await fetch(API + '/api/sessions');
+    state.sessions = await r.json();
+    state.sessions.sort((a, b) => {
+      const ta = new Date(a.lastEventAt || a.updatedAt || 0).getTime() || 0;
+      const tb = new Date(b.lastEventAt || b.updatedAt || 0).getTime() || 0;
+      return tb - ta;
+    });
+    renderSessions();
+    if(state.currentSession && !state.sessions.find(s => s.sessionRunId === state.currentSession)){
+      state.currentSession = null;
+      state.selectedItemId = null;
+      state.previewScope = 'session';
+      state.items = [];
+      renderItems();
+      clearPreview('Sessão atual foi removida.');
+    }
+    updateActionButtons();
+  }catch(_){
+    document.getElementById('sessionList').innerHTML = '<div class="empty">Erro ao carregar sessões.</div>';
+  }
+}
+
+function renderItems(){
+  const el = document.getElementById('itemList');
+  if(!state.currentSession){
+    el.innerHTML = '<div class="empty">Selecione uma sessão para carregar os itens.</div>';
+    document.getElementById('selectedSession').textContent = 'Nenhuma sessão selecionada';
+    return;
+  }
+  document.getElementById('selectedSession').textContent = state.currentSession;
+  if(!state.items.length){
+    el.innerHTML = '<div class="empty">Nenhum item encontrado nesta sessão.</div>';
+    return;
+  }
+
+  el.innerHTML = state.items.map((it) => {
+    const files = it.files || [];
+    const done = files.filter(f => f.status === 'done').length;
+    const total = files.length;
+    const active = state.selectedItemId === it.itemId ? 'active' : '';
+    return `
+      <div class="item-row ${active}" data-item-id="${escapeHtml(it.itemId)}">
+        <div class="item-top">
+          <span class="item-id">${escapeHtml(it.itemId)}</span>
+          <span class="item-md ${it.hasMarkdown ? '' : 'no'}">${it.hasMarkdown ? 'md ok' : 'sem md'}</span>
+          <span class="muted">${done}/${total} arquivos</span>
+        </div>
+        <div class="muted">MD: ${escapeHtml(fmtDate(it.mdUpdatedAt))}</div>
+        <div class="item-files">
+          ${files.map(f => `<span class="file-chip ${escapeHtml(f.status || 'pending')}">${escapeHtml(f.name)}</span>`).join('')}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function loadItems(sessionId){
+  try{
+    const r = await fetch(API + '/api/sessions/' + encodeURIComponent(sessionId) + '/items');
+    state.items = await r.json();
+    if(state.selectedItemId && !state.items.find(x => x.itemId === state.selectedItemId)){
+      state.selectedItemId = null;
+      if(state.previewScope === 'item') state.previewScope = 'session';
+    }
+    renderItems();
+    updateActionButtons();
+  }catch(_){
+    document.getElementById('itemList').innerHTML = '<div class="empty">Erro ao carregar itens.</div>';
+  }
+}
+
+function renderToc(toc){
+  const el = document.getElementById('tocList');
+  if(!toc || !toc.length){
+    el.innerHTML = '<div class="muted">Sem índice disponível.</div>';
+    return;
+  }
+  el.innerHTML = toc.map(t => `
+    <a href="#${escapeHtml(t.id)}" data-target="${escapeHtml(t.id)}" class="l${Math.min(6, Math.max(1, Number(t.level || 1)))}">
+      ${escapeHtml(t.text)}
+    </a>
+  `).join('');
+}
+
+function setupScrollSpy(){
+  const pane = document.getElementById('mdContent');
+  const tocLinks = Array.from(document.querySelectorAll('#tocList a[data-target]'));
+  if(!tocLinks.length) return;
+  const pairs = tocLinks
+    .map(link => ({ link, node: pane.querySelector('#' + CSS.escape(link.dataset.target || '')) }))
+    .filter(x => !!x.node);
+  const activate = () => {
+    const top = pane.scrollTop;
+    let current = pairs[0];
+    for(const p of pairs){
+      if(p.node.offsetTop - 20 <= top) current = p;
+      else break;
+    }
+    tocLinks.forEach(l => l.classList.remove('active'));
+    if(current && current.link) current.link.classList.add('active');
+  };
+  pane.onscroll = activate;
+  activate();
+}
+
+function clearPreview(message){
+  document.getElementById('previewTitle').textContent = 'Preview';
+  document.getElementById('previewMeta').textContent = message || 'Sem conteúdo carregado.';
+  document.getElementById('tocList').innerHTML = '<div class="muted">Sem índice disponível.</div>';
+  document.getElementById('mdContent').innerHTML = `<div class="empty">${escapeHtml(message || 'Sem conteúdo')}</div>`;
+}
+
+async function loadPreview(){
+  if(!state.currentSession){
+    clearPreview('Selecione uma sessão para visualizar o markdown.');
+    return;
+  }
+  let url = API + '/api/sessions/' + encodeURIComponent(state.currentSession) + '/preview';
+  if(state.previewScope === 'item' && state.selectedItemId){
+    url = API + '/api/sessions/' + encodeURIComponent(state.currentSession) + '/items/' + encodeURIComponent(state.selectedItemId) + '/preview';
+  }
+  try{
+    const r = await fetch(url);
+    if(!r.ok){
+      const text = await r.text();
+      clearPreview(text || 'Preview não disponível.');
+      return;
+    }
+    const data = await r.json();
+    document.getElementById('previewTitle').textContent = data.scope === 'item'
+      ? `Preview do Item ${data.itemId}`
+      : `Preview Consolidado (${data.sessionRunId})`;
+    document.getElementById('previewMeta').textContent =
+      `Origem: ${data.sessionRunId} | Escopo: ${data.scope === 'item' ? 'item' : 'consolidado'} | Atualizado: ${fmtDate(data.meta?.mdUpdatedAt)}`;
+    document.getElementById('mdContent').innerHTML = data.html || '<div class="empty">(vazio)</div>';
+    renderToc(data.toc || []);
+    setupScrollSpy();
+  }catch(_){
+    clearPreview('Erro ao carregar preview.');
+  }
+}
+
+async function selectSession(sessionId){
+  state.currentSession = sessionId;
+  state.selectedItemId = null;
+  state.previewScope = 'session';
+  renderSessions();
+  await loadItems(sessionId);
+  await loadPreview();
+  updateActionButtons();
+}
+
+async function selectItem(itemId){
+  if(!state.currentSession) return;
+  state.selectedItemId = itemId;
+  state.previewScope = 'item';
+  renderItems();
+  await loadPreview();
+  updateActionButtons();
+}
+
+async function deleteSession(sessionId){
+  if(!sessionId) return;
+  if(!window.confirm(`Excluir a sessão ${sessionId}? Esta ação apaga a pasta inteira.`)) return;
+  try{
+    const r = await fetch(API + '/api/sessions/' + encodeURIComponent(sessionId), { method: 'DELETE' });
+    const data = await r.json();
+    if(r.status === 409 || data.busy){
+      showFlash('Sessão ocupada por tarefa ativa. Tente novamente em instantes.', 'warn');
+      return;
+    }
+    if(!r.ok || !data.ok){
+      showFlash('Falha ao excluir sessão.', 'err');
+      return;
+    }
+    state.selectedSessions.delete(sessionId);
+    if(state.currentSession === sessionId){
+      state.currentSession = null;
+      state.selectedItemId = null;
+      state.previewScope = 'session';
+      state.items = [];
+      renderItems();
+      clearPreview('Sessão excluída.');
+    }
+    await loadSessions();
+    showFlash('Sessão excluída com sucesso.', 'ok');
+  }catch(_){
+    showFlash('Erro de rede ao excluir sessão.', 'err');
+  }
+}
+
+async function deleteSelectedSessions(){
+  const ids = Array.from(state.selectedSessions);
+  if(!ids.length) return;
+  if(!window.confirm(`Excluir ${ids.length} sessão(ões) selecionada(s)?`)) return;
+  try{
+    const r = await fetch(API + '/api/sessions/delete-bulk', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionIds: ids }),
+    });
+    const data = await r.json();
+    const deletedIds = (data.results || []).filter(x => x.deleted).map(x => x.sessionRunId);
+    for(const sid of deletedIds) state.selectedSessions.delete(sid);
+    if(state.currentSession && deletedIds.includes(state.currentSession)){
+      state.currentSession = null;
+      state.selectedItemId = null;
+      state.previewScope = 'session';
+      state.items = [];
+      renderItems();
+      clearPreview('Sessão atual foi excluída no lote.');
+    }
+    await loadSessions();
+    showFlash(`Exclusão em lote concluída. Removidas: ${deletedIds.length}.`, deletedIds.length ? 'ok' : 'warn');
+  }catch(_){
+    showFlash('Erro ao excluir sessões selecionadas.', 'err');
+  }
+}
+
+function connectSSE(){
+  if(state.evtSource){
+    try{ state.evtSource.close(); }catch(_){ }
+  }
+  const es = new EventSource(API + '/api/extraction/events');
+  state.evtSource = es;
+
+  es.addEventListener('extraction_progress', (e) => {
+    try{
+      const d = JSON.parse(e.data);
+      if(state.currentSession && d.sessionId === state.currentSession){
+        loadItems(state.currentSession);
+      }
+    }catch(_){ }
+  });
+
+  es.addEventListener('extraction_complete', (e) => {
+    try{
+      const d = JSON.parse(e.data);
+      if(state.currentSession && d.sessionId === state.currentSession){
+        loadItems(state.currentSession);
+        if(state.previewScope === 'item'){
+          if(state.selectedItemId && state.selectedItemId === d.itemId){
+            loadPreview();
+          }
+        }else{
+          loadPreview();
+        }
+      }
+      loadSessions();
+    }catch(_){ }
+  });
+
+  es.addEventListener('heartbeat', () => {});
+  es.onerror = () => setTimeout(connectSSE, 3000);
+}
+
+document.getElementById('sessionList').addEventListener('change', (e) => {
+  const check = e.target.closest('.session-check');
+  if(!check) return;
+  const sid = check.dataset.sessionId;
+  if(!sid) return;
+  if(check.checked) state.selectedSessions.add(sid);
+  else state.selectedSessions.delete(sid);
+  updateActionButtons();
+});
+
+document.getElementById('sessionList').addEventListener('click', (e) => {
+  if(e.target.closest('.session-check')) return;
+  const card = e.target.closest('.session-card');
+  if(!card) return;
+  const sid = card.dataset.sessionId;
+  if(sid) selectSession(sid);
+});
+
+document.getElementById('itemList').addEventListener('click', (e) => {
+  const row = e.target.closest('.item-row');
+  if(!row) return;
+  const itemId = row.dataset.itemId;
+  if(itemId) selectItem(itemId);
+});
+
+document.getElementById('tocList').addEventListener('click', (e) => {
+  const link = e.target.closest('a[data-target]');
+  if(!link) return;
+  e.preventDefault();
+  const pane = document.getElementById('mdContent');
+  const node = pane.querySelector('#' + CSS.escape(link.dataset.target || ''));
+  if(node){
+    pane.scrollTo({ top: node.offsetTop - 10, behavior: 'smooth' });
+  }
+});
+
+document.getElementById('btnShowItem').addEventListener('click', async () => {
+  if(!state.selectedItemId){
+    showFlash('Selecione um item primeiro.', 'warn');
+    return;
+  }
+  state.previewScope = 'item';
+  await loadPreview();
+});
+
+document.getElementById('btnShowSession').addEventListener('click', async () => {
+  if(!state.currentSession) return;
+  state.previewScope = 'session';
+  await loadPreview();
+});
+
+document.getElementById('btnRefreshPreview').addEventListener('click', () => loadPreview());
+document.getElementById('btnDeleteCurrent').addEventListener('click', () => deleteSession(state.currentSession));
+document.getElementById('btnDeleteSelected').addEventListener('click', () => deleteSelectedSessions());
+document.getElementById('btnRefreshAll').addEventListener('click', async () => {
+  await loadSessions();
+  if(state.currentSession){
+    await loadItems(state.currentSession);
+    await loadPreview();
+  }
+});
+
+(async function bootstrap(){
+  await loadHealth();
+  await loadSessions();
+  if(state.sessions.length && !state.currentSession){
+    await selectSession(state.sessions[0].sessionRunId);
+  }else{
+    clearPreview('Selecione uma sessão para visualizar o markdown.');
+  }
+  updateActionButtons();
+  connectSSE();
+  setInterval(loadHealth, 30000);
+})();
+</script>
+</body>
+</html>
