@@ -7,6 +7,8 @@ import * as ItemTrace from './item-trace.ts';
 import * as PaginaVerificador from './pagina-verificador.ts';
 import { contarConcluidosEfetivos, normalizarItemKey, obterConcluidosSet } from './progress-totals.ts';
 
+export type SkipMotivoItem = 'item_vermelho' | 'problema_imagem';
+
 function estaNaTelaListaItens(): boolean {
     const temFiltroLista = !!document.querySelector('#ddlOpcao');
     const temContainerResultado = !!document.querySelector('#DIVResultado');
@@ -129,6 +131,47 @@ export function inicializarFlagsItemAtual(estado: EstadoApp, key: string): void 
             }
         };
     });
+}
+
+export function marcarItemParaPularNestaRodada(
+    estado: EstadoApp,
+    itemKey: string | null | undefined,
+    motivo: SkipMotivoItem,
+    mensagem: string = ''
+): string | null {
+    const key = normalizarItemKey(itemKey)
+        || normalizarItemKey(estado?.itemAtualKey)
+        || normalizarItemKey((estado as unknown as Record<string, unknown>)['itemAtualTelaId']);
+    if (!key) return null;
+
+    EstadoManager.update((e: EstadoApp) => {
+        const eAny = e as unknown as Record<string, unknown>;
+        eAny['itemFlags'] = eAny['itemFlags'] || {};
+        const itemFlags = eAny['itemFlags'] as Record<string, Record<string, unknown>>;
+        const atual = itemFlags[key] || {};
+        itemFlags[key] = {
+            ...atual,
+            skipNestaRodada: true,
+            skipMotivo: motivo,
+            skipMensagem: mensagem || null,
+            skipDetectadoEm: Date.now(),
+        };
+
+        ItemTrace.registrarEventoItem(
+            e as Parameters<typeof ItemTrace.registrarEventoItem>[0],
+            key,
+            'item_pulado_na_rodada',
+            {
+                itemTelaId: normalizarItemKey(eAny['itemAtualTelaId']) || key,
+                resumo: motivo === 'problema_imagem' ? 'Item pulado por problema visual' : 'Item pulado por marcação vermelha',
+                payload: { motivo, mensagem },
+                status: 'pausado',
+                now: Date.now(),
+            }
+        );
+    });
+
+    return key;
 }
 
 export function registrarItemAberto(estado: EstadoApp, itemSincronizado: string): void {

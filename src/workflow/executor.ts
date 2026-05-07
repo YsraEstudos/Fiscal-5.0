@@ -34,6 +34,7 @@ import {
     inicializarFlagsItemAtual,
     limparContextoTelaStaleSeNecessario,
     marcarItemConcluido,
+    marcarItemParaPularNestaRodada,
     registrarInicioItemSeNecessario,
     registrarItemAberto,
     tratarItemSemJsonNaRodada,
@@ -71,6 +72,7 @@ let wakePending = false;
 let lastItensEmAtuacaoCount = -1;
 let buscaSemItemInicioTs: number | null = null;
 const BUSCA_SEM_ITEM_TIMEOUT_MS = 60_000;
+const SHIFT_S_RETORNO_DELAY_MS = 600;
 const scheduler = createWorkflowScheduler((trigger: string) => {
     void executarCiclo(trigger);
 });
@@ -118,6 +120,65 @@ function itemJaTemUnspsc(estado: EstadoApp): boolean {
     }
 
     return PaginaVerificador.unspscDescricaoDefinida();
+}
+
+function enviarShiftS(): void {
+    const alvo = (document.activeElement instanceof HTMLElement ? document.activeElement : document.body) || document.body;
+    const opts: KeyboardEventInit = { key: 'S', code: 'KeyS', shiftKey: true, bubbles: true, cancelable: true };
+    try { alvo.dispatchEvent(new KeyboardEvent('keydown', opts)); } catch { /* ignore */ }
+    try { alvo.dispatchEvent(new KeyboardEvent('keypress', opts)); } catch { /* ignore */ }
+    try { alvo.dispatchEvent(new KeyboardEvent('keyup', opts)); } catch { /* ignore */ }
+}
+
+async function tratarAvisoBloqueanteItem(estado: EstadoApp, status: HTMLElement | null): Promise<boolean> {
+    const aviso = PaginaVerificador.detectarAvisoBloqueanteItem();
+    if (!aviso) return false;
+
+    const estadoAny = estado as unknown as Record<string, unknown>;
+    const itemKey = (estadoAny['itemAtualKey'] as string | null)
+        || (estadoAny['itemAtualTelaId'] as string | null)
+        || ItemMapManager.obterItemIdAtual();
+    const marcado = marcarItemParaPularNestaRodada(estado, itemKey, aviso.tipo, aviso.mensagem);
+
+    if (status) {
+        status.textContent = `Pulando item ${marcado || '-'} por problema visual...`;
+        status.style.color = '#d97706';
+    }
+
+    const ok = await Interacao.interagir(aviso.btnOk as HTMLElement, null, 'okProblemaVisual');
+    if (!ok) return false;
+
+    await sleep(SHIFT_S_RETORNO_DELAY_MS);
+    enviarShiftS();
+    log(`⏭️ Item ${marcado || '-'} pulado por problema visual; retornando para a lista com Shift+S`, 'warn');
+    workflowState.reset();
+    buscaSemItemInicioTs = null;
+    return true;
+}
+
+async function tentarPaginarProximaPagina(itensInfo: PaginaVerificador.ItensPendentesInfo, status: HTMLElement | null): Promise<boolean> {
+    const elegiveis = itensInfo.elegiveis || [];
+    const inelegiveisConhecidos = itensInfo.inelegiveisConhecidos || [];
+    const desconhecidos = itensInfo.desconhecidos || [];
+    const totalVisiveis = Number(itensInfo.totalVisiveis || 0);
+    const semElegiveis = elegiveis.length === 0;
+    const temItens = totalVisiveis > 0;
+    const todosInelegiveisConhecidos = temItens
+        && inelegiveisConhecidos.length === totalVisiveis
+        && desconhecidos.length === 0;
+    if (!semElegiveis || !todosInelegiveisConhecidos) return false;
+
+    const btnProximo = PaginaVerificador.encontrarBotaoProximo();
+    if (!btnProximo) return false;
+
+    if (status) {
+        status.textContent = 'Página atual só tem itens bloqueados; avançando para Próximo...';
+        status.style.color = '#0d6efd';
+    }
+    await Interacao.interagir(btnProximo as HTMLElement, null, 'proximaPaginaItens');
+    buscaSemItemInicioTs = null;
+    log('⏭️ Página atual sem itens elegíveis conhecidos; clicando em Próximo', 'info');
+    return true;
 }
 
 // Contexto compartilhado passado para todos os handlers
@@ -193,6 +254,7 @@ async function executarLogica(): Promise<boolean> {
 
     ItemMapManager.aplicarParaItemAtual(estadoAtual);
     if (tratarItemSemJsonNaRodada(estadoAtual, status, pausarComAviso)) return true;
+    if (await tratarAvisoBloqueanteItem(estadoAtual, status)) return true;
 
     const avisoCritico = PaginaVerificador.detectarAvisoCritico();
     const pausaReincidenciaAtiva = estadoAtual.pausarEmReincidencia !== false;
@@ -234,11 +296,11 @@ async function executarLogica(): Promise<boolean> {
         }
     }
 
-    const itensInfo = PaginaVerificador.encontrarItensPendentesInfo();
+    const itensInfo = PaginaVerificador.encontrarItensPendentesInfo(EstadoManager.get());
     atualizarTotaisLote(EstadoManager.get(), itensInfo);
     const itensPendentes = itensInfo.elegiveis;
     if (itensInfo.ignorados > 0 && itensInfo.ignorados !== lastItensEmAtuacaoCount) {
-        log(`⏭️ Ignorados ${itensInfo.ignorados} item(ns) em atuação`, 'info');
+        log(`⏭️ Ignorados ${itensInfo.ignorados} item(ns) inelegíveis conhecidos`, 'info');
     }
     lastItensEmAtuacaoCount = itensInfo.ignorados;
 
@@ -272,6 +334,8 @@ async function executarLogica(): Promise<boolean> {
             return true;
         }
     }
+
+    if (await tentarPaginarProximaPagina(itensInfo, status)) return true;
 
     const agora = Date.now();
     if (buscaSemItemInicioTs == null) {
@@ -316,7 +380,7 @@ export async function executarCiclo(trigger: string = 'timer'): Promise<void> {
             return;
         }
 
-        const itensInfo = PaginaVerificador.encontrarItensPendentesInfo();
+        const itensInfo = PaginaVerificador.encontrarItensPendentesInfo(estado);
         atualizarTotaisLote(estado, itensInfo);
 
         _atualizarIndicadorProgresso();

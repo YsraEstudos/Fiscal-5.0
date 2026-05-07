@@ -36,6 +36,9 @@ export interface ConfirmacaoResult {
 export interface ItensPendentesInfo {
     elegiveis: Element[];
     ignorados: number;
+    inelegiveisConhecidos: Element[];
+    desconhecidos: Element[];
+    totalVisiveis: number;
 }
 
 export interface TotalPendentesServidor {
@@ -46,6 +49,20 @@ export interface TotalPendentesServidor {
 }
 
 export type UnspscModo = 'modal' | 'inline' | 'none';
+export type MotivoItemInelegivel = 'item_vermelho' | 'skip_nesta_rodada' | 'sem_id';
+
+export interface ClassificacaoItemLista {
+    elemento: Element;
+    key: string | null;
+    elegivel: boolean;
+    motivo: MotivoItemInelegivel | null;
+}
+
+export interface AvisoBloqueanteItem {
+    tipo: 'problema_imagem';
+    mensagem: string;
+    btnOk: Element;
+}
 
 // ---------------------------------------------------------------------------
 // Detecção de mensagens NCM/NBS
@@ -226,21 +243,76 @@ export function isItemEmAtuacao(linkEl: Element | null): boolean {
     return textoCard.includes('em atuacao');
 }
 
-export function encontrarItensPendentesInfo(): ItensPendentesInfo {
+function itemMarcadoParaPularNestaRodada(estado: unknown, itemKey: string | null): boolean {
+    if (!itemKey) return false;
+    const itemFlags = (estado as { itemFlags?: Record<string, Record<string, unknown>> } | null)?.itemFlags;
+    return itemFlags?.[itemKey]?.skipNestaRodada === true;
+}
+
+export function isItemVermelho(linkEl: Element | null): boolean {
+    if (!linkEl) return false;
+
+    const card = linkEl.closest('.result') || linkEl.closest('[class*="result"]') || linkEl;
+    const html = card as HTMLElement;
+    const classTokens = String(html.className || '')
+        .split(/\s+/)
+        .map((c) => c.trim().toLowerCase())
+        .filter(Boolean);
+
+    if (classTokens.some((c) => c.includes('vermelh') || c.includes('danger') || c.includes('erro') || c === 'red' || c.includes('red-'))) {
+        return true;
+    }
+
+    const style = html.getAttribute('style') || '';
+    if (/color\s*:\s*(red|#f00|#ff0000|rgb\(\s*255\s*,\s*0\s*,\s*0\s*\))/i.test(style)) return true;
+
+    try {
+        const color = html.ownerDocument?.defaultView?.getComputedStyle(html).color || '';
+        if (/rgb\(\s*255\s*,\s*0\s*,\s*0\s*\)/i.test(color)) return true;
+    } catch { /* ignore */ }
+
+    return false;
+}
+
+export function classificarItemLista(linkEl: Element, estado?: unknown): ClassificacaoItemLista {
+    const key = extrairItemKey(linkEl);
+
+    if (!key) {
+        return { elemento: linkEl, key: null, elegivel: false, motivo: 'sem_id' };
+    }
+    if (isItemEmAtuacao(linkEl) || isItemVermelho(linkEl)) {
+        return { elemento: linkEl, key, elegivel: false, motivo: 'item_vermelho' };
+    }
+    if (itemMarcadoParaPularNestaRodada(estado, key)) {
+        return { elemento: linkEl, key, elegivel: false, motivo: 'skip_nesta_rodada' };
+    }
+
+    return { elemento: linkEl, key, elegivel: true, motivo: null };
+}
+
+export function encontrarItensPendentesInfo(estado?: unknown): ItensPendentesInfo {
     const root = document.querySelector('#DIVResultado');
-    if (!root) return { elegiveis: [], ignorados: 0 };
+    if (!root) return { elegiveis: [], ignorados: 0, inelegiveisConhecidos: [], desconhecidos: [], totalVisiveis: 0 };
 
     const linksVisiveis = [...root.querySelectorAll('a[href*="abreSIN("]')]
         .filter((el) => elementoVisivel(el as HTMLElement));
 
-    let ignorados = 0;
-    const elegiveis = linksVisiveis.filter((el) => {
-        const emAtuacao = isItemEmAtuacao(el);
-        if (emAtuacao) ignorados++;
-        return !emAtuacao;
-    });
+    const classificacoes = linksVisiveis.map((el) => classificarItemLista(el, estado));
+    const elegiveis = classificacoes.filter((item) => item.elegivel).map((item) => item.elemento);
+    const inelegiveisConhecidos = classificacoes
+        .filter((item) => item.motivo === 'item_vermelho' || item.motivo === 'skip_nesta_rodada')
+        .map((item) => item.elemento);
+    const desconhecidos = classificacoes
+        .filter((item) => item.motivo === 'sem_id')
+        .map((item) => item.elemento);
 
-    return { elegiveis, ignorados };
+    return {
+        elegiveis,
+        ignorados: inelegiveisConhecidos.length,
+        inelegiveisConhecidos,
+        desconhecidos,
+        totalVisiveis: linksVisiveis.length,
+    };
 }
 
 export function encontrarItensPendentes(): Element[] {
@@ -253,6 +325,66 @@ export function extrairItemKey(link: Element | null): string | null {
     if (!m) return null;
     const args = m[1].split(',').map((s) => s.trim());
     return args[0]?.replace(/^['"]|['"]$/g, '') || null;
+}
+
+export function encontrarBotaoProximo(): Element | null {
+    const candidatos = [
+        ...document.querySelectorAll('a, button, input[type="button"], input[type="submit"]')
+    ];
+    for (const el of candidatos) {
+        if (!elementoVisivel(el as HTMLElement)) continue;
+        const texto = normalizarTextoSemAcento(
+            (el as HTMLInputElement).value ||
+            el.getAttribute('title') ||
+            el.getAttribute('aria-label') ||
+            el.textContent ||
+            ''
+        );
+        if (/\bproximo\b\s*>?/.test(texto) || texto.includes('proximo >')) return el;
+    }
+    return null;
+}
+
+function textoElementoComValor(el: Element): string {
+    return normalizarEspacos(
+        (el as HTMLInputElement).value ||
+        el.getAttribute('title') ||
+        el.getAttribute('aria-label') ||
+        el.textContent ||
+        ''
+    );
+}
+
+function isBotaoOk(el: Element): boolean {
+    const texto = normalizarTextoSemAcento(textoElementoComValor(el));
+    return texto === 'ok' || texto === 'fechar' || texto === 'continuar';
+}
+
+function isTextoProblemaImagem(texto: string): boolean {
+    const normalizado = normalizarTextoSemAcento(texto);
+    if (!normalizado) return false;
+    return (
+        (normalizado.includes('imagem') && (normalizado.includes('problema') || normalizado.includes('erro') || normalizado.includes('falha'))) ||
+        (normalizado.includes('midia') && (normalizado.includes('problema') || normalizado.includes('erro') || normalizado.includes('falha'))) ||
+        normalizado.includes('erro visual')
+    );
+}
+
+export function detectarAvisoBloqueanteItem(): AvisoBloqueanteItem | null {
+    const botoes = [...document.querySelectorAll('button, input[type="button"], input[type="submit"], a')]
+        .filter((el) => elementoVisivel(el as HTMLElement) && isBotaoOk(el));
+
+    for (const btnOk of botoes) {
+        const container = btnOk.closest('[role="dialog"], .modal, .swal2-popup, #divAcao, #dt_edita_div, #ControlesConfirmacao')
+            || btnOk.parentElement
+            || document.body;
+        const mensagem = normalizarEspacos((container as HTMLElement).textContent || textoElementoComValor(btnOk));
+        if (isTextoProblemaImagem(mensagem)) {
+            return { tipo: 'problema_imagem', mensagem, btnOk };
+        }
+    }
+
+    return null;
 }
 
 export function parseTotalPendentesServidor(texto: string): TotalPendentesServidor | null {

@@ -16,8 +16,10 @@ const mockObterItemIdAtual = vi.fn(() => null);
 const mockAplicarParaItemAtual = vi.fn();
 const mockGetValoresParaItem = vi.fn();
 const mockDetectarAvisoCritico = vi.fn(() => null);
+const mockDetectarAvisoBloqueanteItem = vi.fn(() => null);
 const mockEncontrarItensPendentes = vi.fn(() => []);
 const mockEncontrarItensPendentesInfo = vi.fn(() => ({ elegiveis: [], ignorados: 0 }));
+const mockEncontrarBotaoProximo = vi.fn(() => null);
 const mockObterResumoPendentesServidor = vi.fn(() => null);
 const mockPaginaOcupada = vi.fn(() => ({ ocupado: false }));
 const mockVerificarSessao = vi.fn(() => true);
@@ -98,9 +100,11 @@ vi.mock("../src/interaction/interacao.ts", () => ({
 vi.mock("../src/workflow/pagina-verificador.ts", () => ({
   paginaOcupada: mockPaginaOcupada,
   detectarAvisoCritico: mockDetectarAvisoCritico,
+  detectarAvisoBloqueanteItem: mockDetectarAvisoBloqueanteItem,
   obterConfirmacao: vi.fn(() => ({ modalAberto: false })),
   encontrarItensPendentesInfo: mockEncontrarItensPendentesInfo,
   encontrarItensPendentes: mockEncontrarItensPendentes,
+  encontrarBotaoProximo: mockEncontrarBotaoProximo,
   obterResumoPendentesServidor: mockObterResumoPendentesServidor,
   verificarSessao: mockVerificarSessao,
   extrairItemKey: mockExtrairItemKey,
@@ -233,8 +237,10 @@ describe("workflow/executor", () => {
     state = buildState();
 
     mockDetectarAvisoCritico.mockReturnValue(null);
+    mockDetectarAvisoBloqueanteItem.mockReturnValue(null);
     mockEncontrarItensPendentes.mockReturnValue([]);
-    mockEncontrarItensPendentesInfo.mockReturnValue({ elegiveis: [], ignorados: 0 });
+    mockEncontrarItensPendentesInfo.mockReturnValue({ elegiveis: [], ignorados: 0, inelegiveisConhecidos: [], desconhecidos: [], totalVisiveis: 0 });
+    mockEncontrarBotaoProximo.mockReturnValue(null);
     mockObterResumoPendentesServidor.mockReturnValue(null);
     mockPaginaOcupada.mockReturnValue({ ocupado: false });
     mockVerificarSessao.mockReturnValue(true);
@@ -414,8 +420,90 @@ describe("workflow/executor", () => {
     );
     expect(mockInteragir).toHaveBeenCalledWith(link, null, "selecionarItemNormal");
     expect(mockCooldownSet).toHaveBeenCalledWith("selecionarItemNormal:777", expect.any(Number));
-    expect(mockLog).toHaveBeenCalledWith("⏭️ Ignorados 1 item(ns) em atuação", "info");
+    expect(mockLog).toHaveBeenCalledWith("⏭️ Ignorados 1 item(ns) inelegíveis conhecidos", "info");
     expect(mockLog).toHaveBeenCalledWith("🔖 Iniciando item ID: 777", "info");
+  });
+
+  it("fecha aviso de problema visual com OK, envia Shift+S e marca o item para pular na rodada", async () => {
+    const btnOk = document.createElement("button");
+    document.body.appendChild(btnOk);
+    const keyEvents = [];
+    document.body.addEventListener("keydown", (event) => keyEvents.push(event));
+    mockSincronizarItemAtual.mockImplementation(() => {
+      state.itemAtualKey = "777";
+      state.itemAtualTelaId = "777";
+      return "777";
+    });
+    mockDetectarAvisoBloqueanteItem.mockReturnValue({
+      tipo: "problema_imagem",
+      mensagem: "Problema na imagem do item",
+      btnOk,
+    });
+
+    await mod.executarCiclo("test");
+
+    expect(mockInteragir).toHaveBeenCalledWith(btnOk, null, "okProblemaVisual");
+    expect(state.itemFlags["777"]).toEqual(expect.objectContaining({
+      skipNestaRodada: true,
+      skipMotivo: "problema_imagem",
+      skipMensagem: "Problema na imagem do item",
+    }));
+    expect(keyEvents.some((event) => event.key === "S" && event.shiftKey)).toBe(true);
+    expect(mockLog).toHaveBeenCalledWith(expect.stringContaining("pulado por problema visual"), "warn");
+  });
+
+  it("seleciona item elegível da página em vez de paginar quando há bloqueados e elegíveis", async () => {
+    const bloqueado = buildLink("111");
+    const elegivel = buildLink("222");
+    mockEncontrarItensPendentesInfo.mockReturnValue({
+      elegiveis: [elegivel],
+      ignorados: 1,
+      inelegiveisConhecidos: [bloqueado],
+      desconhecidos: [],
+      totalVisiveis: 2,
+    });
+    mockExtrairItemKey.mockImplementation((link) => link?.dataset?.key || null);
+
+    await mod.executarCiclo("test");
+
+    expect(mockInteragir).toHaveBeenCalledWith(elegivel, null, "selecionarItemNormal");
+    expect(mockEncontrarBotaoProximo).not.toHaveBeenCalled();
+  });
+
+  it("clica em Próximo quando todos os itens visíveis são inelegíveis conhecidos", async () => {
+    const bloqueado1 = buildLink("111");
+    const bloqueado2 = buildLink("222");
+    const btnProximo = document.createElement("a");
+    mockEncontrarItensPendentesInfo.mockReturnValue({
+      elegiveis: [],
+      ignorados: 2,
+      inelegiveisConhecidos: [bloqueado1, bloqueado2],
+      desconhecidos: [],
+      totalVisiveis: 2,
+    });
+    mockEncontrarBotaoProximo.mockReturnValue(btnProximo);
+
+    await mod.executarCiclo("test");
+
+    expect(mockInteragir).toHaveBeenCalledWith(btnProximo, null, "proximaPaginaItens");
+    expect(mockLog).toHaveBeenCalledWith("⏭️ Página atual sem itens elegíveis conhecidos; clicando em Próximo", "info");
+  });
+
+  it("não pagina quando há item visível desconhecido", async () => {
+    const desconhecido = document.createElement("a");
+    const btnProximo = document.createElement("a");
+    mockEncontrarItensPendentesInfo.mockReturnValue({
+      elegiveis: [],
+      ignorados: 0,
+      inelegiveisConhecidos: [],
+      desconhecidos: [desconhecido],
+      totalVisiveis: 1,
+    });
+    mockEncontrarBotaoProximo.mockReturnValue(btnProximo);
+
+    await mod.executarCiclo("test");
+
+    expect(mockInteragir).not.toHaveBeenCalledWith(btnProximo, null, "proximaPaginaItens");
   });
 
   it("aguarda abertura do mesmo item quando o cooldown ainda está ativo", async () => {
@@ -436,11 +524,11 @@ describe("workflow/executor", () => {
 
   it("para a procura quando nao encontra item por um minuto", async () => {
     vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-05-05T12:00:00.000Z"));
+    vi.setSystemTime(new Date("2030-05-05T12:00:00.000Z"));
     mockEncontrarItensPendentesInfo.mockReturnValue({ elegiveis: [], ignorados: 0 });
 
     await mod.executarCiclo("test");
-    vi.setSystemTime(new Date("2026-05-05T12:01:01.000Z"));
+    vi.setSystemTime(new Date("2030-05-05T12:01:01.000Z"));
     await mod.executarCiclo("test");
 
     const status = document.getElementById("statusRobo");

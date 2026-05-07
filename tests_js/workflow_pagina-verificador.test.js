@@ -179,6 +179,17 @@ describe("workflow/pagina-verificador", () => {
     expect(mod.isItemEmAtuacao(a2)).toBe(true);
   });
 
+  it("isItemVermelho detecta item vermelho por classe e estilo", () => {
+    document.body.innerHTML = `
+      <div class="result danger"><a id="a1">Item 1</a></div>
+      <div class="result" style="color: red"><a id="a2">Item 2</a></div>
+    `;
+    const a1 = document.getElementById("a1");
+    const a2 = document.getElementById("a2");
+    expect(mod.isItemVermelho(a1)).toBe(true);
+    expect(mod.isItemVermelho(a2)).toBe(true);
+  });
+
   it("encontrarItensPendentesInfo ignora itens em atuação e extrai item key", () => {
     document.body.innerHTML = `
       <div id="DIVResultado">
@@ -191,7 +202,52 @@ describe("workflow/pagina-verificador", () => {
     const info = mod.encontrarItensPendentesInfo();
     expect(info.ignorados).toBe(1);
     expect(info.elegiveis).toHaveLength(1);
+    expect(info.inelegiveisConhecidos).toHaveLength(1);
+    expect(info.desconhecidos).toHaveLength(0);
+    expect(info.totalVisiveis).toBe(2);
     expect(mod.extrairItemKey(info.elegiveis[0])).toBe("222");
+  });
+
+  it("encontrarItensPendentesInfo ignora item marcado com skipNestaRodada", () => {
+    document.body.innerHTML = `
+      <div id="DIVResultado">
+        <div class="result"><a id="x1" href="javascript:abreSIN('111',1)">x</a></div>
+        <div class="result"><a id="x2" href="javascript:abreSIN('222',1)">y</a></div>
+      </div>
+    `;
+    makeVisible(document.getElementById("x1"));
+    makeVisible(document.getElementById("x2"));
+
+    const info = mod.encontrarItensPendentesInfo({
+      itemFlags: {
+        111: { skipNestaRodada: true, skipMotivo: "problema_imagem" },
+      },
+    });
+
+    expect(info.elegiveis).toHaveLength(1);
+    expect(mod.extrairItemKey(info.elegiveis[0])).toBe("222");
+    expect(info.inelegiveisConhecidos).toHaveLength(1);
+  });
+
+  it("encontrarBotaoProximo localiza o link Próximo", () => {
+    document.body.innerHTML = `<a id="next" href="#">Próximo &gt;</a>`;
+    makeVisible(document.getElementById("next"));
+    expect(mod.encontrarBotaoProximo()).toBe(document.getElementById("next"));
+  });
+
+  it("detectarAvisoBloqueanteItem localiza problema visual com botão OK", () => {
+    document.body.innerHTML = `
+      <div class="modal" role="dialog">
+        <p>Problema na imagem do item.</p>
+        <button id="ok">OK</button>
+      </div>
+    `;
+    makeVisible(document.querySelector(".modal"));
+    makeVisible(document.getElementById("ok"));
+
+    const aviso = mod.detectarAvisoBloqueanteItem();
+    expect(aviso.tipo).toBe("problema_imagem");
+    expect(aviso.btnOk).toBe(document.getElementById("ok"));
   });
 
   it("parseia texto de paginação com total do servidor", () => {
