@@ -1710,17 +1710,58 @@
     const textoCard = normalizarTextoSemAcento(card.textContent || "");
     return textoCard.includes("em atuacao");
   }
-  function encontrarItensPendentesInfo() {
+  function itemMarcadoParaPularNestaRodada(estado, itemKey) {
+    var _a;
+    if (!itemKey) return false;
+    const itemFlags = estado == null ? void 0 : estado.itemFlags;
+    return ((_a = itemFlags == null ? void 0 : itemFlags[itemKey]) == null ? void 0 : _a.skipNestaRodada) === true;
+  }
+  function isItemVermelho(linkEl) {
+    var _a, _b;
+    if (!linkEl) return false;
+    const card = linkEl.closest(".result") || linkEl.closest('[class*="result"]') || linkEl;
+    const html = card;
+    const classTokens = String(html.className || "").split(/\s+/).map((c) => c.trim().toLowerCase()).filter(Boolean);
+    if (classTokens.some((c) => c.includes("vermelh") || c.includes("danger") || c.includes("erro") || c === "red" || c.includes("red-"))) {
+      return true;
+    }
+    const style = html.getAttribute("style") || "";
+    if (/color\s*:\s*(red|#f00|#ff0000|rgb\(\s*255\s*,\s*0\s*,\s*0\s*\))/i.test(style)) return true;
+    try {
+      const color = ((_b = (_a = html.ownerDocument) == null ? void 0 : _a.defaultView) == null ? void 0 : _b.getComputedStyle(html).color) || "";
+      if (/rgb\(\s*255\s*,\s*0\s*,\s*0\s*\)/i.test(color)) return true;
+    } catch {
+    }
+    return false;
+  }
+  function classificarItemLista(linkEl, estado) {
+    const key = extrairItemKey(linkEl);
+    if (!key) {
+      return { elemento: linkEl, key: null, elegivel: false, motivo: "sem_id" };
+    }
+    if (isItemEmAtuacao(linkEl) || isItemVermelho(linkEl)) {
+      return { elemento: linkEl, key, elegivel: false, motivo: "item_vermelho" };
+    }
+    if (itemMarcadoParaPularNestaRodada(estado, key)) {
+      return { elemento: linkEl, key, elegivel: false, motivo: "skip_nesta_rodada" };
+    }
+    return { elemento: linkEl, key, elegivel: true, motivo: null };
+  }
+  function encontrarItensPendentesInfo(estado) {
     const root = document.querySelector("#DIVResultado");
-    if (!root) return { elegiveis: [], ignorados: 0 };
+    if (!root) return { elegiveis: [], ignorados: 0, inelegiveisConhecidos: [], desconhecidos: [], totalVisiveis: 0 };
     const linksVisiveis = [...root.querySelectorAll('a[href*="abreSIN("]')].filter((el) => elementoVisivel(el));
-    let ignorados = 0;
-    const elegiveis = linksVisiveis.filter((el) => {
-      const emAtuacao = isItemEmAtuacao(el);
-      if (emAtuacao) ignorados++;
-      return !emAtuacao;
-    });
-    return { elegiveis, ignorados };
+    const classificacoes = linksVisiveis.map((el) => classificarItemLista(el, estado));
+    const elegiveis = classificacoes.filter((item) => item.elegivel).map((item) => item.elemento);
+    const inelegiveisConhecidos = classificacoes.filter((item) => item.motivo === "item_vermelho" || item.motivo === "skip_nesta_rodada").map((item) => item.elemento);
+    const desconhecidos = classificacoes.filter((item) => item.motivo === "sem_id").map((item) => item.elemento);
+    return {
+      elegiveis,
+      ignorados: inelegiveisConhecidos.length,
+      inelegiveisConhecidos,
+      desconhecidos,
+      totalVisiveis: linksVisiveis.length
+    };
   }
   function extrairItemKey(link) {
     var _a, _b;
@@ -1729,6 +1770,44 @@
     if (!m) return null;
     const args = m[1].split(",").map((s) => s.trim());
     return ((_b = args[0]) == null ? void 0 : _b.replace(/^['"]|['"]$/g, "")) || null;
+  }
+  function encontrarBotaoProximo() {
+    const candidatos = [
+      ...document.querySelectorAll('a, button, input[type="button"], input[type="submit"]')
+    ];
+    for (const el of candidatos) {
+      if (!elementoVisivel(el)) continue;
+      const texto = normalizarTextoSemAcento(
+        el.value || el.getAttribute("title") || el.getAttribute("aria-label") || el.textContent || ""
+      );
+      if (/\bproximo\b\s*>?/.test(texto) || texto.includes("proximo >")) return el;
+    }
+    return null;
+  }
+  function textoElementoComValor(el) {
+    return normalizarEspacos(
+      el.value || el.getAttribute("title") || el.getAttribute("aria-label") || el.textContent || ""
+    );
+  }
+  function isBotaoOk(el) {
+    const texto = normalizarTextoSemAcento(textoElementoComValor(el));
+    return texto === "ok" || texto === "fechar" || texto === "continuar";
+  }
+  function isTextoProblemaImagem(texto) {
+    const normalizado = normalizarTextoSemAcento(texto);
+    if (!normalizado) return false;
+    return normalizado.includes("imagem") && (normalizado.includes("problema") || normalizado.includes("erro") || normalizado.includes("falha")) || normalizado.includes("midia") && (normalizado.includes("problema") || normalizado.includes("erro") || normalizado.includes("falha")) || normalizado.includes("erro visual");
+  }
+  function detectarAvisoBloqueanteItem() {
+    const botoes = [...document.querySelectorAll('button, input[type="button"], input[type="submit"], a')].filter((el) => elementoVisivel(el) && isBotaoOk(el));
+    for (const btnOk of botoes) {
+      const container = btnOk.closest('[role="dialog"], .modal, .swal2-popup, #divAcao, #dt_edita_div, #ControlesConfirmacao') || btnOk.parentElement || document.body;
+      const mensagem = normalizarEspacos(container.textContent || textoElementoComValor(btnOk));
+      if (isTextoProblemaImagem(mensagem)) {
+        return { tipo: "problema_imagem", mensagem, btnOk };
+      }
+    }
+    return null;
   }
   function parseTotalPendentesServidor(texto) {
     const raw = normalizarEspacos(texto || "");
@@ -2669,6 +2748,36 @@
         }
       };
     });
+  }
+  function marcarItemParaPularNestaRodada(estado, itemKey, motivo, mensagem = "") {
+    const key = normalizarItemKey(itemKey) || normalizarItemKey(estado == null ? void 0 : estado.itemAtualKey) || normalizarItemKey(estado["itemAtualTelaId"]);
+    if (!key) return null;
+    update((e) => {
+      const eAny = e;
+      eAny["itemFlags"] = eAny["itemFlags"] || {};
+      const itemFlags = eAny["itemFlags"];
+      const atual = itemFlags[key] || {};
+      itemFlags[key] = {
+        ...atual,
+        skipNestaRodada: true,
+        skipMotivo: motivo,
+        skipMensagem: mensagem || null,
+        skipDetectadoEm: Date.now()
+      };
+      registrarEventoItem(
+        e,
+        key,
+        "item_pulado_na_rodada",
+        {
+          itemTelaId: normalizarItemKey(eAny["itemAtualTelaId"]) || key,
+          resumo: motivo === "problema_imagem" ? "Item pulado por problema visual" : "Item pulado por marcação vermelha",
+          payload: { motivo, mensagem },
+          status: "pausado",
+          now: Date.now()
+        }
+      );
+    });
+    return key;
   }
   function registrarItemAberto(estado, itemSincronizado) {
     update((e) => {
@@ -5075,6 +5184,7 @@
   let lastItensEmAtuacaoCount = -1;
   let buscaSemItemInicioTs = null;
   const BUSCA_SEM_ITEM_TIMEOUT_MS = 6e4;
+  const SHIFT_S_RETORNO_DELAY_MS = 600;
   const scheduler = createWorkflowScheduler((trigger) => {
     void executarCiclo(trigger);
   });
@@ -5114,6 +5224,61 @@
       if (digits.length >= 4 || valor.length >= 4) return true;
     }
     return unspscDescricaoDefinida();
+  }
+  function enviarShiftS() {
+    const alvo = (document.activeElement instanceof HTMLElement ? document.activeElement : document.body) || document.body;
+    const opts = { key: "S", code: "KeyS", shiftKey: true, bubbles: true, cancelable: true };
+    try {
+      alvo.dispatchEvent(new KeyboardEvent("keydown", opts));
+    } catch {
+    }
+    try {
+      alvo.dispatchEvent(new KeyboardEvent("keypress", opts));
+    } catch {
+    }
+    try {
+      alvo.dispatchEvent(new KeyboardEvent("keyup", opts));
+    } catch {
+    }
+  }
+  async function tratarAvisoBloqueanteItem(estado, status) {
+    const aviso = detectarAvisoBloqueanteItem();
+    if (!aviso) return false;
+    const estadoAny = estado;
+    const itemKey = estadoAny["itemAtualKey"] || estadoAny["itemAtualTelaId"] || obterItemIdAtual();
+    const marcado = marcarItemParaPularNestaRodada(estado, itemKey, aviso.tipo, aviso.mensagem);
+    if (status) {
+      status.textContent = `Pulando item ${marcado || "-"} por problema visual...`;
+      status.style.color = "#d97706";
+    }
+    const ok = await interagir(aviso.btnOk, null, "okProblemaVisual");
+    if (!ok) return false;
+    await sleep(SHIFT_S_RETORNO_DELAY_MS);
+    enviarShiftS();
+    log(`⏭️ Item ${marcado || "-"} pulado por problema visual; retornando para a lista com Shift+S`, "warn");
+    workflowState.reset();
+    buscaSemItemInicioTs = null;
+    return true;
+  }
+  async function tentarPaginarProximaPagina(itensInfo, status) {
+    const elegiveis = itensInfo.elegiveis || [];
+    const inelegiveisConhecidos = itensInfo.inelegiveisConhecidos || [];
+    const desconhecidos = itensInfo.desconhecidos || [];
+    const totalVisiveis = Number(itensInfo.totalVisiveis || 0);
+    const semElegiveis = elegiveis.length === 0;
+    const temItens = totalVisiveis > 0;
+    const todosInelegiveisConhecidos = temItens && inelegiveisConhecidos.length === totalVisiveis && desconhecidos.length === 0;
+    if (!semElegiveis || !todosInelegiveisConhecidos) return false;
+    const btnProximo = encontrarBotaoProximo();
+    if (!btnProximo) return false;
+    if (status) {
+      status.textContent = "Página atual só tem itens bloqueados; avançando para Próximo...";
+      status.style.color = "#0d6efd";
+    }
+    await interagir(btnProximo, null, "proximaPaginaItens");
+    buscaSemItemInicioTs = null;
+    log("⏭️ Página atual sem itens elegíveis conhecidos; clicando em Próximo", "info");
+    return true;
   }
   function buildCtx() {
     return {
@@ -5173,6 +5338,7 @@
     }
     aplicarParaItemAtual(estadoAtual);
     if (tratarItemSemJsonNaRodada(estadoAtual, status, pausarComAviso)) return true;
+    if (await tratarAvisoBloqueanteItem(estadoAtual, status)) return true;
     const avisoCritico = detectarAvisoCritico();
     const pausaReincidenciaAtiva = estadoAtual.pausarEmReincidencia !== false;
     const pausaPorReincidencia = (avisoCritico == null ? void 0 : avisoCritico.tipo) === "reincidencia_etapa" && pausaReincidenciaAtiva;
@@ -5204,11 +5370,11 @@
         if (executado) return true;
       }
     }
-    const itensInfo = encontrarItensPendentesInfo();
+    const itensInfo = encontrarItensPendentesInfo(get());
     atualizarTotaisLote(get(), itensInfo);
     const itensPendentes = itensInfo.elegiveis;
     if (itensInfo.ignorados > 0 && itensInfo.ignorados !== lastItensEmAtuacaoCount) {
-      log(`⏭️ Ignorados ${itensInfo.ignorados} item(ns) em atuação`, "info");
+      log(`⏭️ Ignorados ${itensInfo.ignorados} item(ns) inelegíveis conhecidos`, "info");
     }
     lastItensEmAtuacaoCount = itensInfo.ignorados;
     if (itensPendentes.length > 0) {
@@ -5237,6 +5403,7 @@
         return true;
       }
     }
+    if (await tentarPaginarProximaPagina(itensInfo, status)) return true;
     const agora = Date.now();
     if (buscaSemItemInicioTs == null) {
       buscaSemItemInicioTs = agora;
@@ -5274,7 +5441,7 @@
         }
         return;
       }
-      const itensInfo = encontrarItensPendentesInfo();
+      const itensInfo = encontrarItensPendentesInfo(estado);
       atualizarTotaisLote(estado, itensInfo);
       _atualizarIndicadorProgresso();
       await executarLogica();
