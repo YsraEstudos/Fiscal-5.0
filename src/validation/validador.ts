@@ -78,7 +78,7 @@ export function validarAcoesObrigatorias(
 ): boolean {
     const estado = getEstado();
     const acoes = estado.acoes as Record<string, { ativo?: boolean }> | undefined;
-    for (const acaoId of ['ncm', 'unspsc', 'lei116Servico']) {
+    for (const acaoId of ['ncm', 'cest', 'unspsc', 'lei116Servico']) {
         const acao = acoes?.[acaoId];
         if (acao?.ativo) {
             const valorAtual = getValorAcao(acaoId, estado);

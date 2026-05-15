@@ -38,6 +38,15 @@ vi.mock("../src/utils/selectors.ts", () => ({
 }));
 vi.mock("../src/data/item-map-manager.ts", () => ({
   getValoresParaItem: mockGetValoresParaItem,
+  normalizarCest: (valor) => {
+    const raw = String(valor ?? "").trim();
+    if (!raw) return null;
+    const digits = raw.replace(/\D/g, "");
+    if (digits.length !== 7) return raw;
+    const codigo = `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 7)}`;
+    const descricao = raw.match(/^\s*[\d.\s]+-\s*(.+)$/)?.[1]?.trim();
+    return descricao ? `${codigo} - ${descricao}` : codigo;
+  },
 }));
 vi.mock("../src/workflow/item-trace.ts", () => ({
   registrarEventoItemAtual: mockRegistrarEventoItemAtual,
@@ -49,6 +58,7 @@ function getAcaoFactory() {
   return (id) => {
     const map = {
       ncm: { ativo: true, seletor: "#txtNCMTIPI" },
+      cest: { ativo: true, seletor: "#txtCest" },
       lei116Servico: { ativo: true, seletor: "input.Cat90, input.Cat91" },
       abaFiscal: { ativo: true, seletor: "text=Fiscal" },
       abaClassificacao: { ativo: true, seletor: "text=Classificações" },
@@ -175,6 +185,110 @@ describe("workflow/handlers/ncm", () => {
     expect(ok).toBe(false);
     expect(registrar).toHaveBeenCalled();
     expect(mockRegistrarEventoItemAtual).not.toHaveBeenCalled();
+  });
+
+  it("ncm preenche CEST depois do NCM quando produto tem cest no JSON", async () => {
+    const campoNcm = document.createElement("input");
+    campoNcm.value = "8708.29.99";
+    const campoCest = document.createElement("input");
+    campoCest.id = "txtCest";
+    campoCest.setAttribute("name", "txtCest");
+    campoCest.value = "";
+    mockEncontrarCampoNcmPreferido.mockReturnValue(campoNcm);
+    mockBuscarElementoDeep.mockImplementation((sel) => {
+      if (sel === "#txtCest") return campoCest;
+      if (sel === "text=Classificações") return document.createElement("a");
+      return null;
+    });
+
+    const autoCest = document.createElement("div");
+    autoCest.id = "divAuto_txtCest";
+    const opcaoOutra = document.createElement("div");
+    opcaoOutra.textContent = "01.090.00 - Fitas";
+    const opcaoCerta = document.createElement("div");
+    opcaoCerta.textContent = "01.075.00 - Partes e acessórios dos veículos automóveis";
+    autoCest.appendChild(opcaoOutra);
+    autoCest.appendChild(opcaoCerta);
+    document.body.appendChild(autoCest);
+
+    const ok = await mod.ncm(
+      currentState,
+      { textContent: "" },
+      {
+        getAcao: getAcaoFactory(),
+        getValorAcao: (id) => (id === "cest" ? "01.075.00" : "8708.29.99"),
+        valoresSaoIguais: (a, b) => a === b,
+        habilitarValidacaoNcmAposInsercao: vi.fn(),
+        isValidacaoNcmLiberada: () => true,
+        registrarAvisoValidacaoNcmAguardando: vi.fn(),
+        workflowState: { isCompleta: () => false },
+      },
+    );
+
+    expect(ok).toBe(true);
+    expect(campoCest.value).toBe("01.075.00");
+    expect(mockRegistrarEventoItemAtual).toHaveBeenCalledWith(
+      expect.any(Object),
+      "cest_preenchido",
+      expect.objectContaining({
+        payload: expect.objectContaining({ cest: "01.075.00" }),
+      }),
+    );
+  });
+
+  it("ncm não preenche CEST quando JSON não tem cest", async () => {
+    const campoNcm = document.createElement("input");
+    campoNcm.value = "8708.29.99";
+    const campoCest = document.createElement("input");
+    campoCest.id = "txtCest";
+    mockEncontrarCampoNcmPreferido.mockReturnValue(campoNcm);
+    mockBuscarElementoDeep.mockImplementation((sel) => (sel === "#txtCest" ? campoCest : null));
+
+    const ok = await mod.ncm(
+      currentState,
+      { textContent: "" },
+      {
+        getAcao: getAcaoFactory(),
+        getValorAcao: (id) => (id === "ncm" ? "8708.29.99" : null),
+        valoresSaoIguais: (a, b) => a === b,
+        habilitarValidacaoNcmAposInsercao: vi.fn(),
+        isValidacaoNcmLiberada: () => true,
+        registrarAvisoValidacaoNcmAguardando: vi.fn(),
+        workflowState: { isCompleta: () => false },
+      },
+    );
+
+    expect(ok).toBe(false);
+    expect(campoCest.value).toBe("");
+    expect(mockRegistrarEventoItemAtual).not.toHaveBeenCalledWith(expect.any(Object), "cest_preenchido", expect.any(Object));
+  });
+
+  it("ncm em serviço não roda CEST mesmo com campo e valor aplicáveis", async () => {
+    const campoNbs = document.createElement("input");
+    campoNbs.value = "1.0105.40.00";
+    const campoCest = document.createElement("input");
+    mockGetValoresParaItem.mockReturnValue({ nbs: "1.0105.40.00", lei116: null, cest: "01.075.00" });
+    mockEncontrarCampoNbsPreferido.mockReturnValue(campoNbs);
+    mockEncontrarCampoNcmPreferido.mockReturnValue(campoNbs);
+    mockBuscarElementoDeep.mockImplementation((sel) => (sel === "#txtCest" ? campoCest : null));
+
+    const ok = await mod.ncm(
+      currentState,
+      { textContent: "" },
+      {
+        getAcao: getAcaoFactory(),
+        getValorAcao: (id) => (id === "cest" ? "01.075.00" : "1.0105.40.00"),
+        valoresSaoIguais: (a, b) => a === b,
+        habilitarValidacaoNcmAposInsercao: vi.fn(),
+        isValidacaoNcmLiberada: () => true,
+        registrarAvisoValidacaoNcmAguardando: vi.fn(),
+        workflowState: { isCompleta: () => false },
+      },
+    );
+
+    expect(ok).toBe(false);
+    expect(campoCest.value).toBe("");
+    expect(mockRegistrarEventoItemAtual).not.toHaveBeenCalledWith(expect.any(Object), "cest_preenchido", expect.any(Object));
   });
 
   it("ncm em serviço não avança para Classificações enquanto Lei 116 estiver pendente", async () => {

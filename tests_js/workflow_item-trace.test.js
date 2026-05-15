@@ -106,6 +106,15 @@ describe("workflow/item-trace", () => {
     expect(evento.titulo).toBe("Lei 116 preenchida");
   });
 
+  it("usa label amigável para evento de CEST", () => {
+    const evento = formatarEventoTrilha({
+      tipo: "cest_preenchido",
+      resumo: "",
+      ts: Date.now(),
+    });
+    expect(evento.titulo).toBe("CEST preenchido");
+  });
+
   it("serializa trilha para relatório priorizando item atual e limitando eventos", () => {
     const estado = buildState({
       itemAtualKey: "320780",

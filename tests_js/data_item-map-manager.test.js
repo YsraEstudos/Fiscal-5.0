@@ -42,6 +42,7 @@ describe("data/item-map-manager", () => {
       itemFlags: {},
       acoes: {
         ncm: { valor: "8471.30.12", seletor: "#txtNCMTIPI" },
+        cest: { valor: null, seletor: "#txtCest" },
         unspsc: { valor: "30103618", seletor: "#txtCodigoUnspsc" },
         lei116Servico: { valor: null, seletor: "input.Cat90, input.Cat91" },
       },
@@ -55,7 +56,7 @@ describe("data/item-map-manager", () => {
       "1002": { ncm: "8471.30.12", unspsc: "30103618" },
     });
     const parsed = mod.parseJsonParaMapa(raw);
-    expect(parsed.map["1001"]).toEqual({ ncm: "9999", nbs: null, unspsc: "abc", lei116: null });
+    expect(parsed.map["1001"]).toEqual({ ncm: "9999", nbs: null, cest: null, unspsc: "abc", lei116: null });
     expect(parsed.warnings.join(" | ")).toMatch(/NCM inválido/);
     expect(parsed.warnings.join(" | ")).toMatch(/UNSPSC inválido/);
   });
@@ -105,6 +106,20 @@ describe("data/item-map-manager", () => {
     expect(mod.obterItemIdAtual()).toBe("254556");
   });
 
+  it("parseJsonParaMapa aceita CEST e aliases normalizando o código", () => {
+    const raw = JSON.stringify({
+      P1: { ncm: "8708.29.99", cest: "0107500" },
+      P2: { ncm: "8708.29.99", CEST: "01.075.00 - Partes e acessórios" },
+      P3: { ncm: "8708.29.99", codCest: "01.090.00" },
+      P4: { ncm: "8708.29.99", codigoCest: "abc" },
+    });
+    const parsed = mod.parseJsonParaMapa(raw);
+    expect(parsed.map.P1.cest).toBe("01.075.00");
+    expect(parsed.map.P2.cest).toBe("01.075.00 - Partes e acessórios");
+    expect(parsed.map.P3.cest).toBe("01.090.00");
+    expect(parsed.warnings.join(" | ")).toMatch(/CEST inválido \(abc\)/);
+  });
+
   it("obterItemIdAtual usa fallbacks de seletores quando a URL não traz IdItem", () => {
     mockBuscarElementoDeep.mockImplementation((sel) => {
       if (sel === "#txtNum") return null;
@@ -128,8 +143,9 @@ describe("data/item-map-manager", () => {
   it("getValorAcao usa itemMap para ncm/unspsc/lei116 quando ativo", () => {
     state.itemMapAtivo = true;
     state.itemAtualTelaId = "X1";
-    state.itemMap = { X1: { ncm: "1111.22.33", nbs: null, unspsc: "12345678", lei116: null } };
+    state.itemMap = { X1: { ncm: "1111.22.33", nbs: null, cest: "01.075.00", unspsc: "12345678", lei116: null } };
     expect(mod.getValorAcao("ncm", state)).toBe("1111.22.33");
+    expect(mod.getValorAcao("cest", state)).toBe("01.075.00");
     expect(mod.getValorAcao("unspsc", state)).toBe("12345678");
     expect(mod.getValorAcao("lei116Servico", state)).toBeNull();
     expect(mod.getValorAcao("outra", { ...state, acoes: { outra: { valor: "x" } } })).toBe("x");
@@ -138,7 +154,7 @@ describe("data/item-map-manager", () => {
   it("getValorAcao prioriza NBS para ação ncm em contexto de serviço", () => {
     state.itemMapAtivo = true;
     state.itemAtualTelaId = "SVC1";
-    state.itemMap = { SVC1: { ncm: "8471.30.12", nbs: "1.0105.40.00", unspsc: "12345678", lei116: "7.02" } };
+    state.itemMap = { SVC1: { ncm: "8471.30.12", nbs: "1.0105.40.00", cest: "01.075.00", unspsc: "12345678", lei116: "7.02" } };
     mockBuscarElementoDeep.mockImplementation((sel) => {
       if (sel === "#txtNBS") return { value: "1.0105.40.00" };
       if (sel === "#txtIncideNBS") return { value: "SIM" };
@@ -153,8 +169,8 @@ describe("data/item-map-manager", () => {
     state.itemAtualKey = "83552";
     state.itemAtualTelaId = null;
     state.itemMap = {
-      "254556": { ncm: "3917.29.00", nbs: null, unspsc: null, lei116: null },
-      "83552": { ncm: "9999.99.99", nbs: null, unspsc: null, lei116: null },
+      "254556": { ncm: "3917.29.00", nbs: null, cest: null, unspsc: null, lei116: null },
+      "83552": { ncm: "9999.99.99", nbs: null, cest: null, unspsc: null, lei116: null },
     };
     mockBuscarElementoDeep.mockReturnValue(null);
 
@@ -200,6 +216,7 @@ describe("data/item-map-manager", () => {
     mockEncontrarCampoNcmPreferido.mockReturnValue({ value: "8471.30.12" });
     mockBuscarElementoDeep.mockImplementation((sel) => {
       if (sel === "#txtCodigoUnspsc") return { value: "30103618" };
+      if (sel === "#txtCest") return { value: "01.075.00" };
       return null;
     });
     const textarea = document.createElement("textarea");
@@ -208,6 +225,7 @@ describe("data/item-map-manager", () => {
     const parsed = JSON.parse(textarea.value);
     expect(parsed["990"].ncm).toBe("8471.30.12");
     expect(parsed["990"].nbs).toBeNull();
+    expect(parsed["990"].cest).toBe("01.075.00");
     expect(parsed["990"].unspsc).toBe("30103618");
     expect(parsed["990"].lei116).toBeNull();
     expect(mockTocar).toHaveBeenCalledWith("success");
@@ -219,6 +237,7 @@ describe("data/item-map-manager", () => {
     mockEncontrarCampoNcmPreferido.mockReturnValue({ value: "8471.30.12" });
     mockBuscarElementoDeep.mockImplementation((sel) => {
       if (sel === "#txtCodigoUnspsc") return { value: "30103618" };
+      if (sel === "#txtCest") return { value: "" };
       return null;
     });
     mockEncontrarCampoLei116Grupo.mockReturnValue({ value: "7" });

@@ -31,6 +31,11 @@ import {
     type Lei116Parsed,
 } from './ncm/domain.ts';
 import {
+    normalizarCestAlvo,
+    preencherCestAutocomplete,
+    textoCombinaOpcaoCest,
+} from './ncm/cest-autocomplete.ts';
+import {
     digitarSilencioso,
     selecionarOpcaoAutocompleteLei116,
 } from './ncm/lei116-autocomplete.ts';
@@ -109,6 +114,13 @@ function lei116EstaPendente(estado: EstadoApp, targetLei116: Lei116Parsed | null
     const grupoMatch = textoCombinaOpcaoLei116(grupoAtual, targetLei116.grupo);
     const subMatch = textoCombinaOpcaoLei116(subgrupoAtual, targetLei116.subgrupo);
     return !grupoMatch || !subMatch;
+}
+
+function cestEstaPendente(campo: HTMLInputElement, valorCest: unknown): boolean {
+    const alvo = normalizarCestAlvo(valorCest);
+    if (!alvo) return false;
+    const valorAtual = String(campo.value ?? '').trim();
+    return !textoCombinaOpcaoCest(valorAtual, alvo.texto);
 }
 
 // ---------------------------------------------------------------------------
@@ -195,6 +207,33 @@ export async function ncm(estado: EstadoApp, status: HTMLElement | null, ctx: Nc
         if (lei116EstaPendente(estado, lei116Alvo, ctx.valoresSaoIguais)) {
             if (status) status.textContent = 'Aguardando preenchimento de Lei 116...';
             return false;
+        }
+    }
+
+    const acaoCest = getAcao('cest', estado);
+    const valorCest = ctx.getValorAcao('cest', estado);
+    if (!emModoServico && acaoCest.ativo && normalizarCestAlvo(valorCest)) {
+        const campoCest = buscarElementoDeep(acaoCest.seletor || '#txtCest') as HTMLInputElement | null;
+        if (campoCest && elementoVisivel(campoCest) && cestEstaPendente(campoCest, valorCest)) {
+            if (status) status.textContent = 'Preenchendo CEST...';
+            const okCest = await preencherCestAutocomplete(campoCest, valorCest);
+            if (okCest) {
+                EstadoManager.update((e: EstadoApp) => {
+                    const eAny = e as unknown as Record<string, unknown>;
+                    const alvo = normalizarCestAlvo(valorCest);
+                    ItemTrace.registrarEventoItemAtual(e, 'cest_preenchido', {
+                        itemTelaId: (eAny['itemAtualTelaId'] as string) || (eAny['itemAtualKey'] as string) || null,
+                        resumo: `CEST preenchido com ${alvo?.codigo || valorCest}`,
+                        payload: {
+                            cest: alvo?.codigo || valorCest,
+                            valorOriginal: valorCest,
+                        },
+                        status: 'em_andamento',
+                        now: Date.now(),
+                    });
+                });
+            }
+            return true;
         }
     }
 
@@ -329,7 +368,10 @@ export async function abaFiscal(estado: EstadoApp, status: HTMLElement | null, c
 // ---------------------------------------------------------------------------
 export const __test_ncm_internals__ = {
     textoCombinaOpcaoLei116,
+    textoCombinaOpcaoCest,
+    normalizarCestAlvo,
     normalizarLei116,
     campoLei116EhPlaceholder,
-    selecionarOpcaoAutocompleteLei116
+    selecionarOpcaoAutocompleteLei116,
+    preencherCestAutocomplete
 };

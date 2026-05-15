@@ -11,6 +11,9 @@ describe("validation/validador", () => {
     expect(validar("ncm", "84713012").valido).toBe(false);
     expect(validar("nbs", "1.0105.40.00").valido).toBe(true);
     expect(validar("nbs", "8471.30.12").valido).toBe(false);
+    expect(validar("cest", "0107500").valido).toBe(true);
+    expect(validar("cest", "01.075.00").valido).toBe(true);
+    expect(validar("cest", "abc").valido).toBe(false);
     expect(validar("unspsc", "30103618").valido).toBe(true);
     expect(validar("unspsc", "3010").valido).toBe(false);
     expect(validar("lei116Servico", "7.02").valido).toBe(true);

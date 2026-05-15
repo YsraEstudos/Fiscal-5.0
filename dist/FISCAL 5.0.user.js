@@ -53,6 +53,7 @@
     VALIDADORES: Object.freeze({
       ncm: { regex: /^\d{4}\.\d{2}\.\d{2}$/, mensagem: "NCM deve ter formato 0000.00.00" },
       nbs: { regex: /^\d{1,2}\.\d{4}\.\d{2}\.\d{2}$/, mensagem: "NBS deve ter formato 0.0000.00.00 ou 00.0000.00.00" },
+      cest: { regex: /^(?:\d{7}|\d{2}\.\d{3}\.\d{2})(?:\s+-\s+.+)?$/, mensagem: "CEST deve ter formato 00.000.00" },
       unspsc: { regex: /^\d{8}$/, mensagem: "UNSPSC deve ter 8 dígitos numéricos" },
       lei116Servico: { regex: /^\d{1,2}\.\d{2}$/, mensagem: "Lei 116 deve ter formato 0.00 ou 00.00" }
     }),
@@ -252,6 +253,7 @@
     item_aberto: "Item aberto para processamento",
     item_sem_json: "Item ignorado por falta de JSON",
     ncm_preenchido: "NCM preenchido",
+    cest_preenchido: "CEST preenchido",
     lei116_preenchida: "Lei 116 preenchida",
     unspsc_preenchido: "UNSPSC digitado",
     unspsc_pesquisado: "Pesquisa de UNSPSC executada",
@@ -260,6 +262,7 @@
     acompanhamento_coletado: "Acompanhamento coletado",
     relatorio_enviado: "Relatório enviado com sucesso",
     item_concluido: "Item concluído",
+    item_pulado_na_rodada: "Item pulado nesta rodada",
     pausado_por_reincidencia: "Pausado por reincidência da etapa",
     pausado_por_validacao_ncm: "Pausado por NCM inválido",
     pausado_por_validacao_nbs: "Pausado por NBS inválido"
@@ -731,18 +734,19 @@
     { id: "atuar", nome: "Atuar no Item", seletor: 'input[name$="butAcao3"]', tipo: "click", ordem: 1 },
     { id: "abaFiscal", nome: "Aba Fiscal", seletor: "text=Fiscal", tipo: "click", ordem: 2 },
     { id: "ncm", nome: "Preencher NCM", seletor: "#txtNCMTIPI, #txtNBS", tipo: "input", ordem: 3, valorPadrao: "8471.30.12" },
-    { id: "lei116Servico", nome: "Preencher Lei 116 (Serviço)", seletor: "input.Cat90, input.Cat91", tipo: "custom", ordem: 4 },
-    { id: "abaClassificacao", nome: "Aba Classificações", seletor: "text=Classificações", tipo: "click", ordem: 5 },
-    { id: "lupaUnspsc", nome: "Lupa UNSPSC", seletor: "#ibutUNSPSC", tipo: "click", ordem: 6 },
-    { id: "unspsc", nome: "Preencher UNSPSC", seletor: '#txtCodigoUnspsc, #txtCodUNSPSC, input[name$="txtCodigoUnspsc"], input[name$="txtCodUNSPSC"]', tipo: "input", ordem: 7, valorPadrao: "30103618" },
-    { id: "pesquisar", nome: "Pesquisar", seletor: 'input[name*="butPesquisar"]', tipo: "click", ordem: 8 },
-    { id: "resultado", nome: "Clique Resultado", seletor: 'a[id="txtDescricao"]', tipo: "click", ordem: 9 },
-    { id: "selecionar", nome: "Selecionar UNSPSC", seletor: "#butFechar", tipo: "click", ordem: 10 },
-    { id: "coletarMidia", nome: "Coletar Mídia", seletor: "text=Mídias", tipo: "click", ordem: 11 },
-    { id: "coletarAcompanhamento", nome: "Coletar Acompanhamento", seletor: "#hButAcompanhamentoSIN, #hlkObs", tipo: "custom", ordem: 12 },
-    { id: "gerarRelatorioItem", nome: "Gerar Relatório Item", seletor: "", tipo: "custom", ordem: 13 },
-    { id: "prosseguir", nome: "Prosseguir", seletor: '#butAcao2, #butAcao1, input[value="Prosseguir"]', tipo: "click", ordem: 14 },
-    { id: "confirmar", nome: "Confirmar (Sim)", seletor: "#butSim", tipo: "click", ordem: 15 }
+    { id: "cest", nome: "Preencher CEST", seletor: "#txtCest", tipo: "custom", ordem: 4 },
+    { id: "lei116Servico", nome: "Preencher Lei 116 (Serviço)", seletor: "input.Cat90, input.Cat91", tipo: "custom", ordem: 5 },
+    { id: "abaClassificacao", nome: "Aba Classificações", seletor: "text=Classificações", tipo: "click", ordem: 6 },
+    { id: "lupaUnspsc", nome: "Lupa UNSPSC", seletor: "#ibutUNSPSC", tipo: "click", ordem: 7 },
+    { id: "unspsc", nome: "Preencher UNSPSC", seletor: '#txtCodigoUnspsc, #txtCodUNSPSC, input[name$="txtCodigoUnspsc"], input[name$="txtCodUNSPSC"]', tipo: "input", ordem: 8, valorPadrao: "30103618" },
+    { id: "pesquisar", nome: "Pesquisar", seletor: 'input[name*="butPesquisar"]', tipo: "click", ordem: 9 },
+    { id: "resultado", nome: "Clique Resultado", seletor: 'a[id="txtDescricao"]', tipo: "click", ordem: 10 },
+    { id: "selecionar", nome: "Selecionar UNSPSC", seletor: "#butFechar", tipo: "click", ordem: 11 },
+    { id: "coletarMidia", nome: "Coletar Mídia", seletor: "text=Mídias", tipo: "click", ordem: 12 },
+    { id: "coletarAcompanhamento", nome: "Coletar Acompanhamento", seletor: "#hButAcompanhamentoSIN, #hlkObs", tipo: "custom", ordem: 13 },
+    { id: "gerarRelatorioItem", nome: "Gerar Relatório Item", seletor: "", tipo: "custom", ordem: 14 },
+    { id: "prosseguir", nome: "Prosseguir", seletor: '#butAcao2, #butAcao1, input[value="Prosseguir"]', tipo: "click", ordem: 15 },
+    { id: "confirmar", nome: "Confirmar (Sim)", seletor: "#butSim", tipo: "click", ordem: 16 }
   ]);
   function corrigirSeletorLegado(acaoId, seletor) {
     const acao = ACOES_WORKFLOW.find((item) => item.id === acaoId);
@@ -1603,6 +1607,10 @@
     const t = normalizarTextoSemAcento(texto || "");
     return t.includes("nbs informado") && t.includes("invalido");
   }
+  function isMensagemSubGrupoInvalido(texto) {
+    const t = normalizarTextoSemAcento(texto || "");
+    return t.includes("sub grupo") && t.includes("invalido");
+  }
   function extrairNumeroExecucoes(texto) {
     const normalizado = normalizarTextoSemAcento(texto || "").replaceAll(/[ºª]/g, " ");
     const match = normalizado.match(/\b(\d+)\b/);
@@ -1631,6 +1639,9 @@
     }
     if (valor && isMensagemNbsInvalido(valor)) {
       return { fonte: "textarea", mensagem: String(valor).trim(), tipo: "nbs_invalido" };
+    }
+    if (valor && isMensagemSubGrupoInvalido(valor)) {
+      return { fonte: "textarea", mensagem: String(valor).trim(), tipo: "subgrupo_invalido" };
     }
     return null;
   }
@@ -1858,6 +1869,16 @@
     const normalizado = raw.replace(",", ".");
     return normalizado || null;
   }
+  function normalizarCest(valor) {
+    var _a, _b;
+    const raw = normalizarValor$1(valor);
+    if (!raw) return null;
+    const digits = raw.replace(/\D/g, "");
+    if (digits.length !== 7) return raw;
+    const codigo = `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 7)}`;
+    const descricao = (_b = (_a = raw.match(/^\s*[\d.\s]+-\s*(.+)$/)) == null ? void 0 : _a[1]) == null ? void 0 : _b.trim();
+    return descricao ? `${codigo} - ${descricao}` : codigo;
+  }
   function obterParametroUrl(nomes) {
     try {
       const url = new URL(window.location.href);
@@ -1893,7 +1914,7 @@
     return `${String(Number.parseInt(grupo, 10))}.${subgrupo.padStart(2, "0").slice(-2)}`;
   }
   function extrairCampos(entry) {
-    if (!entry || typeof entry !== "object") return { ncm: null, nbs: null, unspsc: null, lei116: null };
+    if (!entry || typeof entry !== "object") return { ncm: null, nbs: null, cest: null, unspsc: null, lei116: null };
     const e = entry;
     const nbsExplicito = normalizarValor$1(e["nbs"] ?? e["NBS"] ?? e["Nbs"]);
     const ncmRaw = normalizarValor$1(e["ncm"] ?? e["NCM"] ?? e["Ncm"]);
@@ -1903,9 +1924,10 @@
       nbs = ncmRaw;
       ncm2 = null;
     }
+    const cest = normalizarCest(e["cest"] ?? e["CEST"] ?? e["Cest"] ?? e["codCest"] ?? e["codigoCest"] ?? e["codigoCEST"]);
     const unspsc2 = normalizarValor$1(e["unspsc"] ?? e["UNSPSC"] ?? e["Unspsc"]);
     const lei116 = normalizarLei116$1(e["lei116"] ?? e["Lei116"] ?? e["lei_116"] ?? e["LEI116"]);
-    return { ncm: ncm2, nbs, unspsc: unspsc2, lei116 };
+    return { ncm: ncm2, nbs, cest, unspsc: unspsc2, lei116 };
   }
   function parseJsonParaMapa(jsonText) {
     const raw = String(jsonText ?? "").trim();
@@ -1922,14 +1944,17 @@
       const idNorm = normalizarId(id);
       if (!idNorm) return;
       const campos = extrairCampos(entryObj);
-      if (!campos.ncm && !campos.nbs && !campos.unspsc && !campos.lei116) {
-        warnings.push(`Item ${idNorm}: sem NCM, NBS, UNSPSC ou Lei 116`);
+      if (!campos.ncm && !campos.nbs && !campos.cest && !campos.unspsc && !campos.lei116) {
+        warnings.push(`Item ${idNorm}: sem NCM, NBS, CEST, UNSPSC ou Lei 116`);
       }
       if (campos.ncm && !CONFIG.VALIDADORES.ncm.regex.test(campos.ncm)) {
         warnings.push(`Item ${idNorm}: NCM inválido (${campos.ncm})`);
       }
       if (campos.nbs && !CONFIG.VALIDADORES.nbs.regex.test(campos.nbs)) {
         warnings.push(`Item ${idNorm}: NBS inválido (${campos.nbs})`);
+      }
+      if (campos.cest && !CONFIG.VALIDADORES.cest.regex.test(campos.cest)) {
+        warnings.push(`Item ${idNorm}: CEST inválido (${campos.cest})`);
       }
       if (campos.unspsc && !CONFIG.VALIDADORES.unspsc.regex.test(campos.unspsc)) {
         warnings.push(`Item ${idNorm}: UNSPSC inválido (${campos.unspsc})`);
@@ -2014,7 +2039,7 @@
     var _a;
     const acao = (_a = estado.acoes) == null ? void 0 : _a[acaoId];
     if (!acao) return null;
-    if (!estado.itemMapAtivo || acaoId !== "ncm" && acaoId !== "unspsc" && acaoId !== "lei116Servico") return acao.valor;
+    if (!estado.itemMapAtivo || acaoId !== "ncm" && acaoId !== "cest" && acaoId !== "unspsc" && acaoId !== "lei116Servico") return acao.valor;
     const idAtual = resolverItemMapIdAtual(estado);
     const entry = getValoresParaItem(estado, idAtual);
     if (!entry) return acao.valor;
@@ -2022,7 +2047,7 @@
     const campoIncideNbs = buscarElementoDeep("#txtIncideNBS") || buscarElementoDeep('input[name$="txtIncideNBS"]');
     const incideNbs = String((campoIncideNbs == null ? void 0 : campoIncideNbs.value) ?? (campoIncideNbs == null ? void 0 : campoIncideNbs.textContent) ?? "").trim().toUpperCase() === "SIM";
     const modoServico = !!(entry.nbs || normalizarLei116$1(entry.lei116) || entry.ncm && ehValorNbs$1(entry.ncm) || campoNbs && incideNbs);
-    const valor = acaoId === "ncm" ? modoServico ? entry.nbs || (ehValorNbs$1(entry.ncm) ? entry.ncm : null) : entry.ncm : acaoId === "unspsc" ? entry.unspsc : entry.lei116;
+    const valor = acaoId === "ncm" ? modoServico ? entry.nbs || (ehValorNbs$1(entry.ncm) ? entry.ncm : null) : entry.ncm : acaoId === "cest" ? entry.cest : acaoId === "unspsc" ? entry.unspsc : entry.lei116;
     return valor != null ? valor : acao.valor;
   }
   function aplicarJson(jsonText, { silent = false } = {}) {
@@ -2080,7 +2105,7 @@
     }
     const entry = getValoresParaItem(estado, idAtual);
     if (entry && estado.itemMapUltimoAplicadoId !== idAtual) {
-      log(`🧾 JSON aplicado ao item ${idAtual}: NCM ${entry.ncm || "-"} / NBS ${entry.nbs || "-"} / UNSPSC ${entry.unspsc || "-"} / Lei116 ${entry.lei116 || "-"}`, "info");
+      log(`🧾 JSON aplicado ao item ${idAtual}: NCM ${entry.ncm || "-"} / NBS ${entry.nbs || "-"} / CEST ${entry.cest || "-"} / UNSPSC ${entry.unspsc || "-"} / Lei116 ${entry.lei116 || "-"}`, "info");
       estado.itemMapUltimoAplicadoId = idAtual;
       set$1(estado);
     }
@@ -2096,14 +2121,14 @@
     const dados = entry || (idAtual ? estado.itemMap[idAtual] : null);
     let texto = ativo ? `JSON ativo: ${total} itens.` : "JSON por ID desativado.";
     if (ativo && idAtual) {
-      if (dados) texto += ` Item ${idAtual}: NCM ${dados.ncm || "-"} / NBS ${dados.nbs || "-"} / UNSPSC ${dados.unspsc || "-"} / Lei116 ${dados.lei116 || "-"}.`;
+      if (dados) texto += ` Item ${idAtual}: NCM ${dados.ncm || "-"} / NBS ${dados.nbs || "-"} / CEST ${dados.cest || "-"} / UNSPSC ${dados.unspsc || "-"} / Lei116 ${dados.lei116 || "-"}.`;
       else texto += ` Item ${idAtual}: sem entrada no JSON.`;
     }
     el.textContent = texto;
     el.style.color = ativo ? "#0b7285" : "#666";
   }
   function gerarJsonDoItemAtual(textareaEl) {
-    var _a, _b, _c, _d, _e, _f;
+    var _a, _b, _c, _d, _e, _f, _g, _h;
     const estado = get();
     const idAtual = resolverItemMapIdAtual(estado) || estado.itemAtualKey;
     if (!idAtual) {
@@ -2113,6 +2138,7 @@
     }
     const campoNcm = encontrarCampoNcmPreferido(((_b = (_a = estado.acoes) == null ? void 0 : _a["ncm"]) == null ? void 0 : _b.seletor) ?? "");
     const campoNbs = buscarElementoDeep("#txtNBS") || buscarElementoDeep('input[name$="txtNBS"]');
+    const campoCest = buscarElementoDeep("#txtCest") || buscarElementoDeep('input[name$="txtCest"]');
     const campoUnspsc = buscarElementoDeep("#txtCodigoUnspsc, #txtCodUNSPSC") || buscarElementoDeep('input[name$="txtCodigoUnspsc"], input[name$="txtCodUNSPSC"]');
     const campoLei116Grupo = encontrarCampoLei116Grupo();
     const campoLei116Subgrupo = encontrarCampoLei116Subgrupo();
@@ -2123,9 +2149,10 @@
       ncm2 = null;
     }
     const unspsc2 = normalizarValor$1(campoUnspsc == null ? void 0 : campoUnspsc.value) || normalizarValor$1((_f = (_e = estado.acoes) == null ? void 0 : _e["unspsc"]) == null ? void 0 : _f.valor);
+    const cest = normalizarCest(campoCest == null ? void 0 : campoCest.value) || normalizarCest((_h = (_g = estado.acoes) == null ? void 0 : _g["cest"]) == null ? void 0 : _h.valor);
     const lei116 = extrairLei116DosCampos(campoLei116Grupo == null ? void 0 : campoLei116Grupo.value, campoLei116Subgrupo == null ? void 0 : campoLei116Subgrupo.value);
-    if (!ncm2 && !nbs && !unspsc2 && !lei116) {
-      log("⚠️ Não foi possível ler NCM, NBS, UNSPSC ou Lei 116 para montar o JSON", "warn");
+    if (!ncm2 && !nbs && !cest && !unspsc2 && !lei116) {
+      log("⚠️ Não foi possível ler NCM, NBS, CEST, UNSPSC ou Lei 116 para montar o JSON", "warn");
       tocar("warning");
       return;
     }
@@ -2135,7 +2162,7 @@
       log("⚠️ JSON atual inválido. Criando novo mapa.", "warn");
     }
     const map = parsed.error ? {} : parsed.map || {};
-    map[idAtual] = { ncm: ncm2 || null, nbs: nbs || null, unspsc: unspsc2 || null, lei116: lei116 || null };
+    map[idAtual] = { ncm: ncm2 || null, nbs: nbs || null, cest: cest || null, unspsc: unspsc2 || null, lei116: lei116 || null };
     const jsonFinal = JSON.stringify(map, null, 2);
     if (textareaEl) textareaEl.value = jsonFinal;
     aplicarJson(jsonFinal, { silent: true });
@@ -2391,7 +2418,7 @@
   function validarAcoesObrigatorias(getEstado, getValorAcao2, logFn, tocarErro) {
     const estado = getEstado();
     const acoes = estado.acoes;
-    for (const acaoId of ["ncm", "unspsc", "lei116Servico"]) {
+    for (const acaoId of ["ncm", "cest", "unspsc", "lei116Servico"]) {
       const acao = acoes == null ? void 0 : acoes[acaoId];
       if (acao == null ? void 0 : acao.ativo) {
         const valorAtual = getValorAcao2(acaoId, estado);
@@ -2749,9 +2776,12 @@
       };
     });
   }
-  function marcarItemParaPularNestaRodada(estado, itemKey, motivo, mensagem = "") {
+  function marcarItemParaPularNestaRodada(estado, itemKey, motivo, mensagem = "", aliases = []) {
     const key = normalizarItemKey(itemKey) || normalizarItemKey(estado == null ? void 0 : estado.itemAtualKey) || normalizarItemKey(estado["itemAtualTelaId"]);
     if (!key) return null;
+    const aliasesNormalizados = [...new Set(
+      aliases.map((alias) => normalizarItemKey(alias)).filter((alias) => !!alias && alias !== key)
+    )];
     update((e) => {
       const eAny = e;
       eAny["itemFlags"] = eAny["itemFlags"] || {};
@@ -2762,16 +2792,28 @@
         skipNestaRodada: true,
         skipMotivo: motivo,
         skipMensagem: mensagem || null,
-        skipDetectadoEm: Date.now()
+        skipDetectadoEm: Date.now(),
+        skipAliases: aliasesNormalizados
       };
+      aliasesNormalizados.forEach((alias) => {
+        const aliasAtual = itemFlags[alias] || {};
+        itemFlags[alias] = {
+          ...aliasAtual,
+          skipNestaRodada: true,
+          skipMotivo: motivo,
+          skipMensagem: mensagem || null,
+          skipDetectadoEm: Date.now(),
+          skipOrigem: key
+        };
+      });
       registrarEventoItem(
         e,
         key,
         "item_pulado_na_rodada",
         {
           itemTelaId: normalizarItemKey(eAny["itemAtualTelaId"]) || key,
-          resumo: motivo === "problema_imagem" ? "Item pulado por problema visual" : "Item pulado por marcação vermelha",
-          payload: { motivo, mensagem },
+          resumo: motivo === "problema_imagem" ? "Item pulado por problema visual" : motivo === "subgrupo_invalido" ? "Item pulado por Sub Grupo inválido" : "Item pulado por marcação vermelha",
+          payload: { motivo, mensagem, aliases: aliasesNormalizados },
           status: "pausado",
           now: Date.now()
         }
@@ -3135,6 +3177,129 @@
     log(`⚠️ Lei 116: nenhuma opção visível com valor "${valorAlvo}" encontrada após ${timeoutMs}ms`, "warn");
     return false;
   }
+  function normalizarCodigoCest(valor) {
+    const normalizado = normalizarCest(valor);
+    if (!normalizado) return null;
+    const digits = normalizado.replace(/\D/g, "");
+    if (digits.length !== 7) return null;
+    return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 7)}`;
+  }
+  function normalizarCestAlvo(valor) {
+    const texto = normalizarCest(valor);
+    const codigo = normalizarCodigoCest(texto);
+    if (!texto || !codigo) return null;
+    return { codigo, texto };
+  }
+  function textoCombinaOpcaoCest(textoOpcao, valorAlvo) {
+    const alvo = normalizarCestAlvo(valorAlvo);
+    if (!alvo) return false;
+    const texto = String(textoOpcao ?? "").replace(/\s+/g, " ").trim();
+    if (!texto) return false;
+    const codigoOpcao = normalizarCodigoCest(texto);
+    if (codigoOpcao && codigoOpcao === alvo.codigo) return true;
+    const textoUpper = texto.toUpperCase();
+    const alvoUpper = alvo.texto.toUpperCase();
+    return textoUpper === alvoUpper || textoUpper.startsWith(`${alvo.codigo} `) || textoUpper.startsWith(`${alvo.codigo} -`);
+  }
+  function obterContainersAutocomplete(campo) {
+    const nameAttr = String(campo.getAttribute("name") || "").trim();
+    const idAttr = String(campo.id || "").trim();
+    const candidateIds = [];
+    if (nameAttr) candidateIds.push(`divAuto_${nameAttr}`);
+    if (idAttr) candidateIds.push(`divAuto_${idAttr}`);
+    const found = [];
+    for (const id of candidateIds) {
+      const el = document.getElementById(id) || (() => {
+        try {
+          return document.querySelector(`div[id="${CSS.escape(id)}"]`);
+        } catch {
+          return null;
+        }
+      })();
+      if (el && !found.includes(el)) found.push(el);
+    }
+    if (found.length > 0) return found;
+    return [...document.querySelectorAll('div[id^="divAuto_"]')];
+  }
+  function encontrarOpcaoAutocompleteCest(container, valorAlvo) {
+    const anchors = [...container.querySelectorAll('a[id^="asel"]')];
+    for (const a of anchors) {
+      if (!elementoVisivel(a)) continue;
+      if (textoCombinaOpcaoCest(a.textContent, valorAlvo)) return a;
+    }
+    const candidatos = [...container.querySelectorAll("a, li, div, span, td, option")];
+    for (const candidato of candidatos) {
+      if (!elementoVisivel(candidato)) continue;
+      if (textoCombinaOpcaoCest(candidato.textContent, valorAlvo)) return candidato;
+    }
+    return null;
+  }
+  async function selecionarOpcaoAutocompleteCest(campo, valorAlvo, timeoutMs = 3e3) {
+    var _a;
+    const fim = Date.now() + timeoutMs;
+    while (Date.now() <= fim) {
+      const containers = obterContainersAutocomplete(campo);
+      for (const container of containers) {
+        const cs = window.getComputedStyle(container);
+        if (cs.display === "none" || cs.visibility === "hidden") continue;
+        const opcao = encontrarOpcaoAutocompleteCest(container, valorAlvo);
+        if (!opcao) continue;
+        const texto = String(opcao.textContent || "").trim();
+        log(`✅ CEST: opção selecionada "${texto.substring(0, 80)}"`, "info");
+        const anchorToUse = opcao.tagName === "A" && ((_a = opcao.id) == null ? void 0 : _a.startsWith("asel")) ? opcao : opcao.querySelector?.('a[id^="asel"]');
+        if (anchorToUse) {
+          const hrefVal = anchorToUse.getAttribute("href") || "";
+          const onclickVal = anchorToUse.getAttribute("onclick") || "";
+          const selMatch = hrefVal.match(/sel\((\d+)\)/) || onclickVal.match(/sel\((\d+)\)/);
+          if (selMatch) {
+            const selIndex = selMatch[1];
+            try {
+              const injectScript = document.createElement("script");
+              injectScript.textContent = `try { sel(${selIndex}); } catch(e) { console.error('FISCAL 5.0 sel() CEST error:', e); }`;
+              document.body.appendChild(injectScript);
+              injectScript.remove();
+              return true;
+            } catch (e) {
+              log(`⚠️ CEST: erro na injeção de script sel(${selIndex}): ${e.message}`, "warn");
+            }
+          }
+        }
+        for (const attr of ["onmousedown", "onclick"]) {
+          const inline = opcao.getAttribute(attr) || "";
+          if (!inline) continue;
+          try {
+            const injectScript = document.createElement("script");
+            injectScript.textContent = inline;
+            document.body.appendChild(injectScript);
+            injectScript.remove();
+            return true;
+          } catch {
+          }
+        }
+        opcao.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true, view: null }));
+        opcao.dispatchEvent(new MouseEvent("mouseup", { bubbles: true, cancelable: true, view: null }));
+        opcao.click();
+        return true;
+      }
+      await sleep(150);
+    }
+    log(`⚠️ CEST: opção não encontrada para "${valorAlvo}"`, "warn");
+    return false;
+  }
+  async function preencherCestAutocomplete(campo, valorCest) {
+    const alvo = normalizarCestAlvo(valorCest);
+    if (!alvo) {
+      log(`⚠️ CEST: valor inválido no JSON (${String(valorCest ?? "")})`, "warn");
+      return false;
+    }
+    await digitarSilencioso(campo, alvo.codigo);
+    log(`⌨️ CEST: digitado "${alvo.codigo}"...`, "info");
+    await sleep(700);
+    const selecionou = await selecionarOpcaoAutocompleteCest(campo, alvo.texto);
+    if (!selecionou) return false;
+    await sleep(1e3);
+    return true;
+  }
   function encontrarAbaClassificacao(acaoAbaClass) {
     let abaClass = buscarElementoDeep(acaoAbaClass.seletor);
     if (abaClass && elementoVisivel(abaClass)) return abaClass;
@@ -3176,6 +3341,12 @@
     const grupoMatch = textoCombinaOpcaoLei116(grupoAtual, targetLei116.grupo);
     const subMatch = textoCombinaOpcaoLei116(subgrupoAtual, targetLei116.subgrupo);
     return !grupoMatch || !subMatch;
+  }
+  function cestEstaPendente(campo, valorCest) {
+    const alvo = normalizarCestAlvo(valorCest);
+    if (!alvo) return false;
+    const valorAtual = String(campo.value ?? "").trim();
+    return !textoCombinaOpcaoCest(valorAtual, alvo.texto);
   }
   async function abaClassificacao(estado, status, { getAcao: getAcao2, workflowState: workflowState2 }) {
     const acaoAbaClass = getAcao2("abaClassificacao", estado);
@@ -3244,6 +3415,32 @@
       if (lei116EstaPendente(estado, lei116Alvo, ctx.valoresSaoIguais)) {
         if (status) status.textContent = "Aguardando preenchimento de Lei 116...";
         return false;
+      }
+    }
+    const acaoCest = getAcao2("cest", estado);
+    const valorCest = ctx.getValorAcao("cest", estado);
+    if (!emModoServico && acaoCest.ativo && normalizarCestAlvo(valorCest)) {
+      const campoCest = buscarElementoDeep(acaoCest.seletor || "#txtCest");
+      if (campoCest && elementoVisivel(campoCest) && cestEstaPendente(campoCest, valorCest)) {
+        if (status) status.textContent = "Preenchendo CEST...";
+        const okCest = await preencherCestAutocomplete(campoCest, valorCest);
+        if (okCest) {
+          update((e) => {
+            const eAny = e;
+            const alvo = normalizarCestAlvo(valorCest);
+            registrarEventoItemAtual(e, "cest_preenchido", {
+              itemTelaId: eAny["itemAtualTelaId"] || eAny["itemAtualKey"] || null,
+              resumo: `CEST preenchido com ${alvo?.codigo || valorCest}`,
+              payload: {
+                cest: alvo?.codigo || valorCest,
+                valorOriginal: valorCest
+              },
+              status: "em_andamento",
+              now: Date.now()
+            });
+          });
+        }
+        return true;
       }
     }
     const acaoAbaClass = getAcao2("abaClassificacao", estado);
@@ -5183,6 +5380,7 @@
   let cicloEmExecucao = false;
   let lastItensEmAtuacaoCount = -1;
   let buscaSemItemInicioTs = null;
+  let retornoItemBloqueadoEmAndamento = false;
   const BUSCA_SEM_ITEM_TIMEOUT_MS = 6e4;
   const SHIFT_S_RETORNO_DELAY_MS = 600;
   const scheduler = createWorkflowScheduler((trigger) => {
@@ -5229,6 +5427,30 @@
     const alvo = (document.activeElement instanceof HTMLElement ? document.activeElement : document.body) || document.body;
     const opts = { key: "S", code: "KeyS", shiftKey: true, bubbles: true, cancelable: true };
     try {
+      document.dispatchEvent(new KeyboardEvent("keydown", opts));
+    } catch {
+    }
+    try {
+      document.dispatchEvent(new KeyboardEvent("keypress", opts));
+    } catch {
+    }
+    try {
+      document.dispatchEvent(new KeyboardEvent("keyup", opts));
+    } catch {
+    }
+    try {
+      window.dispatchEvent(new KeyboardEvent("keydown", opts));
+    } catch {
+    }
+    try {
+      window.dispatchEvent(new KeyboardEvent("keypress", opts));
+    } catch {
+    }
+    try {
+      window.dispatchEvent(new KeyboardEvent("keyup", opts));
+    } catch {
+    }
+    try {
       alvo.dispatchEvent(new KeyboardEvent("keydown", opts));
     } catch {
     }
@@ -5240,6 +5462,174 @@
       alvo.dispatchEvent(new KeyboardEvent("keyup", opts));
     } catch {
     }
+  }
+  function textoControle(el) {
+    return normalizarEspacos(
+      el.value || el.getAttribute("title") || el.getAttribute("aria-label") || el.textContent || ""
+    ).toLowerCase();
+  }
+  function encontrarControleVoltarItem() {
+    const voltarFormulario = document.querySelector(
+      '#butVoltar, input[name$="$butVoltar"], button[name$="$butVoltar"], #hbutVoltar'
+    );
+    if (voltarFormulario) return voltarFormulario;
+    const candidatos = [...document.querySelectorAll('a, button, input[type="button"], input[type="submit"]')];
+    const voltarSin = candidatos.find((el) => {
+      const href = el.getAttribute("href") || "";
+      return /redireciona\(/i.test(href) && /SIN_Item_Resultante\.aspx/i.test(href) && /Source=SIN_Lista/i.test(href);
+    });
+    if (voltarSin) return voltarSin;
+    const voltarRedireciona = candidatos.find((el) => {
+      const href = el.getAttribute("href") || "";
+      return textoControle(el) === "voltar" && /redireciona\(/i.test(href);
+    });
+    if (voltarRedireciona) return voltarRedireciona;
+    let sair = null;
+    for (const el of candidatos) {
+      const texto = textoControle(el);
+      if (texto === "voltar") return el;
+      if (texto === "sair" && !sair) sair = el;
+    }
+    return sair;
+  }
+  function acionarControleDireto(controle) {
+    const href = controle.getAttribute("href") || "";
+    const redirecionaMatch = href.match(/redireciona\(['"]([^'"]+)['"]\)/i);
+    if (redirecionaMatch == null ? void 0 : redirecionaMatch[1]) {
+      if (executarRedirecionaPagina(redirecionaMatch[1])) return true;
+    }
+    const postbackMatch = href.match(/__doPostBack\(['"]([^'"]+)['"],\s*['"]([^'"]*)['"]\)/i);
+    if (postbackMatch == null ? void 0 : postbackMatch[1]) {
+      if (executarPostbackPagina(postbackMatch[1], postbackMatch[2] || "")) return true;
+    }
+    try {
+      controle.click();
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  function executarRedirecionaPagina(url) {
+    try {
+      const injectScript = document.createElement("script");
+      injectScript.textContent = `
+            try {
+                var url = ${JSON.stringify(url)};
+                if (typeof redireciona === 'function') {
+                    redireciona(url);
+                } else {
+                    window.location.href = url;
+                }
+            } catch(e) {
+                console.error('FISCAL 5.0 redireciona retorno error:', e);
+            }
+        `;
+      document.body.appendChild(injectScript);
+      injectScript.remove();
+      return true;
+    } catch {
+      try {
+        window.location.href = url;
+        return true;
+      } catch {
+        return false;
+      }
+    }
+  }
+  function executarPostbackPagina(target, argument) {
+    try {
+      const injectScript = document.createElement("script");
+      injectScript.textContent = `
+            try {
+                if (typeof __doPostBack === 'function') {
+                    __doPostBack(${JSON.stringify(target)}, ${JSON.stringify(argument)});
+                } else {
+                    var form = document.forms['aspnetForm'] || document.aspnetForm || document.querySelector('form');
+                    if (!form) throw new Error('form not found');
+                    var eventTarget = form.querySelector('input[name="__EVENTTARGET"]');
+                    var eventArgument = form.querySelector('input[name="__EVENTARGUMENT"]');
+                    if (!eventTarget || !eventArgument) throw new Error('event fields not found');
+                    eventTarget.value = ${JSON.stringify(target)};
+                    eventArgument.value = ${JSON.stringify(argument)};
+                    form.submit();
+                }
+            } catch(e) {
+                console.error('FISCAL 5.0 postback retorno error:', e);
+            }
+        `;
+      document.body.appendChild(injectScript);
+      injectScript.remove();
+      return true;
+    } catch {
+      return executarPostbackPorFormulario(target, argument);
+    }
+  }
+  function executarPostbackPorFormulario(target, argument) {
+    const form = document.forms.namedItem("aspnetForm") || document.aspnetForm || document.querySelector("form");
+    const eventTarget = form == null ? void 0 : form.querySelector('input[name="__EVENTTARGET"]');
+    const eventArgument = form == null ? void 0 : form.querySelector('input[name="__EVENTARGUMENT"]');
+    if (!form || !eventTarget || !eventArgument) return false;
+    eventTarget.value = target;
+    eventArgument.value = argument;
+    form.submit();
+    return true;
+  }
+  function acionarRetornoLista() {
+    const controleVoltar = encontrarControleVoltarItem();
+    if (controleVoltar) {
+      acionarControleDireto(controleVoltar);
+      return textoControle(controleVoltar) || "voltar";
+    }
+    enviarShiftS();
+    return "Shift+S";
+  }
+  function obterParametroUrlAtual(nome) {
+    try {
+      return new URL(window.location.href).searchParams.get(nome);
+    } catch {
+      return null;
+    }
+  }
+  function obterAliasesItemAtual(estado) {
+    const estadoAny = estado;
+    const aliases = [
+      estadoAny["itemAtualKey"],
+      estadoAny["itemAtualTelaId"],
+      estadoAny["itemMapUltimoAplicadoId"],
+      obterItemIdAtual(),
+      obterParametroUrlAtual("IdItem"),
+      obterParametroUrlAtual("IdSIN")
+    ];
+    return [...new Set(
+      aliases.map((alias) => String(alias ?? "").trim()).filter(Boolean)
+    )];
+  }
+  function itemAtualMarcadoParaPularNestaRodada(estado) {
+    const itemFlags = estado.itemFlags || {};
+    const aliases = obterAliasesItemAtual(estado);
+    return aliases.find((alias) => {
+      var _a;
+      return ((_a = itemFlags[alias]) == null ? void 0 : _a.skipNestaRodada) === true;
+    }) || null;
+  }
+  function encontrarBotaoAtuarResumo() {
+    const botao = document.querySelector('#butAcao3, input[name$="$butAcao3"], button[name$="$butAcao3"]');
+    const valor = normalizarEspacos((botao == null ? void 0 : botao.value) || (botao == null ? void 0 : botao.textContent) || "").toLowerCase();
+    if (!botao || !/\batuar\b/.test(valor)) return null;
+    return botao;
+  }
+  function retornarSeResumoItemPulado(estado, status) {
+    const itemPulado = itemAtualMarcadoParaPularNestaRodada(estado);
+    if (!itemPulado || !encontrarBotaoAtuarResumo()) return false;
+    const metodoRetorno = acionarRetornoLista();
+    if (status) {
+      status.textContent = `Item ${itemPulado} pulado nesta rodada; retornando...`;
+      status.style.color = "#d97706";
+    }
+    log(`⏭️ Item ${itemPulado} já marcado para pular; evitando Atuar no Item e retornando com ${metodoRetorno}`, "warn");
+    workflowState.reset();
+    buscaSemItemInicioTs = null;
+    return true;
   }
   async function tratarAvisoBloqueanteItem(estado, status) {
     const aviso = detectarAvisoBloqueanteItem();
@@ -5259,6 +5649,26 @@
     workflowState.reset();
     buscaSemItemInicioTs = null;
     return true;
+  }
+  function tratarAlertSubGrupoInvalido(mensagem) {
+    if (retornoItemBloqueadoEmAndamento) return;
+    retornoItemBloqueadoEmAndamento = true;
+    const estado = get();
+    const estadoAny = estado;
+    const itemKey = estadoAny["itemAtualKey"] || estadoAny["itemAtualTelaId"] || obterItemIdAtual();
+    const aliases = obterAliasesItemAtual(estado);
+    const marcado = marcarItemParaPularNestaRodada(estado, itemKey, "subgrupo_invalido", mensagem, aliases);
+    const status = document.getElementById("statusRobo");
+    if (status) {
+      status.textContent = `Pulando item ${marcado || "-"} por Sub Grupo inválido...`;
+      status.style.color = "#d97706";
+    }
+    log(`🌐 Mensagem do navegador: ${mensagem}`, "browser");
+    scheduler.cancelarTimer();
+    const metodoRetorno = acionarRetornoLista();
+    log(`⏭️ Item ${marcado || "-"} pulado por Sub Grupo inválido; retornando para a lista com ${metodoRetorno}`, "warn");
+    workflowState.reset();
+    buscaSemItemInicioTs = null;
   }
   async function tentarPaginarProximaPagina(itensInfo, status) {
     const elegiveis = itensInfo.elegiveis || [];
@@ -5300,6 +5710,13 @@
   async function executarLogica() {
     const estado = get();
     const status = document.getElementById("statusRobo");
+    if (retornoItemBloqueadoEmAndamento) {
+      if (status) {
+        status.textContent = "Aguardando retorno do item bloqueado...";
+        status.style.color = "#d97706";
+      }
+      return false;
+    }
     if (!estado.ativo || estado.pausado) return false;
     const actionDelayRemainingMs = scheduler.getActionDelayRemainingMs();
     if (actionDelayRemainingMs > 0) {
@@ -5339,6 +5756,7 @@
     aplicarParaItemAtual(estadoAtual);
     if (tratarItemSemJsonNaRodada(estadoAtual, status, pausarComAviso)) return true;
     if (await tratarAvisoBloqueanteItem(estadoAtual, status)) return true;
+    if (retornarSeResumoItemPulado(estadoAtual, status)) return true;
     const avisoCritico = detectarAvisoCritico();
     const pausaReincidenciaAtiva = estadoAtual.pausarEmReincidencia !== false;
     const pausaPorReincidencia = (avisoCritico == null ? void 0 : avisoCritico.tipo) === "reincidencia_etapa" && pausaReincidenciaAtiva;
@@ -5573,6 +5991,7 @@
   }
   function parar() {
     scheduler.cancelarTimer();
+    retornoItemBloqueadoEmAndamento = false;
     update((e) => {
       e.ativo = false;
     });
@@ -5595,6 +6014,7 @@
     scheduler.cancelarTimer();
     limpar$1();
     buscaSemItemInicioTs = null;
+    retornoItemBloqueadoEmAndamento = false;
   }
   function inicializarHooks() {
     hook();
@@ -5610,17 +6030,24 @@
         const itemFlags = eAny["itemFlags"];
         const pendenteAte = Number(((_a = itemFlags == null ? void 0 : itemFlags[key ?? ""]) == null ? void 0 : _a["ncmValidacaoPendenteAte"]) || 0);
         const ncmLiberado = pendenteAte > Date.now();
+        let alertaConsumido = false;
         if (isMensagemNcmInvalido(String(msg ?? ""))) {
           if (ncmLiberado) {
             registrarPausaCriticaNaTrilha({ tipo: "ncm_invalido", mensagem: String(msg || "") });
             pausarComAviso("NCM inválido detectado (alerta)", { alertUser: false, tipo: "ncm_invalido" });
+            alertaConsumido = true;
           }
         } else if (isMensagemNbsInvalido(String(msg ?? ""))) {
           if (ncmLiberado) {
             registrarPausaCriticaNaTrilha({ tipo: "nbs_invalido", mensagem: String(msg || "") });
             pausarComAviso("NBS inválido detectado (alerta)", { alertUser: false, tipo: "nbs_invalido" });
+            alertaConsumido = true;
           }
+        } else if (isMensagemSubGrupoInvalido(String(msg ?? ""))) {
+          tratarAlertSubGrupoInvalido(String(msg || ""));
+          alertaConsumido = true;
         }
+        if (alertaConsumido) return void 0;
       } catch {
       }
       return alertOriginal.apply(globalThis, args);
@@ -6425,6 +6852,7 @@
         }
 
         .log-info { color: #9de29b; }
+        .log-browser { color: #7cc7ff; }
         .log-warn { color: #f4e28a; }
         .log-error { color: #ff8f8f; font-weight: bold; }
 

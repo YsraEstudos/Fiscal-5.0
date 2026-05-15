@@ -15,6 +15,7 @@ export type OrigemValorFiscal = 'json' | 'json_legacy_ncm' | 'perfil';
 export interface ItemFiscalEntry {
     ncm?: unknown;
     nbs?: unknown;
+    cest?: unknown;
     lei116?: unknown;
 }
 

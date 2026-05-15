@@ -87,6 +87,7 @@ export const CONFIG: AppConfig = Object.freeze({
     VALIDADORES: Object.freeze({
         ncm: { regex: /^\d{4}\.\d{2}\.\d{2}$/, mensagem: 'NCM deve ter formato 0000.00.00' },
         nbs: { regex: /^\d{1,2}\.\d{4}\.\d{2}\.\d{2}$/, mensagem: 'NBS deve ter formato 0.0000.00.00 ou 00.0000.00.00' },
+        cest: { regex: /^(?:\d{7}|\d{2}\.\d{3}\.\d{2})(?:\s+-\s+.+)?$/, mensagem: 'CEST deve ter formato 00.000.00' },
         unspsc: { regex: /^\d{8}$/, mensagem: 'UNSPSC deve ter 8 dígitos numéricos' },
         lei116Servico: { regex: /^\d{1,2}\.\d{2}$/, mensagem: 'Lei 116 deve ter formato 0.00 ou 00.00' },
     }),

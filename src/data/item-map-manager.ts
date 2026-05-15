@@ -22,6 +22,7 @@ import {
 export interface ItemMapEntry {
     ncm: string | null;
     nbs: string | null;
+    cest: string | null;
     unspsc: string | null;
     lei116: string | null;
 }
@@ -51,6 +52,16 @@ function normalizarLei116(valor: unknown): string | null {
     if (!raw) return null;
     const normalizado = raw.replace(',', '.');
     return normalizado || null;
+}
+
+export function normalizarCest(valor: unknown): string | null {
+    const raw = normalizarValor(valor);
+    if (!raw) return null;
+    const digits = raw.replace(/\D/g, '');
+    if (digits.length !== 7) return raw;
+    const codigo = `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 7)}`;
+    const descricao = raw.match(/^\s*[\d.\s]+-\s*(.+)$/)?.[1]?.trim();
+    return descricao ? `${codigo} - ${descricao}` : codigo;
 }
 
 function obterParametroUrl(nomes: string[]): string | null {
@@ -99,7 +110,7 @@ function extrairLei116DosCampos(valorGrupo: unknown, valorSubgrupo: unknown): st
 }
 
 function extrairCampos(entry: unknown): ItemMapEntry {
-    if (!entry || typeof entry !== 'object') return { ncm: null, nbs: null, unspsc: null, lei116: null };
+    if (!entry || typeof entry !== 'object') return { ncm: null, nbs: null, cest: null, unspsc: null, lei116: null };
     const e = entry as Record<string, unknown>;
     const nbsExplicito = normalizarValor(e['nbs'] ?? e['NBS'] ?? e['Nbs']);
     const ncmRaw = normalizarValor(e['ncm'] ?? e['NCM'] ?? e['Ncm']);
@@ -109,9 +120,10 @@ function extrairCampos(entry: unknown): ItemMapEntry {
         nbs = ncmRaw;
         ncm = null;
     }
+    const cest = normalizarCest(e['cest'] ?? e['CEST'] ?? e['Cest'] ?? e['codCest'] ?? e['codigoCest'] ?? e['codigoCEST']);
     const unspsc = normalizarValor(e['unspsc'] ?? e['UNSPSC'] ?? e['Unspsc']);
     const lei116 = normalizarLei116(e['lei116'] ?? e['Lei116'] ?? e['lei_116'] ?? e['LEI116']);
-    return { ncm, nbs, unspsc, lei116 };
+    return { ncm, nbs, cest, unspsc, lei116 };
 }
 
 // ---------------------------------------------------------------------------
@@ -136,14 +148,17 @@ export function parseJsonParaMapa(jsonText: string): ParseResult {
         if (!idNorm) return;
 
         const campos = extrairCampos(entryObj);
-        if (!campos.ncm && !campos.nbs && !campos.unspsc && !campos.lei116) {
-            warnings.push(`Item ${idNorm}: sem NCM, NBS, UNSPSC ou Lei 116`);
+        if (!campos.ncm && !campos.nbs && !campos.cest && !campos.unspsc && !campos.lei116) {
+            warnings.push(`Item ${idNorm}: sem NCM, NBS, CEST, UNSPSC ou Lei 116`);
         }
         if (campos.ncm && !CONFIG.VALIDADORES.ncm.regex.test(campos.ncm)) {
             warnings.push(`Item ${idNorm}: NCM inválido (${campos.ncm})`);
         }
         if (campos.nbs && !CONFIG.VALIDADORES.nbs.regex.test(campos.nbs)) {
             warnings.push(`Item ${idNorm}: NBS inválido (${campos.nbs})`);
+        }
+        if (campos.cest && !CONFIG.VALIDADORES.cest.regex.test(campos.cest)) {
+            warnings.push(`Item ${idNorm}: CEST inválido (${campos.cest})`);
         }
         if (campos.unspsc && !CONFIG.VALIDADORES.unspsc.regex.test(campos.unspsc)) {
             warnings.push(`Item ${idNorm}: UNSPSC inválido (${campos.unspsc})`);
@@ -263,7 +278,7 @@ export function getValorAcao(acaoId: string, estado: EstadoApp): string | null {
     const acao = estado.acoes?.[acaoId];
     if (!acao) return null;
 
-    if (!estado.itemMapAtivo || (acaoId !== 'ncm' && acaoId !== 'unspsc' && acaoId !== 'lei116Servico')) return acao.valor;
+    if (!estado.itemMapAtivo || (acaoId !== 'ncm' && acaoId !== 'cest' && acaoId !== 'unspsc' && acaoId !== 'lei116Servico')) return acao.valor;
 
     const idAtual = resolverItemMapIdAtual(estado);
     const entry = getValoresParaItem(estado, idAtual);
@@ -284,7 +299,7 @@ export function getValorAcao(acaoId: string, estado: EstadoApp): string | null {
                 ? (entry.nbs || (ehValorNbs(entry.ncm) ? entry.ncm : null))
                 : entry.ncm
         )
-        : (acaoId === 'unspsc' ? entry.unspsc : entry.lei116);
+        : (acaoId === 'cest' ? entry.cest : (acaoId === 'unspsc' ? entry.unspsc : entry.lei116));
     return valor != null ? valor : acao.valor;
 }
 
@@ -357,7 +372,7 @@ export function aplicarParaItemAtual(estado: EstadoApp): ItemMapEntry | null {
 
     const entry = getValoresParaItem(estado, idAtual);
     if (entry && estado.itemMapUltimoAplicadoId !== idAtual) {
-        log(`🧾 JSON aplicado ao item ${idAtual}: NCM ${entry.ncm || '-'} / NBS ${entry.nbs || '-'} / UNSPSC ${entry.unspsc || '-'} / Lei116 ${entry.lei116 || '-'}`, 'info');
+        log(`🧾 JSON aplicado ao item ${idAtual}: NCM ${entry.ncm || '-'} / NBS ${entry.nbs || '-'} / CEST ${entry.cest || '-'} / UNSPSC ${entry.unspsc || '-'} / Lei116 ${entry.lei116 || '-'}`, 'info');
         estado.itemMapUltimoAplicadoId = idAtual;
         EstadoManager.set(estado);
     }
@@ -382,7 +397,7 @@ export function atualizarStatusUI(estado: EstadoApp, { itemId, entry }: Atualiza
 
     let texto = ativo ? `JSON ativo: ${total} itens.` : 'JSON por ID desativado.';
     if (ativo && idAtual) {
-        if (dados) texto += ` Item ${idAtual}: NCM ${dados.ncm || '-'} / NBS ${dados.nbs || '-'} / UNSPSC ${dados.unspsc || '-'} / Lei116 ${dados.lei116 || '-'}.`;
+        if (dados) texto += ` Item ${idAtual}: NCM ${dados.ncm || '-'} / NBS ${dados.nbs || '-'} / CEST ${dados.cest || '-'} / UNSPSC ${dados.unspsc || '-'} / Lei116 ${dados.lei116 || '-'}.`;
         else texto += ` Item ${idAtual}: sem entrada no JSON.`;
     }
 
@@ -401,6 +416,7 @@ export function gerarJsonDoItemAtual(textareaEl: HTMLTextAreaElement | null): vo
 
     const campoNcm = encontrarCampoNcmPreferido(estado.acoes?.['ncm']?.seletor ?? '');
     const campoNbs = buscarElementoDeep('#txtNBS') || buscarElementoDeep('input[name$="txtNBS"]');
+    const campoCest = buscarElementoDeep('#txtCest') || buscarElementoDeep('input[name$="txtCest"]');
     const campoUnspsc = buscarElementoDeep('#txtCodigoUnspsc, #txtCodUNSPSC')
         || buscarElementoDeep('input[name$="txtCodigoUnspsc"], input[name$="txtCodUNSPSC"]');
     const campoLei116Grupo = encontrarCampoLei116Grupo();
@@ -412,10 +428,11 @@ export function gerarJsonDoItemAtual(textareaEl: HTMLTextAreaElement | null): vo
         ncm = null;
     }
     const unspsc = normalizarValor((campoUnspsc as HTMLInputElement)?.value) || normalizarValor(estado.acoes?.['unspsc']?.valor);
+    const cest = normalizarCest((campoCest as HTMLInputElement)?.value) || normalizarCest(estado.acoes?.['cest']?.valor);
     const lei116 = extrairLei116DosCampos((campoLei116Grupo as HTMLInputElement)?.value, (campoLei116Subgrupo as HTMLInputElement)?.value);
 
-    if (!ncm && !nbs && !unspsc && !lei116) {
-        log('⚠️ Não foi possível ler NCM, NBS, UNSPSC ou Lei 116 para montar o JSON', 'warn');
+    if (!ncm && !nbs && !cest && !unspsc && !lei116) {
+        log('⚠️ Não foi possível ler NCM, NBS, CEST, UNSPSC ou Lei 116 para montar o JSON', 'warn');
         AudioManager.tocar('warning');
         return;
     }
@@ -426,7 +443,7 @@ export function gerarJsonDoItemAtual(textareaEl: HTMLTextAreaElement | null): vo
         log('⚠️ JSON atual inválido. Criando novo mapa.', 'warn');
     }
     const map: Record<string, ItemMapEntry> = parsed.error ? {} : (parsed.map || {});
-    map[idAtual] = { ncm: ncm || null, nbs: nbs || null, unspsc: unspsc || null, lei116: lei116 || null };
+    map[idAtual] = { ncm: ncm || null, nbs: nbs || null, cest: cest || null, unspsc: unspsc || null, lei116: lei116 || null };
 
     const jsonFinal = JSON.stringify(map, null, 2);
     if (textareaEl) textareaEl.value = jsonFinal;
