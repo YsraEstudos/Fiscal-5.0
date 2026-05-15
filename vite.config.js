@@ -17,7 +17,7 @@ export default defineConfig({
                 grant: 'none',
             },
             build: {
-                fileName: 'FISCAL 5.0.user.js',
+                fileName: 'FISCAL-5.0.user.js',
             },
         }),
     ],
