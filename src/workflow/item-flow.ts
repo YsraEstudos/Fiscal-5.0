@@ -7,7 +7,7 @@ import * as ItemTrace from './item-trace.ts';
 import * as PaginaVerificador from './pagina-verificador.ts';
 import { contarConcluidosEfetivos, normalizarItemKey, obterConcluidosSet } from './progress-totals.ts';
 
-export type SkipMotivoItem = 'item_vermelho' | 'problema_imagem';
+export type SkipMotivoItem = 'item_vermelho' | 'problema_imagem' | 'subgrupo_invalido';
 
 function estaNaTelaListaItens(): boolean {
     const temFiltroLista = !!document.querySelector('#ddlOpcao');
@@ -137,12 +137,19 @@ export function marcarItemParaPularNestaRodada(
     estado: EstadoApp,
     itemKey: string | null | undefined,
     motivo: SkipMotivoItem,
-    mensagem: string = ''
+    mensagem: string = '',
+    aliases: Array<string | null | undefined> = []
 ): string | null {
     const key = normalizarItemKey(itemKey)
         || normalizarItemKey(estado?.itemAtualKey)
         || normalizarItemKey((estado as unknown as Record<string, unknown>)['itemAtualTelaId']);
     if (!key) return null;
+
+    const aliasesNormalizados = [...new Set(
+        aliases
+            .map((alias) => normalizarItemKey(alias))
+            .filter((alias): alias is string => !!alias && alias !== key)
+    )];
 
     EstadoManager.update((e: EstadoApp) => {
         const eAny = e as unknown as Record<string, unknown>;
@@ -155,7 +162,20 @@ export function marcarItemParaPularNestaRodada(
             skipMotivo: motivo,
             skipMensagem: mensagem || null,
             skipDetectadoEm: Date.now(),
+            skipAliases: aliasesNormalizados,
         };
+
+        aliasesNormalizados.forEach((alias) => {
+            const aliasAtual = itemFlags[alias] || {};
+            itemFlags[alias] = {
+                ...aliasAtual,
+                skipNestaRodada: true,
+                skipMotivo: motivo,
+                skipMensagem: mensagem || null,
+                skipDetectadoEm: Date.now(),
+                skipOrigem: key,
+            };
+        });
 
         ItemTrace.registrarEventoItem(
             e as Parameters<typeof ItemTrace.registrarEventoItem>[0],
@@ -163,8 +183,12 @@ export function marcarItemParaPularNestaRodada(
             'item_pulado_na_rodada',
             {
                 itemTelaId: normalizarItemKey(eAny['itemAtualTelaId']) || key,
-                resumo: motivo === 'problema_imagem' ? 'Item pulado por problema visual' : 'Item pulado por marcação vermelha',
-                payload: { motivo, mensagem },
+                resumo: motivo === 'problema_imagem'
+                    ? 'Item pulado por problema visual'
+                    : motivo === 'subgrupo_invalido'
+                        ? 'Item pulado por Sub Grupo inválido'
+                        : 'Item pulado por marcação vermelha',
+                payload: { motivo, mensagem, aliases: aliasesNormalizados },
                 status: 'pausado',
                 now: Date.now(),
             }

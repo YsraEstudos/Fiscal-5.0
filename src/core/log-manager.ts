@@ -8,7 +8,7 @@ import * as EstadoManager from '../core/estado-manager.ts';
 import type { EstadoApp } from '../core/estado-manager.ts';
 import { debounce } from '../utils/misc.ts';
 
-export type LogTipo = 'info' | 'warn' | 'error' | 'success';
+export type LogTipo = 'info' | 'warn' | 'error' | 'success' | 'browser';
 
 export interface LogEntry {
     timestamp: string;

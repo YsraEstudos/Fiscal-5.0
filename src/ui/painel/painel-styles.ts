@@ -498,6 +498,7 @@ export function injetarEstilosPainel(): void {
         }
 
         .log-info { color: #9de29b; }
+        .log-browser { color: #7cc7ff; }
         .log-warn { color: #f4e28a; }
         .log-error { color: #ff8f8f; font-weight: bold; }
 

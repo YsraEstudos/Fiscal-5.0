@@ -17,6 +17,9 @@ const mockAplicarParaItemAtual = vi.fn();
 const mockGetValoresParaItem = vi.fn();
 const mockDetectarAvisoCritico = vi.fn(() => null);
 const mockDetectarAvisoBloqueanteItem = vi.fn(() => null);
+const mockIsMensagemNcmInvalido = vi.fn(() => false);
+const mockIsMensagemNbsInvalido = vi.fn(() => false);
+const mockIsMensagemSubGrupoInvalido = vi.fn(() => false);
 const mockEncontrarItensPendentes = vi.fn(() => []);
 const mockEncontrarItensPendentesInfo = vi.fn(() => ({ elegiveis: [], ignorados: 0 }));
 const mockEncontrarBotaoProximo = vi.fn(() => null);
@@ -108,8 +111,9 @@ vi.mock("../src/workflow/pagina-verificador.ts", () => ({
   obterResumoPendentesServidor: mockObterResumoPendentesServidor,
   verificarSessao: mockVerificarSessao,
   extrairItemKey: mockExtrairItemKey,
-  isMensagemNcmInvalido: vi.fn(() => false),
-  isMensagemNbsInvalido: vi.fn(() => false),
+  isMensagemNcmInvalido: mockIsMensagemNcmInvalido,
+  isMensagemNbsInvalido: mockIsMensagemNbsInvalido,
+  isMensagemSubGrupoInvalido: mockIsMensagemSubGrupoInvalido,
   getModalUnspscContainer: vi.fn(() => null),
   isModalUnspscAberto: vi.fn(() => false),
   detectarModoUnspsc: mockDetectarModoUnspsc,
@@ -238,6 +242,9 @@ describe("workflow/executor", () => {
 
     mockDetectarAvisoCritico.mockReturnValue(null);
     mockDetectarAvisoBloqueanteItem.mockReturnValue(null);
+    mockIsMensagemNcmInvalido.mockReturnValue(false);
+    mockIsMensagemNbsInvalido.mockReturnValue(false);
+    mockIsMensagemSubGrupoInvalido.mockReturnValue(false);
     mockEncontrarItensPendentes.mockReturnValue([]);
     mockEncontrarItensPendentesInfo.mockReturnValue({ elegiveis: [], ignorados: 0, inelegiveisConhecidos: [], desconhecidos: [], totalVisiveis: 0 });
     mockEncontrarBotaoProximo.mockReturnValue(null);
@@ -394,6 +401,113 @@ describe("workflow/executor", () => {
 
     expect(state.pausado).toBe(true);
     expect(state.trilhaExecucao.items["320780"].events.map((evento) => evento.tipo)).toContain("pausado_por_validacao_ncm");
+  });
+
+  it("não pausa por Sub Grupo inválido detectado em texto sem alert nativo", async () => {
+    mockSincronizarItemAtual.mockImplementation(() => {
+      state.itemAtualKey = "320780";
+      state.itemAtualTelaId = "320780";
+      state.itemFlags["320780"] = { ncmValidacaoPendenteAte: Date.now() + 10000 };
+      return "320780";
+    });
+    mockDetectarAvisoCritico.mockReturnValue({
+      tipo: "subgrupo_invalido",
+      mensagem: "O valor do campo Sub Grupo 1 é inválido para esse item!",
+    });
+
+    await mod.executarCiclo("test");
+
+    expect(state.pausado).toBe(false);
+    expect(state.itemFlags["320780"].skipNestaRodada).not.toBe(true);
+  });
+
+  it("consome alert nativo de Sub Grupo inválido, marca item e aciona Voltar", () => {
+    const alertOriginal = vi.fn();
+    globalThis.alert = alertOriginal;
+    const keyEvents = [];
+    document.body.addEventListener("keydown", (event) => keyEvents.push(event));
+    const voltarMenu = document.createElement("a");
+    voltarMenu.textContent = "Voltar";
+    voltarMenu.href = "javascript:__doPostBack('ctl00$Body$TopMenu1$dlmenu$ctl01$lbutopcao','')";
+    document.body.appendChild(voltarMenu);
+    const voltarFormulario = document.createElement("input");
+    voltarFormulario.type = "submit";
+    voltarFormulario.id = "butVoltar";
+    voltarFormulario.name = "ctl00$Body$butVoltar";
+    voltarFormulario.value = "Voltar";
+    const clickVoltarFormulario = vi.spyOn(voltarFormulario, "click").mockImplementation(() => {});
+    document.body.appendChild(voltarFormulario);
+    window.history.pushState({}, "", "/ITEM_Edita.aspx?IdItem=312063&IdSIN=242752");
+    state.itemAtualKey = "313899";
+    state.itemAtualTelaId = "312063";
+    state.itemMapUltimoAplicadoId = "313899";
+    mockObterItemIdAtual.mockReturnValue("312063");
+    mockIsMensagemSubGrupoInvalido.mockReturnValue(true);
+
+    mod.inicializarHooks();
+    try {
+      globalThis.alert("O valor do campo Sub Grupo 1 é inválido para esse item!");
+    } finally {
+      globalThis.alert = alertOriginal;
+    }
+
+    expect(alertOriginal).not.toHaveBeenCalled();
+    expect(state.pausado).toBe(false);
+    expect(state.itemFlags["313899"]).toEqual(expect.objectContaining({
+      skipNestaRodada: true,
+      skipMotivo: "subgrupo_invalido",
+      skipMensagem: "O valor do campo Sub Grupo 1 é inválido para esse item!",
+      skipAliases: expect.arrayContaining(["312063", "242752"]),
+    }));
+    expect(state.itemFlags["312063"]).toEqual(expect.objectContaining({
+      skipNestaRodada: true,
+      skipMotivo: "subgrupo_invalido",
+      skipOrigem: "313899",
+    }));
+    expect(state.itemFlags["242752"]).toEqual(expect.objectContaining({
+      skipNestaRodada: true,
+      skipMotivo: "subgrupo_invalido",
+      skipOrigem: "313899",
+    }));
+    expect(state.trilhaExecucao.items["313899"].events.map((evento) => evento.tipo)).toContain("item_pulado_na_rodada");
+
+    expect(clickVoltarFormulario).toHaveBeenCalledTimes(1);
+    expect(mockInteragir).not.toHaveBeenCalledWith(voltarFormulario, null, "voltarListaItemBloqueado");
+    expect(keyEvents.some((event) => event.key === "S" && event.shiftKey)).toBe(false);
+    expect(mockLog).toHaveBeenCalledWith(expect.stringContaining("Sub Grupo inválido"), "warn");
+  });
+
+  it("não clica em Atuar no Item quando o IdSIN atual já está marcado para pular", async () => {
+    window.history.pushState({}, "", "/SIN_Item_Resultante.aspx?Source=SIN_Lista&Acao=ITEM_Edita&IdSIN=242752");
+    state.itemFlags["242752"] = {
+      skipNestaRodada: true,
+      skipMotivo: "subgrupo_invalido",
+      skipOrigem: "313899",
+    };
+    state.acoes = {
+      atuar: { ativo: true, seletor: "#butAcao3", ordem: 1 },
+    };
+
+    const btnAtuar = document.createElement("input");
+    btnAtuar.type = "submit";
+    btnAtuar.id = "butAcao3";
+    btnAtuar.name = "ctl00$Body$butAcao3";
+    btnAtuar.value = "Atuar no Item";
+    document.body.appendChild(btnAtuar);
+
+    const btnVoltar = document.createElement("input");
+    btnVoltar.type = "submit";
+    btnVoltar.id = "butVoltar";
+    btnVoltar.name = "ctl00$Body$butVoltar";
+    btnVoltar.value = "Voltar";
+    const clickVoltar = vi.spyOn(btnVoltar, "click").mockImplementation(() => {});
+    document.body.appendChild(btnVoltar);
+
+    await mod.executarCiclo("test");
+
+    expect(clickVoltar).toHaveBeenCalledTimes(1);
+    expect(mockAtuar).not.toHaveBeenCalled();
+    expect(mockLog).toHaveBeenCalledWith(expect.stringContaining("evitando Atuar no Item"), "warn");
   });
 
   it("seleciona um novo item pendente e prepara o estado do item", async () => {

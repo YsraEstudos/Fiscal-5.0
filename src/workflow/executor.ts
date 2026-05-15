@@ -71,6 +71,7 @@ let cicloEmExecucao = false;
 let wakePending = false;
 let lastItensEmAtuacaoCount = -1;
 let buscaSemItemInicioTs: number | null = null;
+let retornoItemBloqueadoEmAndamento = false;
 const BUSCA_SEM_ITEM_TIMEOUT_MS = 60_000;
 const SHIFT_S_RETORNO_DELAY_MS = 600;
 const scheduler = createWorkflowScheduler((trigger: string) => {
@@ -125,9 +126,211 @@ function itemJaTemUnspsc(estado: EstadoApp): boolean {
 function enviarShiftS(): void {
     const alvo = (document.activeElement instanceof HTMLElement ? document.activeElement : document.body) || document.body;
     const opts: KeyboardEventInit = { key: 'S', code: 'KeyS', shiftKey: true, bubbles: true, cancelable: true };
+    try { document.dispatchEvent(new KeyboardEvent('keydown', opts)); } catch { /* ignore */ }
+    try { document.dispatchEvent(new KeyboardEvent('keypress', opts)); } catch { /* ignore */ }
+    try { document.dispatchEvent(new KeyboardEvent('keyup', opts)); } catch { /* ignore */ }
+    try { window.dispatchEvent(new KeyboardEvent('keydown', opts)); } catch { /* ignore */ }
+    try { window.dispatchEvent(new KeyboardEvent('keypress', opts)); } catch { /* ignore */ }
+    try { window.dispatchEvent(new KeyboardEvent('keyup', opts)); } catch { /* ignore */ }
     try { alvo.dispatchEvent(new KeyboardEvent('keydown', opts)); } catch { /* ignore */ }
     try { alvo.dispatchEvent(new KeyboardEvent('keypress', opts)); } catch { /* ignore */ }
     try { alvo.dispatchEvent(new KeyboardEvent('keyup', opts)); } catch { /* ignore */ }
+}
+
+function textoControle(el: Element): string {
+    return normalizarEspacos(
+        (el as HTMLInputElement).value ||
+        el.getAttribute('title') ||
+        el.getAttribute('aria-label') ||
+        el.textContent ||
+        ''
+    ).toLowerCase();
+}
+
+function encontrarControleVoltarItem(): HTMLElement | null {
+    const voltarFormulario = document.querySelector(
+        '#butVoltar, input[name$="$butVoltar"], button[name$="$butVoltar"], #hbutVoltar'
+    );
+    if (voltarFormulario) return voltarFormulario as HTMLElement;
+
+    const candidatos = [...document.querySelectorAll('a, button, input[type="button"], input[type="submit"]')];
+    const voltarSin = candidatos.find((el) => {
+        const href = el.getAttribute('href') || '';
+        return /redireciona\(/i.test(href)
+            && /SIN_Item_Resultante\.aspx/i.test(href)
+            && /Source=SIN_Lista/i.test(href);
+    });
+    if (voltarSin) return voltarSin as HTMLElement;
+
+    const voltarRedireciona = candidatos.find((el) => {
+        const href = el.getAttribute('href') || '';
+        return textoControle(el) === 'voltar' && /redireciona\(/i.test(href);
+    });
+    if (voltarRedireciona) return voltarRedireciona as HTMLElement;
+
+    let sair: HTMLElement | null = null;
+    for (const el of candidatos) {
+        const texto = textoControle(el);
+        if (texto === 'voltar') return el as HTMLElement;
+        if (texto === 'sair' && !sair) sair = el as HTMLElement;
+    }
+    return sair;
+}
+
+function acionarControleDireto(controle: HTMLElement): boolean {
+    const href = controle.getAttribute('href') || '';
+    const redirecionaMatch = href.match(/redireciona\(['"]([^'"]+)['"]\)/i);
+    if (redirecionaMatch?.[1]) {
+        if (executarRedirecionaPagina(redirecionaMatch[1])) return true;
+    }
+
+    const postbackMatch = href.match(/__doPostBack\(['"]([^'"]+)['"],\s*['"]([^'"]*)['"]\)/i);
+    if (postbackMatch?.[1]) {
+        if (executarPostbackPagina(postbackMatch[1], postbackMatch[2] || '')) return true;
+    }
+
+    try {
+        controle.click();
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+function executarRedirecionaPagina(url: string): boolean {
+    try {
+        const injectScript = document.createElement('script');
+        injectScript.textContent = `
+            try {
+                var url = ${JSON.stringify(url)};
+                if (typeof redireciona === 'function') {
+                    redireciona(url);
+                } else {
+                    window.location.href = url;
+                }
+            } catch(e) {
+                console.error('FISCAL 5.0 redireciona retorno error:', e);
+            }
+        `;
+        document.body.appendChild(injectScript);
+        injectScript.remove();
+        return true;
+    } catch {
+        try {
+            window.location.href = url;
+            return true;
+        } catch {
+            return false;
+        }
+    }
+}
+
+function executarPostbackPagina(target: string, argument: string): boolean {
+    try {
+        const injectScript = document.createElement('script');
+        injectScript.textContent = `
+            try {
+                if (typeof __doPostBack === 'function') {
+                    __doPostBack(${JSON.stringify(target)}, ${JSON.stringify(argument)});
+                } else {
+                    var form = document.forms['aspnetForm'] || document.aspnetForm || document.querySelector('form');
+                    if (!form) throw new Error('form not found');
+                    var eventTarget = form.querySelector('input[name="__EVENTTARGET"]');
+                    var eventArgument = form.querySelector('input[name="__EVENTARGUMENT"]');
+                    if (!eventTarget || !eventArgument) throw new Error('event fields not found');
+                    eventTarget.value = ${JSON.stringify(target)};
+                    eventArgument.value = ${JSON.stringify(argument)};
+                    form.submit();
+                }
+            } catch(e) {
+                console.error('FISCAL 5.0 postback retorno error:', e);
+            }
+        `;
+        document.body.appendChild(injectScript);
+        injectScript.remove();
+        return true;
+    } catch {
+        return executarPostbackPorFormulario(target, argument);
+    }
+}
+
+function executarPostbackPorFormulario(target: string, argument: string): boolean {
+    const form = (document.forms.namedItem('aspnetForm') as HTMLFormElement | null)
+        || (document as unknown as { aspnetForm?: HTMLFormElement }).aspnetForm
+        || document.querySelector('form');
+    const eventTarget = form?.querySelector('input[name="__EVENTTARGET"]') as HTMLInputElement | null;
+    const eventArgument = form?.querySelector('input[name="__EVENTARGUMENT"]') as HTMLInputElement | null;
+    if (!form || !eventTarget || !eventArgument) return false;
+
+    eventTarget.value = target;
+    eventArgument.value = argument;
+    form.submit();
+    return true;
+}
+
+function acionarRetornoLista(): string {
+    const controleVoltar = encontrarControleVoltarItem();
+    if (controleVoltar) {
+        acionarControleDireto(controleVoltar);
+        return textoControle(controleVoltar) || 'voltar';
+    }
+
+    enviarShiftS();
+    return 'Shift+S';
+}
+
+function obterParametroUrlAtual(nome: string): string | null {
+    try {
+        return new URL(window.location.href).searchParams.get(nome);
+    } catch {
+        return null;
+    }
+}
+
+function obterAliasesItemAtual(estado: EstadoApp): string[] {
+    const estadoAny = estado as unknown as Record<string, unknown>;
+    const aliases = [
+        estadoAny['itemAtualKey'],
+        estadoAny['itemAtualTelaId'],
+        estadoAny['itemMapUltimoAplicadoId'],
+        ItemMapManager.obterItemIdAtual(),
+        obterParametroUrlAtual('IdItem'),
+        obterParametroUrlAtual('IdSIN'),
+    ];
+
+    return [...new Set(
+        aliases
+            .map((alias) => String(alias ?? '').trim())
+            .filter(Boolean)
+    )];
+}
+
+function itemAtualMarcadoParaPularNestaRodada(estado: EstadoApp): string | null {
+    const itemFlags = (estado as unknown as { itemFlags?: Record<string, Record<string, unknown>> }).itemFlags || {};
+    const aliases = obterAliasesItemAtual(estado);
+    return aliases.find((alias) => itemFlags[alias]?.skipNestaRodada === true) || null;
+}
+
+function encontrarBotaoAtuarResumo(): HTMLElement | null {
+    const botao = document.querySelector('#butAcao3, input[name$="$butAcao3"], button[name$="$butAcao3"]') as HTMLElement | null;
+    const valor = normalizarEspacos((botao as HTMLInputElement | null)?.value || botao?.textContent || '').toLowerCase();
+    if (!botao || !/\batuar\b/.test(valor)) return null;
+    return botao;
+}
+
+function retornarSeResumoItemPulado(estado: EstadoApp, status: HTMLElement | null): boolean {
+    const itemPulado = itemAtualMarcadoParaPularNestaRodada(estado);
+    if (!itemPulado || !encontrarBotaoAtuarResumo()) return false;
+
+    const metodoRetorno = acionarRetornoLista();
+    if (status) {
+        status.textContent = `Item ${itemPulado} pulado nesta rodada; retornando...`;
+        status.style.color = '#d97706';
+    }
+    log(`⏭️ Item ${itemPulado} já marcado para pular; evitando Atuar no Item e retornando com ${metodoRetorno}`, 'warn');
+    workflowState.reset();
+    buscaSemItemInicioTs = null;
+    return true;
 }
 
 async function tratarAvisoBloqueanteItem(estado: EstadoApp, status: HTMLElement | null): Promise<boolean> {
@@ -154,6 +357,32 @@ async function tratarAvisoBloqueanteItem(estado: EstadoApp, status: HTMLElement 
     workflowState.reset();
     buscaSemItemInicioTs = null;
     return true;
+}
+
+function tratarAlertSubGrupoInvalido(mensagem: string): void {
+    if (retornoItemBloqueadoEmAndamento) return;
+    retornoItemBloqueadoEmAndamento = true;
+
+    const estado = EstadoManager.get();
+    const estadoAny = estado as unknown as Record<string, unknown>;
+    const itemKey = (estadoAny['itemAtualKey'] as string | null)
+        || (estadoAny['itemAtualTelaId'] as string | null)
+        || ItemMapManager.obterItemIdAtual();
+    const aliases = obterAliasesItemAtual(estado);
+    const marcado = marcarItemParaPularNestaRodada(estado, itemKey, 'subgrupo_invalido', mensagem, aliases);
+    const status = document.getElementById('statusRobo');
+
+    if (status) {
+        status.textContent = `Pulando item ${marcado || '-'} por Sub Grupo inválido...`;
+        status.style.color = '#d97706';
+    }
+
+    log(`🌐 Mensagem do navegador: ${mensagem}`, 'browser');
+    scheduler.cancelarTimer();
+    const metodoRetorno = acionarRetornoLista();
+    log(`⏭️ Item ${marcado || '-'} pulado por Sub Grupo inválido; retornando para a lista com ${metodoRetorno}`, 'warn');
+    workflowState.reset();
+    buscaSemItemInicioTs = null;
 }
 
 async function tentarPaginarProximaPagina(itensInfo: PaginaVerificador.ItensPendentesInfo, status: HTMLElement | null): Promise<boolean> {
@@ -207,6 +436,14 @@ async function executarLogica(): Promise<boolean> {
     const estado = EstadoManager.get();
     const status = document.getElementById('statusRobo');
 
+    if (retornoItemBloqueadoEmAndamento) {
+        if (status) {
+            status.textContent = 'Aguardando retorno do item bloqueado...';
+            status.style.color = '#d97706';
+        }
+        return false;
+    }
+
     if (!estado.ativo || estado.pausado) return false;
 
     const actionDelayRemainingMs = scheduler.getActionDelayRemainingMs();
@@ -255,6 +492,7 @@ async function executarLogica(): Promise<boolean> {
     ItemMapManager.aplicarParaItemAtual(estadoAtual);
     if (tratarItemSemJsonNaRodada(estadoAtual, status, pausarComAviso)) return true;
     if (await tratarAvisoBloqueanteItem(estadoAtual, status)) return true;
+    if (retornarSeResumoItemPulado(estadoAtual, status)) return true;
 
     const avisoCritico = PaginaVerificador.detectarAvisoCritico();
     const pausaReincidenciaAtiva = estadoAtual.pausarEmReincidencia !== false;
@@ -536,6 +774,7 @@ export function iniciar(): void {
 
 export function parar(): void {
     scheduler.cancelarTimer();
+    retornoItemBloqueadoEmAndamento = false;
     EstadoManager.update((e: EstadoApp) => { e.ativo = false; });
     log('🛑 Ciclo parado', 'info');
 
@@ -561,6 +800,7 @@ export function limpar(): void {
     scheduler.cancelarTimer();
     CooldownManager.limpar();
     buscaSemItemInicioTs = null;
+    retornoItemBloqueadoEmAndamento = false;
 }
 
 // ---------------------------------------------------------------------------
@@ -581,17 +821,24 @@ export function inicializarHooks(): void {
             const pendenteAte = Number(itemFlags?.[key ?? '']?.['ncmValidacaoPendenteAte'] || 0);
             const ncmLiberado = pendenteAte > Date.now();
 
+            let alertaConsumido = false;
             if (PaginaVerificador.isMensagemNcmInvalido(String(msg ?? ''))) {
                 if (ncmLiberado) {
                     registrarPausaCriticaNaTrilha({ tipo: 'ncm_invalido', mensagem: String(msg || '') });
                     pausarComAviso('NCM inválido detectado (alerta)', { alertUser: false, tipo: 'ncm_invalido' });
+                    alertaConsumido = true;
                 }
             } else if (PaginaVerificador.isMensagemNbsInvalido(String(msg ?? ''))) {
                 if (ncmLiberado) {
                     registrarPausaCriticaNaTrilha({ tipo: 'nbs_invalido', mensagem: String(msg || '') });
                     pausarComAviso('NBS inválido detectado (alerta)', { alertUser: false, tipo: 'nbs_invalido' });
+                    alertaConsumido = true;
                 }
+            } else if (PaginaVerificador.isMensagemSubGrupoInvalido(String(msg ?? ''))) {
+                tratarAlertSubGrupoInvalido(String(msg || ''));
+                alertaConsumido = true;
             }
+            if (alertaConsumido) return undefined;
         } catch { }
         return alertOriginal.apply(globalThis, args as Parameters<typeof alert>);
     };

@@ -50,6 +50,7 @@ describe("workflow/pagina-verificador", () => {
   it("detecta mensagens NCM/NBS inválidas", () => {
     expect(mod.isMensagemNcmInvalido("NCM informado inválido")).toBe(true);
     expect(mod.isMensagemNbsInvalido("NBS informado inválido")).toBe(true);
+    expect(mod.isMensagemSubGrupoInvalido("O valor do campo Sub Grupo 1 é inválido para esse item!")).toBe(true);
   });
 
   it("detectarAvisoCritico retorna tipo correto", () => {
@@ -59,6 +60,17 @@ describe("workflow/pagina-verificador", () => {
     });
     const r = mod.detectarAvisoCritico();
     expect(r.tipo).toBe("ncm_invalido");
+  });
+
+  it("detectarAvisoCritico reconhece Sub Grupo inválido", () => {
+    mockBuscarElementoDeep.mockImplementation((sel) => {
+      if (sel === "#lblExecucoes") return null;
+      return { value: "O valor do campo Sub Grupo 1 é inválido para esse item!" };
+    });
+
+    const r = mod.detectarAvisoCritico();
+
+    expect(r.tipo).toBe("subgrupo_invalido");
   });
 
   it("detectarAvisoCritico pausa em reincidência a partir de 2 execuções", () => {

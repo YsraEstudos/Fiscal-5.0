@@ -3235,7 +3235,7 @@
     return null;
   }
   async function selecionarOpcaoAutocompleteCest(campo, valorAlvo, timeoutMs = 3e3) {
-    var _a;
+    var _a, _b;
     const fim = Date.now() + timeoutMs;
     while (Date.now() <= fim) {
       const containers = obterContainersAutocomplete(campo);
@@ -3246,7 +3246,7 @@
         if (!opcao) continue;
         const texto = String(opcao.textContent || "").trim();
         log(`✅ CEST: opção selecionada "${texto.substring(0, 80)}"`, "info");
-        const anchorToUse = opcao.tagName === "A" && ((_a = opcao.id) == null ? void 0 : _a.startsWith("asel")) ? opcao : opcao.querySelector?.('a[id^="asel"]');
+        const anchorToUse = opcao.tagName === "A" && ((_a = opcao.id) == null ? void 0 : _a.startsWith("asel")) ? opcao : (_b = opcao.querySelector) == null ? void 0 : _b.call(opcao, 'a[id^="asel"]');
         if (anchorToUse) {
           const hrefVal = anchorToUse.getAttribute("href") || "";
           const onclickVal = anchorToUse.getAttribute("onclick") || "";
@@ -3430,9 +3430,9 @@
             const alvo = normalizarCestAlvo(valorCest);
             registrarEventoItemAtual(e, "cest_preenchido", {
               itemTelaId: eAny["itemAtualTelaId"] || eAny["itemAtualKey"] || null,
-              resumo: `CEST preenchido com ${alvo?.codigo || valorCest}`,
+              resumo: `CEST preenchido com ${(alvo == null ? void 0 : alvo.codigo) || valorCest}`,
               payload: {
-                cest: alvo?.codigo || valorCest,
+                cest: (alvo == null ? void 0 : alvo.codigo) || valorCest,
                 valorOriginal: valorCest
               },
               status: "em_andamento",

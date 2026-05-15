@@ -13,7 +13,7 @@ import { buscarElementoDeep } from '../utils/selectors.ts';
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
-export type TipoAviso = 'reincidencia_etapa' | 'ncm_invalido' | 'nbs_invalido';
+export type TipoAviso = 'reincidencia_etapa' | 'ncm_invalido' | 'nbs_invalido' | 'subgrupo_invalido';
 
 export interface AvisoCritico {
     fonte: string;
@@ -77,6 +77,11 @@ export function isMensagemNbsInvalido(texto: string): boolean {
     return t.includes('nbs informado') && t.includes('invalido');
 }
 
+export function isMensagemSubGrupoInvalido(texto: string): boolean {
+    const t = normalizarTextoSemAcento(texto || '');
+    return t.includes('sub grupo') && t.includes('invalido');
+}
+
 function extrairNumeroExecucoes(texto: string): number | null {
     const normalizado = normalizarTextoSemAcento(texto || '').replaceAll(/[ºª]/g, ' ');
     const match = normalizado.match(/\b(\d+)\b/);
@@ -109,6 +114,9 @@ export function detectarAvisoCritico(): AvisoCritico | null {
     }
     if (valor && isMensagemNbsInvalido(valor)) {
         return { fonte: 'textarea', mensagem: String(valor).trim(), tipo: 'nbs_invalido' };
+    }
+    if (valor && isMensagemSubGrupoInvalido(valor)) {
+        return { fonte: 'textarea', mensagem: String(valor).trim(), tipo: 'subgrupo_invalido' };
     }
     return null;
 }
