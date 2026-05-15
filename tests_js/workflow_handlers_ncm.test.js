@@ -164,6 +164,31 @@ describe("workflow/handlers/ncm", () => {
     );
   });
 
+  it("ncm ignora serviço lei-only quando não há valor de NBS", async () => {
+    const campoNbs = document.createElement("input");
+    campoNbs.value = "";
+    mockGetValoresParaItem.mockReturnValue({ ncm: null, nbs: null, lei116: "7.02" });
+    mockEncontrarCampoNbsPreferido.mockReturnValue(campoNbs);
+    mockEncontrarCampoNcmPreferido.mockReturnValue(null);
+
+    const ok = await mod.ncm(
+      currentState,
+      { textContent: "" },
+      {
+        getAcao: getAcaoFactory(),
+        getValorAcao: (id) => (id === "lei116Servico" ? "7.02" : null),
+        valoresSaoIguais: () => false,
+        habilitarValidacaoNcmAposInsercao: vi.fn(),
+        isValidacaoNcmLiberada: () => true,
+        registrarAvisoValidacaoNcmAguardando: vi.fn(),
+        workflowState: { isCompleta: () => false },
+      },
+    );
+
+    expect(ok).toBe(false);
+    expect(mockInteragir).not.toHaveBeenCalled();
+  });
+
   it("ncm registra aviso quando valor já está igual e validação não liberada", async () => {
     const campo = document.createElement("input");
     campo.value = "8471.30.12";

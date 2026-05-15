@@ -36,6 +36,16 @@ describe("ui/drawer", () => {
     expect(document.getElementById("drawerToggle")).not.toBeNull();
   });
 
+  it("mostra CEST no JSON padrão do painel", () => {
+    set(buildState({ minimizado: false }));
+    injetarEstilos();
+    const painel = construirPainel(false);
+    document.body.appendChild(painel);
+
+    const textarea = document.getElementById("itemMapJson");
+    expect(textarea?.getAttribute("placeholder")).toContain('"cest": "01.075.00"');
+  });
+
   it("abre e fecha ao clicar e persiste o estado recolhido", () => {
     set(buildState({ minimizado: true }));
     injetarEstilos();

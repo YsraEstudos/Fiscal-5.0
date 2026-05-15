@@ -177,7 +177,7 @@ export function renderJsonSection(estado: EstadoApp): string {
                 <span>Usar JSON por ID</span>
             </label>
             <textarea id="itemMapJson" class="km-textarea" placeholder='{
-  &quot;320780&quot;: { &quot;ncm&quot;: &quot;8471.30.12&quot;, &quot;unspsc&quot;: &quot;30103618&quot; }
+  &quot;320780&quot;: { &quot;ncm&quot;: &quot;8471.30.12&quot;, &quot;cest&quot;: &quot;01.075.00&quot;, &quot;unspsc&quot;: &quot;30103618&quot; }
 }'></textarea>
             <div class="km-button-row">
                 <button id="btnItemMapAplicar" class="km-secondary-button" type="button">Aplicar JSON</button>

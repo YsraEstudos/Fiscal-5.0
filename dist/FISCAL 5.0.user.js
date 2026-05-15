@@ -2047,7 +2047,11 @@
     const campoIncideNbs = buscarElementoDeep("#txtIncideNBS") || buscarElementoDeep('input[name$="txtIncideNBS"]');
     const incideNbs = String((campoIncideNbs == null ? void 0 : campoIncideNbs.value) ?? (campoIncideNbs == null ? void 0 : campoIncideNbs.textContent) ?? "").trim().toUpperCase() === "SIM";
     const modoServico = !!(entry.nbs || normalizarLei116$1(entry.lei116) || entry.ncm && ehValorNbs$1(entry.ncm) || campoNbs && incideNbs);
-    const valor = acaoId === "ncm" ? modoServico ? entry.nbs || (ehValorNbs$1(entry.ncm) ? entry.ncm : null) : entry.ncm : acaoId === "cest" ? entry.cest : acaoId === "unspsc" ? entry.unspsc : entry.lei116;
+    if (acaoId === "ncm") {
+      const valorFiscal = modoServico ? entry.nbs || (ehValorNbs$1(entry.ncm) ? entry.ncm : null) : entry.ncm;
+      return valorFiscal != null ? valorFiscal : modoServico ? null : acao.valor;
+    }
+    const valor = acaoId === "cest" ? entry.cest : acaoId === "unspsc" ? entry.unspsc : entry.lei116;
     return valor != null ? valor : acao.valor;
   }
   function aplicarJson(jsonText, { silent = false } = {}) {

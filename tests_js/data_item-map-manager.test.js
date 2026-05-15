@@ -83,6 +83,15 @@ describe("data/item-map-manager", () => {
     expect(parsed.warnings.join(" | ")).toMatch(/Lei 116 inválida \(7.2\)/);
   });
 
+  it("parseJsonParaMapa aceita item contendo apenas lei116", () => {
+    const raw = JSON.stringify({
+      S1: { lei116: "7.02" },
+    });
+    const parsed = mod.parseJsonParaMapa(raw);
+    expect(parsed.map.S1).toEqual({ ncm: null, nbs: null, cest: null, unspsc: null, lei116: "7.02" });
+    expect(parsed.warnings).toEqual([]);
+  });
+
   it("parseJsonParaMapa mantém compatibilidade com legado em ncm contendo NBS", () => {
     const raw = JSON.stringify({
       S3: { ncm: "1.0105.40.00", lei116: "7.02" },
@@ -161,6 +170,16 @@ describe("data/item-map-manager", () => {
       return null;
     });
     expect(mod.getValorAcao("ncm", state)).toBe("1.0105.40.00");
+  });
+
+  it("getValorAcao não usa NCM padrão como NBS quando item só tem lei116", () => {
+    state.itemMapAtivo = true;
+    state.itemAtualTelaId = "SVC2";
+    state.itemMap = { SVC2: { ncm: null, nbs: null, cest: null, unspsc: null, lei116: "7.02" } };
+    mockBuscarElementoDeep.mockReturnValue(null);
+
+    expect(mod.getValorAcao("ncm", state)).toBeNull();
+    expect(mod.getValorAcao("lei116Servico", state)).toBe("7.02");
   });
 
   it("getValorAcao usa o IdItem da URL em vez do itemAtualKey da lista", () => {

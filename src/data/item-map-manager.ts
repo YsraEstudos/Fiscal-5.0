@@ -293,13 +293,14 @@ export function getValorAcao(acaoId: string, estado: EstadoApp): string | null {
         || (entry.ncm && ehValorNbs(entry.ncm))
         || (campoNbs && incideNbs)
     );
-    const valor = acaoId === 'ncm'
-        ? (
-            modoServico
-                ? (entry.nbs || (ehValorNbs(entry.ncm) ? entry.ncm : null))
-                : entry.ncm
-        )
-        : (acaoId === 'cest' ? entry.cest : (acaoId === 'unspsc' ? entry.unspsc : entry.lei116));
+    if (acaoId === 'ncm') {
+        const valorFiscal = modoServico
+            ? (entry.nbs || (ehValorNbs(entry.ncm) ? entry.ncm : null))
+            : entry.ncm;
+        return valorFiscal != null ? valorFiscal : (modoServico ? null : acao.valor);
+    }
+
+    const valor = acaoId === 'cest' ? entry.cest : (acaoId === 'unspsc' ? entry.unspsc : entry.lei116);
     return valor != null ? valor : acao.valor;
 }
 

@@ -154,8 +154,8 @@ Formato objeto:
 
 ```json
 {
-  "251133": { "ncm": "8471.30.12", "unspsc": "30103618" },
-  "251134": { "nbs": "1111.22.33", "unspsc": "30103618", "lei116": "7.02" }
+  "251133": { "ncm": "8471.30.12", "cest": "01.075.00", "unspsc": "30103618" },
+  "251134": { "nbs": "1111.22.33", "cest": null, "unspsc": "30103618", "lei116": "7.02" }
 }
 ```
 
@@ -163,8 +163,8 @@ Formato lista:
 
 ```json
 [
-  { "id": "251133", "ncm": "8471.30.12", "unspsc": "30103618" },
-  { "id": "251134", "nbs": "1111.22.33", "unspsc": "30103618", "lei116": "7.02" }
+  { "id": "251133", "ncm": "8471.30.12", "cest": "01.075.00", "unspsc": "30103618" },
+  { "id": "251134", "nbs": "1111.22.33", "cest": null, "unspsc": "30103618", "lei116": "7.02" }
 ]
 ```
 
@@ -172,6 +172,7 @@ Observação:
 
 - Quando o JSON por item estiver ativo, ele também passa a definir o total planejado usado pela ETA do lote.
 - `nbs` é aceito como alias de valor fiscal no mesmo campo lógico da ação `ncm`.
+- `cest` é opcional e aceita código com ou sem máscara (ex.: `0107500` ou `01.075.00`).
 - `lei116` é opcional e ativa o modo serviço para o item (preenchimento Cat90/Cat91).
 - Formato aceito de `lei116`: `d.dd` ou `dd.dd` (ex.: `7.02`, `12.15`).
 
