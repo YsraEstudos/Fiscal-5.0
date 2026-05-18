@@ -215,9 +215,16 @@ export function renderLogsSection(): string {
         <section class="km-card">
             <div class="km-card-head km-card-head--tight">
                 <label class="km-section-label">Log</label>
-                <button id="btnCopiarRelatorio" class="km-inline-button" type="button">Copiar erro</button>
+                <div class="km-log-actions">
+                    <button id="btnCopiarLogs" class="km-inline-button" type="button">Copiar tudo</button>
+                    <button id="btnLimparLogs" class="km-inline-button km-inline-button--danger" type="button">Apagar</button>
+                    <button id="btnCopiarRelatorio" class="km-inline-button" type="button">Copiar erro</button>
+                </div>
             </div>
-            <div id="log-area" class="km-log-area"></div>
+            <div class="km-log-resizer">
+                <div id="log-area" class="km-log-area"></div>
+                <div class="km-log-resize-handle" data-log-resize-handle title="Arraste para redimensionar logs"></div>
+            </div>
             <div class="km-shortcuts">F7 abre/fecha • F8 pausa • ESC para tudo</div>
         </section>
     `;

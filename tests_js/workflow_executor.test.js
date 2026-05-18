@@ -77,6 +77,8 @@ const mockColetarMidia = vi.fn(async () => false);
 const mockColetarAcompanhamento = vi.fn(async () => false);
 const mockGerarRelatorioItem = vi.fn(async () => false);
 
+vi.resetModules();
+
 vi.mock("../src/core/estado-manager.ts", () => ({
   get: mockEstadoGet,
   set: mockEstadoSet,
@@ -218,8 +220,10 @@ function buildState(overrides = {}) {
       items: {},
     },
     itemFlags: {},
-    itemMapAtivo: false,
-    itemMap: {},
+    itemMapAtivo: true,
+    itemMap: {
+      "320780": { ncm: "8471.30.12", nbs: null, cest: null, unspsc: null, lei116: null },
+    },
     itemMapJson: "",
     itemMapUltimoAplicadoId: null,
     reporting: { sessionRunId: null, serviceUrl: "" },
@@ -332,6 +336,30 @@ describe("workflow/executor", () => {
     expect(mockSincronizarItemAtual).not.toHaveBeenCalled();
   });
 
+  it("pausa sem clicar quando não há JSON ativo", async () => {
+    state.itemMapAtivo = false;
+    state.itemMap = {};
+    state.acoes = {
+      atuar: { ativo: true, seletor: "#butAcao3", ordem: 1 },
+      ncm: { ativo: true, seletor: "#txtNCMTIPI", valor: "8471.30.12", ordem: 2 },
+    };
+    mockObterItemIdAtual.mockReturnValue("342799");
+    mockSincronizarItemAtual.mockImplementation(() => {
+      state.itemAtualKey = "342799";
+      state.itemAtualTelaId = "342799";
+      return "342799";
+    });
+
+    await mod.executarCiclo("test");
+
+    expect(state.pausado).toBe(true);
+    expect(state.estatisticas.ultimoErro?.tipo).toBe("json_inativo");
+    expect(mockInteragir).not.toHaveBeenCalled();
+    expect(mockAtuar).not.toHaveBeenCalled();
+    expect(mockNcm).not.toHaveBeenCalled();
+    expect(mockProsseguir).not.toHaveBeenCalled();
+  });
+
   it("registra item_aberto quando o item é sincronizado na tela", async () => {
     mockSincronizarItemAtual.mockImplementation(() => {
       state.itemAtualKey = "320780";
@@ -346,6 +374,8 @@ describe("workflow/executor", () => {
   });
 
   it("registra pausa por reincidência antes de pausar o robô", async () => {
+    state.itemMapAtivo = true;
+    state.itemMap = { "320780": { ncm: "8471.30.12" } };
     mockSincronizarItemAtual.mockImplementation(() => {
       state.itemAtualKey = "320780";
       state.itemAtualTelaId = "320780";
@@ -365,6 +395,8 @@ describe("workflow/executor", () => {
   });
 
   it("não pausa por reincidência quando a opção está desativada", async () => {
+    state.itemMapAtivo = true;
+    state.itemMap = { "320780": { ncm: "8471.30.12" } };
     state.pausarEmReincidencia = false;
     mockSincronizarItemAtual.mockImplementation(() => {
       state.itemAtualKey = "320780";
@@ -386,6 +418,8 @@ describe("workflow/executor", () => {
   });
 
   it("pausa por NCM inválido quando a janela de validação está liberada", async () => {
+    state.itemMapAtivo = true;
+    state.itemMap = { "320780": { ncm: "8471.30.12" } };
     mockSincronizarItemAtual.mockImplementation(() => {
       state.itemAtualKey = "320780";
       state.itemAtualTelaId = "320780";
@@ -404,6 +438,8 @@ describe("workflow/executor", () => {
   });
 
   it("não pausa por Sub Grupo inválido detectado em texto sem alert nativo", async () => {
+    state.itemMapAtivo = true;
+    state.itemMap = { "320780": { ncm: "8471.30.12" } };
     mockSincronizarItemAtual.mockImplementation(() => {
       state.itemAtualKey = "320780";
       state.itemAtualTelaId = "320780";
@@ -478,6 +514,8 @@ describe("workflow/executor", () => {
   });
 
   it("não clica em Atuar no Item quando o IdSIN atual já está marcado para pular", async () => {
+    state.itemMapAtivo = true;
+    state.itemMap = { "242752": { ncm: "8471.30.12" } };
     window.history.pushState({}, "", "/SIN_Item_Resultante.aspx?Source=SIN_Lista&Acao=ITEM_Edita&IdSIN=242752");
     state.itemFlags["242752"] = {
       skipNestaRodada: true,
@@ -511,6 +549,8 @@ describe("workflow/executor", () => {
   });
 
   it("seleciona um novo item pendente e prepara o estado do item", async () => {
+    state.itemMapAtivo = true;
+    state.itemMap = { "777": { ncm: "8471.30.12" } };
     const link = document.createElement("a");
     mockEncontrarItensPendentes.mockReturnValue([link]);
     mockEncontrarItensPendentesInfo.mockReturnValue({ elegiveis: [link], ignorados: 1 });
@@ -539,6 +579,8 @@ describe("workflow/executor", () => {
   });
 
   it("fecha aviso de problema visual com OK, envia Shift+S e marca o item para pular na rodada", async () => {
+    state.itemMapAtivo = true;
+    state.itemMap = { "777": { ncm: "8471.30.12" } };
     const btnOk = document.createElement("button");
     document.body.appendChild(btnOk);
     const keyEvents = [];
@@ -567,6 +609,8 @@ describe("workflow/executor", () => {
   });
 
   it("seleciona item elegível da página em vez de paginar quando há bloqueados e elegíveis", async () => {
+    state.itemMapAtivo = true;
+    state.itemMap = { "222": { ncm: "8471.30.12" } };
     const bloqueado = buildLink("111");
     const elegivel = buildLink("222");
     mockEncontrarItensPendentesInfo.mockReturnValue({
@@ -585,6 +629,8 @@ describe("workflow/executor", () => {
   });
 
   it("clica em Próximo quando todos os itens visíveis são inelegíveis conhecidos", async () => {
+    state.itemMapAtivo = true;
+    state.itemMap = { "111": { ncm: "8471.30.12" }, "222": { ncm: "8471.30.12" } };
     const bloqueado1 = buildLink("111");
     const bloqueado2 = buildLink("222");
     const btnProximo = document.createElement("a");
@@ -621,6 +667,8 @@ describe("workflow/executor", () => {
   });
 
   it("aguarda abertura do mesmo item quando o cooldown ainda está ativo", async () => {
+    state.itemMapAtivo = true;
+    state.itemMap = { "777": { ncm: "8471.30.12" } };
     const link = document.createElement("a");
     state.itemAtualKey = "777";
     mockEncontrarItensPendentes.mockReturnValue([link]);
@@ -637,6 +685,8 @@ describe("workflow/executor", () => {
   });
 
   it("para a procura quando nao encontra item por um minuto", async () => {
+    state.itemMapAtivo = true;
+    state.itemMap = { "777": { ncm: "8471.30.12" } };
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2030-05-05T12:00:00.000Z"));
     mockEncontrarItensPendentesInfo.mockReturnValue({ elegiveis: [], ignorados: 0 });
@@ -668,6 +718,15 @@ describe("workflow/executor", () => {
   });
 
   it("calcula total dinâmico como concluídos efetivos + pendentes do servidor", async () => {
+    state.itemMap = {
+      A: { ncm: "8471.30.12" },
+      B: { ncm: "8471.30.12" },
+      C: { ncm: "8471.30.12" },
+      D: { ncm: "8471.30.12" },
+      E: { ncm: "8471.30.12" },
+      F: { ncm: "8471.30.12" },
+      G: { ncm: "8471.30.12" },
+    };
     state.progresso.concluidosIds = ["A", "B"];
     mockObterResumoPendentesServidor.mockReturnValue({
       primeiro: 1,
@@ -683,6 +742,16 @@ describe("workflow/executor", () => {
   });
 
   it("ajusta total automaticamente quando pendentes do servidor diminuem", async () => {
+    state.itemMapAtivo = true;
+    state.itemMap = {
+      A: { ncm: "8471.30.12" },
+      B: { ncm: "8471.30.12" },
+      C: { ncm: "8471.30.12" },
+      D: { ncm: "8471.30.12" },
+      E: { ncm: "8471.30.12" },
+      F: { ncm: "8471.30.12" },
+      G: { ncm: "8471.30.12" },
+    };
     state.progresso.concluidosIds = ["A", "B"];
     mockObterResumoPendentesServidor.mockReturnValue({
       primeiro: 1,
@@ -700,6 +769,13 @@ describe("workflow/executor", () => {
       total: 3,
       texto: "Exibindo SIN 1 a 3 de um total de 3",
     });
+    state.itemMap = {
+      A: { ncm: "8471.30.12" },
+      B: { ncm: "8471.30.12" },
+      C: { ncm: "8471.30.12" },
+      D: { ncm: "8471.30.12" },
+      E: { ncm: "8471.30.12" },
+    };
     await mod.executarCiclo("test");
 
     expect(state.progresso.total).toBe(5);
@@ -792,6 +868,100 @@ describe("workflow/executor", () => {
     expect(mockLog).toHaveBeenCalledWith(expect.stringContaining("Item 999 aberto na tela não existe no JSON ativo"), "error");
     expect(state.trilhaExecucao.items["999"].status).toBe("pausado");
     expect(state.trilhaExecucao.items["999"].events.map((evento) => evento.tipo)).toContain("item_sem_json");
+  });
+
+  it("pausa sem clicar quando txtNumero aberto não existe no JSON ativo", async () => {
+    state.itemMapAtivo = true;
+    state.itemMap = {
+      "300": { ncm: "8471.30.12" },
+    };
+    mockObterItemIdAtual.mockReturnValue("342799");
+    mockSincronizarItemAtual.mockImplementation(() => {
+      state.itemAtualKey = "84548";
+      state.itemAtualTelaId = "342799";
+      return "84548";
+    });
+
+    await mod.executarCiclo("test");
+
+    expect(state.pausado).toBe(true);
+    expect(state.estatisticas.ultimoErro?.tipo).toBe("item_sem_json");
+    expect(mockInteragir).not.toHaveBeenCalled();
+    expect(mockAtuar).not.toHaveBeenCalled();
+    expect(mockNcm).not.toHaveBeenCalled();
+    expect(mockProsseguir).not.toHaveBeenCalled();
+  });
+
+  it("continua o fluxo quando txtNumero aberto existe no JSON ativo", async () => {
+    state.itemMapAtivo = true;
+    state.itemMap = {
+      "342799": { ncm: "8471.30.12", nbs: null, cest: null, unspsc: null, lei116: null },
+    };
+    state.acoes = {
+      ncm: { ativo: true, seletor: "#txtNCMTIPI", valor: "0000.00.00", ordem: 1 },
+    };
+    mockObterItemIdAtual.mockReturnValue("342799");
+    mockSincronizarItemAtual.mockImplementation(() => {
+      state.itemAtualKey = "84548";
+      state.itemAtualTelaId = "342799";
+      return "84548";
+    });
+    mockNcm.mockResolvedValue(true);
+
+    await mod.executarCiclo("test");
+
+    expect(state.pausado).toBe(false);
+    expect(mockGetValoresParaItem).toHaveBeenCalledWith(state, "342799");
+    expect(mockNcm).toHaveBeenCalled();
+    expect(state.estatisticas.ultimoErro?.tipo).not.toBe("item_sem_json");
+  });
+
+  it("pausa uma vez quando JSON da empresa atual não traz campo obrigatório", async () => {
+    document.body.innerHTML = `
+      <span id="lblUsuario">ISRAEL DE SENA XAVIER MACHADO//RODONAVES</span>
+      <div id="statusRobo"></div>
+    `;
+    state.itemMapAtivo = true;
+    state.itemAtualKey = "1001";
+    state.itemAtualTelaId = "1001";
+    state.itemMap = {
+      "1001": { ncm: "8708.29.99", nbs: null, cest: null, unspsc: null, lei116: null },
+    };
+    mockSincronizarItemAtual.mockReturnValue("1001");
+    mockObterItemIdAtual.mockReturnValue("1001");
+
+    await mod.executarCiclo("test");
+
+    expect(state.pausado).toBe(true);
+    expect(state.estatisticas.ultimoErro?.tipo).toBe("json_empresa_obrigatorio");
+    expect(state.estatisticas.ultimoErro?.mensagem).toContain("RODONAVES exige CEST");
+    expect(state.itemFlags["1001"].jsonEmpresaCamposLiberados).toEqual(["cest"]);
+  });
+
+  it("não pausa de novo quando o campo obrigatório ausente já foi liberado para o item", async () => {
+    document.body.innerHTML = `
+      <span id="lblUsuario">ISRAEL DE SENA XAVIER MACHADO//RODONAVES</span>
+      <div id="statusRobo"></div>
+      <input id="butAcao2" value="Prosseguir" />
+    `;
+    state.itemMapAtivo = true;
+    state.itemAtualKey = "1001";
+    state.itemAtualTelaId = "1001";
+    state.itemFlags["1001"] = { jsonEmpresaCamposLiberados: ["cest"] };
+    state.itemMap = {
+      "1001": { ncm: "8708.29.99", nbs: null, cest: null, unspsc: null, lei116: null },
+    };
+    state.acoes = {
+      prosseguir: { ativo: true, seletor: "#butAcao2", valor: null, ordem: 1 },
+    };
+    mockSincronizarItemAtual.mockReturnValue("1001");
+    mockObterItemIdAtual.mockReturnValue("1001");
+    mockProsseguir.mockResolvedValue(true);
+
+    await mod.executarCiclo("test");
+
+    expect(state.pausado).toBe(false);
+    expect(mockProsseguir).toHaveBeenCalled();
   });
 
   it("não contabiliza item sem JSON como concluído mesmo quando o site informa pendentes", async () => {
@@ -895,6 +1065,8 @@ describe("workflow/executor", () => {
   });
 
   it("libera prosseguir no fluxo inline somente quando readonly confirma o UNSPSC", async () => {
+    state.itemMapAtivo = true;
+    state.itemMap = { "320780": { ncm: "8471.30.12" } };
     state.itemAtualKey = "320780";
     state.itemAtualTelaId = "320780";
     state.itemFlags["320780"] = { unspscFeito: false };

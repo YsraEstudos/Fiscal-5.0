@@ -91,4 +91,25 @@ describe("core/log-manager", () => {
     expect(logArea.children).toHaveLength(50);
     expect(logArea.firstChild.textContent).toContain("nova linha");
   });
+
+  it("formata todos os logs para cópia", () => {
+    state.logs = [
+      { timestamp: "10:00:02", mensagem: "mais recente", tipo: "info" },
+      { timestamp: "10:00:01", mensagem: "mais antigo", tipo: "warn" },
+    ];
+
+    expect(manager.formatarTodos()).toBe("10:00:02 - mais recente\n10:00:01 - mais antigo");
+  });
+
+  it("limpar esvazia memória, estado e DOM", () => {
+    state.logs = [{ timestamp: "10:00:00", mensagem: "preexistente", tipo: "info" }];
+    document.body.innerHTML = '<div id="log-area"><div>linha antiga</div></div>';
+
+    manager.preloadParaUI();
+    manager.limpar();
+
+    expect(manager.preloadParaUI()).toEqual([]);
+    expect(state.logs).toEqual([]);
+    expect(document.getElementById("log-area")?.children).toHaveLength(0);
+  });
 });

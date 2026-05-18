@@ -627,6 +627,11 @@
     if (!Number.isFinite(num)) return 0;
     return Math.max(0, Math.floor(num));
   }
+  function normalizarLogAreaHeight$1(valor) {
+    const num = Number(valor);
+    if (!Number.isFinite(num)) return 110;
+    return Math.max(80, Math.min(520, Math.floor(num)));
+  }
   function normalizarNumeroInteiro(valor, fallback = 0) {
     const num = Number(valor);
     if (!Number.isFinite(num)) return fallback;
@@ -717,6 +722,7 @@
     painelPosicao: null,
     painelSecoes: normalizarPainelSecoes(null),
     painelScrollTop: 0,
+    logAreaHeight: 110,
     itemAtualKey: null,
     itemAtualTelaId: null,
     reportingSessionMap: {},
@@ -814,6 +820,7 @@
     estado.progresso = normalizarProgresso(estado.progresso);
     estado.painelSecoes = normalizarPainelSecoes(estado.painelSecoes);
     estado.painelScrollTop = normalizarPainelScrollTop(estado.painelScrollTop);
+    estado.logAreaHeight = normalizarLogAreaHeight$1(estado.logAreaHeight);
     estado.estimativa = normalizarEstimativa(estado.estimativa);
     estado.trilhaExecucao = normalizarTrilhaExecucao(estado.trilhaExecucao);
     estado.reporting = normalizarReportingConfig(estado.reporting);
@@ -833,6 +840,7 @@
     novo.painelPosicao = normalizarPainelPosicao(antigo["painelPosicao"]);
     novo.painelSecoes = normalizarPainelSecoes(antigo["painelSecoes"]);
     novo.painelScrollTop = normalizarPainelScrollTop(antigo["painelScrollTop"]);
+    novo.logAreaHeight = normalizarLogAreaHeight$1(antigo["logAreaHeight"]);
     if (antigo["modoSimulacao"] !== void 0) novo.modoSimulacao = !!antigo["modoSimulacao"];
     if (antigo["globalActionDelayMs"] !== void 0) novo.globalActionDelayMs = normalizarNumeroInteiro(antigo["globalActionDelayMs"], novo.globalActionDelayMs);
     else if (antigo["actionDelayMs"] !== void 0) novo.globalActionDelayMs = normalizarNumeroInteiro(antigo["actionDelayMs"], novo.globalActionDelayMs);
@@ -870,6 +878,7 @@
     estado.painelPosicao = normalizarPainelPosicao(salvo["painelPosicao"]);
     estado.painelSecoes = normalizarPainelSecoes(salvo["painelSecoes"]);
     estado.painelScrollTop = normalizarPainelScrollTop(salvo["painelScrollTop"]);
+    estado.logAreaHeight = normalizarLogAreaHeight$1(salvo["logAreaHeight"]);
     estado.estimativa = normalizarEstimativa(salvo["estimativa"]);
     estado.trilhaExecucao = normalizarTrilhaExecucao(salvo["trilhaExecucao"]);
     estado.reporting = normalizarReportingConfig(salvo["reporting"]);
@@ -955,6 +964,18 @@
   function preloadParaUI() {
     garantirMemLogs();
     return memLogs;
+  }
+  function formatarTodos() {
+    garantirMemLogs();
+    return memLogs.map((entry) => `${entry.timestamp} - ${entry.mensagem}`).join("\n");
+  }
+  function limpar$2() {
+    memLogs = [];
+    update((st) => {
+      st["logs"] = [];
+    });
+    const logArea = document.getElementById("log-area");
+    if (logArea) logArea.innerHTML = "";
   }
   const log = adicionar;
   const cooldowns = /* @__PURE__ */ new Map();
@@ -1998,7 +2019,7 @@
     var _a;
     const idUrl = obterParametroUrl(["IdItem", "idItem", "itemId", "ItemId"]);
     if (idUrl) return idUrl;
-    const campo = buscarElementoDeep("#txtIdItem") || buscarElementoDeep('input[name$="txtIdItem"]') || buscarElementoDeep('input[id$="txtIdItem"]') || buscarElementoDeep("#hfIdItem") || buscarElementoDeep('input[name$="hfIdItem"]') || buscarElementoDeep('input[id$="hfIdItem"]') || buscarElementoDeep("#hidIdItem") || buscarElementoDeep('input[name$="hidIdItem"]') || buscarElementoDeep('input[id$="hidIdItem"]') || buscarElementoDeep('input[name$="IdItem"]') || buscarElementoDeep('input[id$="IdItem"]') || buscarElementoDeep("#txtNum") || buscarElementoDeep('input[name="ctl00$Body$txtNum"]') || buscarElementoDeep('input[name$="txtNum"]');
+    const campo = buscarElementoDeep("#txtIdItem") || buscarElementoDeep('input[name$="txtIdItem"]') || buscarElementoDeep('input[id$="txtIdItem"]') || buscarElementoDeep("#hfIdItem") || buscarElementoDeep('input[name$="hfIdItem"]') || buscarElementoDeep('input[id$="hfIdItem"]') || buscarElementoDeep("#hidIdItem") || buscarElementoDeep('input[name$="hidIdItem"]') || buscarElementoDeep('input[id$="hidIdItem"]') || buscarElementoDeep('input[name$="IdItem"]') || buscarElementoDeep('input[id$="IdItem"]') || buscarElementoDeep("#txtNum") || buscarElementoDeep('input[name="ctl00$Body$txtNum"]') || buscarElementoDeep('input[name$="txtNum"]') || buscarElementoDeep("#txtNumero") || buscarElementoDeep('input[name="ctl00$Body$txtNumero"]') || buscarElementoDeep('input[name$="txtNumero"]') || buscarElementoDeep('input[id$="txtNumero"]');
     const valor = (campo == null ? void 0 : campo.value) ?? ((_a = campo == null ? void 0 : campo.getAttribute) == null ? void 0 : _a.call(campo, "value"));
     return normalizarId(valor);
   }
@@ -2042,7 +2063,7 @@
     if (!estado.itemMapAtivo || acaoId !== "ncm" && acaoId !== "cest" && acaoId !== "unspsc" && acaoId !== "lei116Servico") return acao.valor;
     const idAtual = resolverItemMapIdAtual(estado);
     const entry = getValoresParaItem(estado, idAtual);
-    if (!entry) return acao.valor;
+    if (!entry) return null;
     const campoNbs = buscarElementoDeep("#txtNBS") || buscarElementoDeep('input[name$="txtNBS"]');
     const campoIncideNbs = buscarElementoDeep("#txtIncideNBS") || buscarElementoDeep('input[name$="txtIncideNBS"]');
     const incideNbs = String((campoIncideNbs == null ? void 0 : campoIncideNbs.value) ?? (campoIncideNbs == null ? void 0 : campoIncideNbs.textContent) ?? "").trim().toUpperCase() === "SIM";
@@ -2172,6 +2193,92 @@
     aplicarJson(jsonFinal, { silent: true });
     log(`🧾 JSON criado/atualizado para item ${idAtual}`, "info");
     tocar("success");
+  }
+  const REGRAS_EMPRESA = {
+    BAHIAGAS: { ncm: true },
+    BONDINHO: { ncm: true },
+    CARMOENERGY: { ncm: true, lei116QuandoNbs: true },
+    CEI: { ncm: true },
+    CITROSUCO: { ncm: true, lei116QuandoNbs: true },
+    GILBARCO: { ncm: true, lei116QuandoNbs: true, unspsc: true },
+    "GRUPO SADA": { ncm: true, lei116QuandoNbs: true, unspsc: true },
+    INTERCEMENT: { ncm: true, lei116QuandoNbs: true },
+    "MAC ENG.": { ncm: true, lei116QuandoNbs: true, unspsc: true },
+    "MAC ENG": { ncm: true, lei116QuandoNbs: true, unspsc: true },
+    MOSAIC: { unspsc: true },
+    NPE: { ncm: true, lei116QuandoNbs: true },
+    ORIZON: { ncm: true, lei116QuandoNbs: true, unspsc: true },
+    RODONAVES: { ncm: true, cestQuandoNcm: true, lei116QuandoNbs: true },
+    SIEMENS: { ncm: true, lei116QuandoNbs: true, unspsc: true },
+    VAXXINOVA: { ncm: true, lei116QuandoNbs: true, unspsc: true },
+    VOPAK: { ncm: true, lei116QuandoNbs: true, unspsc: true }
+  };
+  function normalizarEspacosLocal(valor) {
+    return String(valor ?? "").replace(/\s+/g, " ").trim();
+  }
+  function normalizarEmpresa(valor) {
+    const raw = normalizarEspacosLocal(valor);
+    if (!raw) return null;
+    return raw.toUpperCase();
+  }
+  function temValor(valor) {
+    return String(valor ?? "").trim() !== "";
+  }
+  function labelCampo(campo) {
+    if (campo === "ncm") return "NCM";
+    if (campo === "nbs") return "NBS";
+    if (campo === "cest") return "CEST";
+    if (campo === "unspsc") return "UNSPSC";
+    return "Lei 116";
+  }
+  function montarMensagem(empresa, itemId, campos, entry) {
+    const labels = campos.map(labelCampo).join(", ");
+    const contexto = campos.includes("cest") && temValor(entry.ncm) ? " para item com NCM no JSON" : campos.includes("lei116") && temValor(entry.nbs) ? " para serviço com NBS no JSON" : "";
+    const item = itemId ? ` do item ${itemId}` : "";
+    return `${empresa} exige ${labels}${contexto}${item}. Continuar mesmo assim?`;
+  }
+  function obterEmpresaAtual() {
+    const el = buscarElementoDeep("#lblUsuario") || document.querySelector("#lblUsuario");
+    const raw = normalizarEspacosLocal((el == null ? void 0 : el.textContent) || "");
+    if (!raw) return null;
+    const parts = raw.split("//").map((p) => normalizarEmpresa(p)).filter(Boolean);
+    return parts.length >= 2 ? parts[1] : normalizarEmpresa(raw);
+  }
+  function avaliarCamposObrigatoriosJsonEmpresa({
+    empresa,
+    itemId,
+    entry,
+    liberados = []
+  }) {
+    const empresaNorm = normalizarEmpresa(empresa);
+    const itemNorm = normalizarEspacosLocal(itemId) || null;
+    const regra = empresaNorm ? REGRAS_EMPRESA[empresaNorm] : null;
+    const dados = entry || {};
+    if (!empresaNorm || !regra || !entry) {
+      return { valido: true, empresa: empresaNorm, itemId: itemNorm, camposFaltantes: [], mensagem: "" };
+    }
+    const liberadosSet = new Set(liberados);
+    const faltantes = [];
+    const pareceServico = temValor(dados.nbs) || temValor(dados.lei116);
+    if (regra.ncm && !pareceServico && !temValor(dados.ncm) && !liberadosSet.has("ncm")) {
+      faltantes.push("ncm");
+    }
+    if (regra.cestQuandoNcm && temValor(dados.ncm) && !temValor(dados.cest) && !liberadosSet.has("cest")) {
+      faltantes.push("cest");
+    }
+    if (regra.lei116QuandoNbs && temValor(dados.nbs) && !temValor(dados.lei116) && !liberadosSet.has("lei116")) {
+      faltantes.push("lei116");
+    }
+    if (regra.unspsc && !temValor(dados.unspsc) && !liberadosSet.has("unspsc")) {
+      faltantes.push("unspsc");
+    }
+    return {
+      valido: faltantes.length === 0,
+      empresa: empresaNorm,
+      itemId: itemNorm,
+      camposFaltantes: faltantes,
+      mensagem: faltantes.length ? montarMensagem(empresaNorm, itemNorm, faltantes, dados) : ""
+    };
   }
   function normalizarItemId(itemId) {
     const valor = String(itemId ?? "").trim();
@@ -2703,7 +2810,38 @@
   }
   function tratarItemSemJsonNaRodada(estado, status, pausarComAviso2) {
     const itemTelaId = normalizarItemKey(obterItemIdAtual());
-    if (!estado.itemMapAtivo || !itemTelaId || itemExisteNoJsonAtivo(estado, itemTelaId)) return false;
+    if (!estado.itemMapAtivo) {
+      const itemKey = itemTelaId || normalizarItemKey(estado.itemAtualKey);
+      if (itemKey) {
+        update((e) => {
+          registrarEventoItem(
+            e,
+            itemKey,
+            "json_inativo",
+            {
+              itemTelaId: itemTelaId || itemKey,
+              resumo: "JSON ativo obrigatório ausente",
+              payload: {
+                itemKey,
+                itemTelaId,
+                motivo: "json_inativo",
+                somenteNestaRodada: false
+              },
+              status: "pausado",
+              now: Date.now()
+            }
+          );
+        });
+      }
+      const mensagem2 = itemTelaId ? `Item ${itemTelaId} aberto na tela, mas não há JSON ativo. Aplique um JSON antes de retomar o robô.` : "Não há JSON ativo. Aplique um JSON antes de retomar o robô.";
+      if (status) {
+        status.textContent = mensagem2;
+        status.style.color = "#d97706";
+      }
+      pausarComAviso2(mensagem2, { alertUser: false, tipo: "json_inativo" });
+      return true;
+    }
+    if (!itemTelaId || itemExisteNoJsonAtivo(estado, itemTelaId)) return false;
     update((e) => {
       const eAny = e;
       registrarEventoItem(
@@ -5711,6 +5849,45 @@
       getUnspscModo: (s1, s2) => detectarModoUnspsc(s1, s2)
     };
   }
+  function tratarCamposObrigatoriosJsonEmpresa(estado, status) {
+    if (!estado.itemMapAtivo) return false;
+    const itemId = obterItemIdAtual() || estado.itemAtualTelaId || estado.itemAtualKey;
+    const entry = getValoresParaItem(estado, itemId);
+    if (!itemId || !entry) return false;
+    const flagsPorItem = estado.itemFlags;
+    const itemFlags = (flagsPorItem == null ? void 0 : flagsPorItem[itemId]) || {};
+    const liberados = Array.isArray(itemFlags["jsonEmpresaCamposLiberados"]) ? itemFlags["jsonEmpresaCamposLiberados"] : [];
+    const resultado2 = avaliarCamposObrigatoriosJsonEmpresa({
+      empresa: obterEmpresaAtual(),
+      itemId,
+      entry,
+      liberados
+    });
+    if (resultado2.valido) return false;
+    update((e) => {
+      const eAny = e;
+      eAny["itemFlags"] = eAny["itemFlags"] || {};
+      const flags = eAny["itemFlags"];
+      const atual = flags[itemId] || {};
+      const atuaisLiberados = Array.isArray(atual["jsonEmpresaCamposLiberados"]) ? atual["jsonEmpresaCamposLiberados"] : [];
+      flags[itemId] = {
+        ...atual,
+        jsonEmpresaCamposLiberados: [.../* @__PURE__ */ new Set([...atuaisLiberados, ...resultado2.camposFaltantes])],
+        jsonEmpresaUltimaPausa: {
+          empresa: resultado2.empresa,
+          campos: resultado2.camposFaltantes,
+          mensagem: resultado2.mensagem,
+          timestamp: (/* @__PURE__ */ new Date()).toISOString()
+        }
+      };
+    });
+    if (status) {
+      status.textContent = resultado2.mensagem;
+      status.style.color = "#d97706";
+    }
+    pausarComAviso(resultado2.mensagem, { alertUser: false, tipo: "json_empresa_obrigatorio" });
+    return true;
+  }
   async function executarLogica() {
     const estado = get();
     const status = document.getElementById("statusRobo");
@@ -5759,6 +5936,8 @@
     }
     aplicarParaItemAtual(estadoAtual);
     if (tratarItemSemJsonNaRodada(estadoAtual, status, pausarComAviso)) return true;
+    estadoAtual = get();
+    if (tratarCamposObrigatoriosJsonEmpresa(estadoAtual, status)) return true;
     if (await tratarAvisoBloqueanteItem(estadoAtual, status)) return true;
     if (retornarSeResumoItemPulado(estadoAtual, status)) return true;
     const avisoCritico = detectarAvisoCritico();
@@ -6272,7 +6451,7 @@
                 <span>Usar JSON por ID</span>
             </label>
             <textarea id="itemMapJson" class="km-textarea" placeholder='{
-  &quot;320780&quot;: { &quot;ncm&quot;: &quot;8471.30.12&quot;, &quot;unspsc&quot;: &quot;30103618&quot; }
+  &quot;320780&quot;: { &quot;ncm&quot;: &quot;8471.30.12&quot;, &quot;cest&quot;: &quot;01.075.00&quot;, &quot;unspsc&quot;: &quot;30103618&quot; }
 }'></textarea>
             <div class="km-button-row">
                 <button id="btnItemMapAplicar" class="km-secondary-button" type="button">Aplicar JSON</button>
@@ -6307,9 +6486,16 @@
         <section class="km-card">
             <div class="km-card-head km-card-head--tight">
                 <label class="km-section-label">Log</label>
-                <button id="btnCopiarRelatorio" class="km-inline-button" type="button">Copiar erro</button>
+                <div class="km-log-actions">
+                    <button id="btnCopiarLogs" class="km-inline-button" type="button">Copiar tudo</button>
+                    <button id="btnLimparLogs" class="km-inline-button km-inline-button--danger" type="button">Apagar</button>
+                    <button id="btnCopiarRelatorio" class="km-inline-button" type="button">Copiar erro</button>
+                </div>
             </div>
-            <div id="log-area" class="km-log-area"></div>
+            <div class="km-log-resizer">
+                <div id="log-area" class="km-log-area"></div>
+                <div class="km-log-resize-handle" data-log-resize-handle title="Arraste para redimensionar logs"></div>
+            </div>
             <div class="km-shortcuts">F7 abre/fecha • F8 pausa • ESC para tudo</div>
         </section>
     `;
@@ -6791,6 +6977,11 @@
             white-space: nowrap;
         }
 
+        .km-inline-button--danger {
+            background: rgba(180, 35, 24, 0.1);
+            color: var(--km-danger);
+        }
+
         .km-status {
             margin-top: 8px;
             font-size: 11px;
@@ -6830,16 +7021,51 @@
             color: var(--km-muted);
         }
 
+        .km-log-actions {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            gap: 6px;
+        }
+
+        .km-log-resizer {
+            border-radius: 14px;
+            background: #1f2421;
+        }
+
         .km-log-area {
             height: 110px;
+            min-height: 80px;
+            max-height: min(520px, 60vh);
             overflow-y: auto;
-            border-radius: 14px;
+            box-sizing: border-box;
+            border-radius: 14px 14px 10px 10px;
             border: 1px solid rgba(17, 24, 39, 0.08);
             background: #1f2421;
             color: #d5f7d0;
             padding: 8px;
             font-family: Consolas, "Courier New", monospace;
             font-size: 10px;
+        }
+
+        .km-log-resize-handle {
+            height: 12px;
+            cursor: ns-resize;
+            border-radius: 0 0 14px 14px;
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.12));
+            position: relative;
+        }
+
+        .km-log-resize-handle::before {
+            content: "";
+            position: absolute;
+            left: 50%;
+            top: 4px;
+            width: 38px;
+            height: 3px;
+            transform: translateX(-50%);
+            border-radius: 999px;
+            background: rgba(213, 247, 208, 0.42);
         }
 
         .km-shortcuts {
@@ -7261,6 +7487,9 @@
     document.getElementById("txtRelatorio").value = relatorio;
     (_a = document.getElementById("btnFecharModal")) == null ? void 0 : _a.addEventListener("click", () => modal.remove());
   }
+  const LOG_AREA_DEFAULT_HEIGHT = 110;
+  const LOG_AREA_MIN_HEIGHT = 80;
+  const LOG_AREA_MAX_HEIGHT = 520;
   function setupDragAndDrop(container) {
     let draggedElement = null;
     container.addEventListener("dragstart", (e) => {
@@ -7316,8 +7545,65 @@
     set$1(estado);
     log("🔃 Ordem das ações atualizada", "info");
   }
+  function getLogAreaMaxHeight() {
+    const viewportMax = typeof globalThis !== "undefined" && Number.isFinite(globalThis.innerHeight) ? Math.floor(globalThis.innerHeight * 0.6) : LOG_AREA_MAX_HEIGHT;
+    return Math.max(LOG_AREA_MIN_HEIGHT, Math.min(LOG_AREA_MAX_HEIGHT, viewportMax));
+  }
+  function normalizarLogAreaHeight(valor) {
+    const num = Number(valor);
+    if (!Number.isFinite(num)) return LOG_AREA_DEFAULT_HEIGHT;
+    return Math.max(LOG_AREA_MIN_HEIGHT, Math.min(getLogAreaMaxHeight(), Math.floor(num)));
+  }
+  async function copiarTextoParaClipboard(texto) {
+    const clipboard = typeof navigator !== "undefined" ? navigator.clipboard : null;
+    if (clipboard == null ? void 0 : clipboard.writeText) {
+      await clipboard.writeText(texto);
+      return;
+    }
+    const textarea = document.createElement("textarea");
+    textarea.value = texto;
+    textarea.setAttribute("readonly", "true");
+    textarea.style.position = "fixed";
+    textarea.style.left = "-9999px";
+    document.body.appendChild(textarea);
+    textarea.select();
+    try {
+      document.execCommand("copy");
+    } finally {
+      textarea.remove();
+    }
+  }
+  function setupLogResize(estado) {
+    const logArea = document.getElementById("log-area");
+    const handle = document.querySelector("[data-log-resize-handle]");
+    if (!logArea || !handle) return;
+    logArea.style.height = `${normalizarLogAreaHeight(estado.logAreaHeight)}px`;
+    let resizing = false;
+    let startY = 0;
+    let startHeight = 0;
+    handle.addEventListener("mousedown", (e) => {
+      resizing = true;
+      startY = e.clientY;
+      startHeight = logArea.getBoundingClientRect().height || normalizarLogAreaHeight(estado.logAreaHeight);
+      e.preventDefault();
+    });
+    document.addEventListener("mousemove", (e) => {
+      if (!resizing) return;
+      const nextHeight = normalizarLogAreaHeight(startHeight + (e.clientY - startY));
+      logArea.style.height = `${nextHeight}px`;
+    });
+    document.addEventListener("mouseup", () => {
+      if (!resizing) return;
+      resizing = false;
+      const nextHeight = normalizarLogAreaHeight(parseFloat(logArea.style.height));
+      logArea.style.height = `${nextHeight}px`;
+      update((st) => {
+        st.logAreaHeight = nextHeight;
+      });
+    });
+  }
   function wireEvents(toggleMinimizar2) {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v;
     const estado = get();
     const fmtS = (ms) => `${(Number(ms || 0) / 1e3).toFixed(1)}s`;
     const painelConteudo = document.getElementById("painelConteudo");
@@ -7440,18 +7726,35 @@
       set$1(estado);
     }
     renderizarSeletor();
+    setupLogResize(estado);
     const logsAtuais = (preloadParaUI == null ? void 0 : preloadParaUI()) || [];
     logsAtuais.slice(0, 20).reverse().forEach((entry) => atualizarUI == null ? void 0 : atualizarUI(entry));
     (_a = document.getElementById("drawerToggle")) == null ? void 0 : _a.addEventListener("click", toggleMinimizar2);
     (_b = document.getElementById("btnCopiarRelatorio")) == null ? void 0 : _b.addEventListener("click", () => copiar());
-    (_c = document.getElementById("chkSimulacao")) == null ? void 0 : _c.addEventListener("change", (e) => {
+    (_c = document.getElementById("btnCopiarLogs")) == null ? void 0 : _c.addEventListener("click", async () => {
+      const texto = (formatarTodos == null ? void 0 : formatarTodos()) || "";
+      if (!texto.trim()) {
+        log("ℹ️ Sem logs para copiar", "info");
+        return;
+      }
+      try {
+        await copiarTextoParaClipboard(texto);
+        log("📋 Logs copiados para a área de transferência", "info");
+      } catch (err) {
+        log(`❌ Erro ao copiar logs: ${(err == null ? void 0 : err.message) || err}`, "error");
+      }
+    });
+    (_d = document.getElementById("btnLimparLogs")) == null ? void 0 : _d.addEventListener("click", () => {
+      limpar$2 == null ? void 0 : limpar$2();
+    });
+    (_e = document.getElementById("chkSimulacao")) == null ? void 0 : _e.addEventListener("change", (e) => {
       update((st) => {
         st.modoSimulacao = e.target.checked;
       });
       const novoEstado = get();
       log(novoEstado.modoSimulacao ? "🧪 Modo simulação ATIVADO" : "▶️ Modo simulação desativado", "info");
     });
-    (_d = document.getElementById("chkPausarReincidencia")) == null ? void 0 : _d.addEventListener("change", (e) => {
+    (_f = document.getElementById("chkPausarReincidencia")) == null ? void 0 : _f.addEventListener("change", (e) => {
       const ativo = !!e.target.checked;
       update((st) => {
         st.pausarEmReincidencia = ativo;
@@ -7460,7 +7763,7 @@
     });
     const itemMapTextarea = document.getElementById("itemMapJson");
     if (itemMapTextarea) itemMapTextarea.value = estado.itemMapJson || "";
-    (_e = document.getElementById("chkItemMapAtivo")) == null ? void 0 : _e.addEventListener("change", (e) => {
+    (_g = document.getElementById("chkItemMapAtivo")) == null ? void 0 : _g.addEventListener("change", (e) => {
       update((st) => {
         st.itemMapAtivo = e.target.checked;
       });
@@ -7468,14 +7771,14 @@
       log(novoEstado.itemMapAtivo ? "🧾 JSON por item ATIVADO" : "🧾 JSON por item DESATIVADO", "info");
       atualizarStatusUI(novoEstado);
     });
-    (_f = document.getElementById("btnItemMapAplicar")) == null ? void 0 : _f.addEventListener("click", () => {
+    (_h = document.getElementById("btnItemMapAplicar")) == null ? void 0 : _h.addEventListener("click", () => {
       aplicarJson((itemMapTextarea == null ? void 0 : itemMapTextarea.value) || "");
     });
-    (_g = document.getElementById("btnItemMapCriar")) == null ? void 0 : _g.addEventListener("click", () => {
+    (_i = document.getElementById("btnItemMapCriar")) == null ? void 0 : _i.addEventListener("click", () => {
       gerarJsonDoItemAtual(itemMapTextarea);
     });
     const deb = (fn) => debounce(fn, 80);
-    (_h = document.getElementById("globalActionDelaySlider")) == null ? void 0 : _h.addEventListener("input", deb((e) => {
+    (_j = document.getElementById("globalActionDelaySlider")) == null ? void 0 : _j.addEventListener("input", deb((e) => {
       const valor = parseInt(e.target.value, 10);
       const label = document.getElementById("globalActionDelayLabel");
       if (label) label.textContent = fmtS(valor);
@@ -7483,7 +7786,7 @@
         st.globalActionDelayMs = valor;
       });
     }));
-    (_i = document.getElementById("clickCooldownSlider")) == null ? void 0 : _i.addEventListener("input", deb((e) => {
+    (_k = document.getElementById("clickCooldownSlider")) == null ? void 0 : _k.addEventListener("input", deb((e) => {
       const valor = parseInt(e.target.value, 10);
       const label = document.getElementById("clickCooldownLabel");
       if (label) label.textContent = fmtS(valor);
@@ -7498,37 +7801,37 @@
         persistirAcoes(st);
       });
     };
-    (_j = document.getElementById("chkReportingMedia")) == null ? void 0 : _j.addEventListener("change", (e) => {
+    (_l = document.getElementById("chkReportingMedia")) == null ? void 0 : _l.addEventListener("change", (e) => {
       persistReporting((cfg) => {
         cfg.enabledMedia = !!e.target.checked;
       });
       log(`🖼️ Coleta de mídia ${e.target.checked ? "ativada" : "desativada"}`, "info");
     });
-    (_k = document.getElementById("chkReportingEnabled")) == null ? void 0 : _k.addEventListener("change", (e) => {
+    (_m = document.getElementById("chkReportingEnabled")) == null ? void 0 : _m.addEventListener("change", (e) => {
       persistReporting((cfg) => {
         cfg.enabledReport = !!e.target.checked;
       });
       log(`📝 Geração de relatório PDF/MD ${e.target.checked ? "ativada" : "desativada"}`, "info");
     });
-    (_l = document.getElementById("chkReportingClickMediaTab")) == null ? void 0 : _l.addEventListener("change", (e) => {
+    (_n = document.getElementById("chkReportingClickMediaTab")) == null ? void 0 : _n.addEventListener("change", (e) => {
       persistReporting((cfg) => {
         cfg.clickMediaTabBeforeCollect = !!e.target.checked;
       });
       log(`🖱️ Clique na aba Mídias antes da coleta ${e.target.checked ? "ativado" : "desativado"}`, "info");
     });
-    (_m = document.getElementById("chkReportingAcompanhamento")) == null ? void 0 : _m.addEventListener("change", (e) => {
+    (_o = document.getElementById("chkReportingAcompanhamento")) == null ? void 0 : _o.addEventListener("change", (e) => {
       persistReporting((cfg) => {
         cfg.enabledAcompanhamento = !!e.target.checked;
       });
       log(`📜 Coleta de acompanhamento ${e.target.checked ? "ativada" : "desativada"}`, "info");
     });
-    (_n = document.getElementById("chkReportingBlock")) == null ? void 0 : _n.addEventListener("change", (e) => {
+    (_p = document.getElementById("chkReportingBlock")) == null ? void 0 : _p.addEventListener("change", (e) => {
       persistReporting((cfg) => {
         cfg.blockOnReportError = !!e.target.checked;
       });
       log(`🧱 Bloqueio em erro de relatório ${e.target.checked ? "ativado" : "desativado"}`, "info");
     });
-    (_o = document.getElementById("txtReportingServiceUrl")) == null ? void 0 : _o.addEventListener("change", (e) => {
+    (_q = document.getElementById("txtReportingServiceUrl")) == null ? void 0 : _q.addEventListener("change", (e) => {
       const input = e.target;
       const novo = String(input.value || "").trim() || CONFIG.REPORTING.SERVICE_DEFAULT;
       persistReporting((cfg) => {
@@ -7537,7 +7840,7 @@
       input.value = novo;
       log(`🔗 Serviço de relatório: ${novo}`, "info");
     });
-    (_p = document.getElementById("txtReportingApiToken")) == null ? void 0 : _p.addEventListener("change", (e) => {
+    (_r = document.getElementById("txtReportingApiToken")) == null ? void 0 : _r.addEventListener("change", (e) => {
       const input = e.target;
       const token = String(input.value || "").trim();
       persistReporting((cfg) => {
@@ -7546,14 +7849,14 @@
       input.value = token;
       log(`🔐 Token de API ${token ? "configurado" : "removido"}`, "info");
     });
-    (_q = document.getElementById("selReportingTransport")) == null ? void 0 : _q.addEventListener("change", (e) => {
+    (_s = document.getElementById("selReportingTransport")) == null ? void 0 : _s.addEventListener("change", (e) => {
       const transport = String(e.target.value || "auto").trim();
       persistReporting((cfg) => {
         cfg.transport = transport;
       });
       log(`🚚 Transporte de relatório: ${transport}`, "info");
     });
-    (_r = document.getElementById("numReportingMaxFileMb")) == null ? void 0 : _r.addEventListener("change", (e) => {
+    (_t = document.getElementById("numReportingMaxFileMb")) == null ? void 0 : _t.addEventListener("change", (e) => {
       const input = e.target;
       const val = Math.max(1, Math.min(200, Number(input.value || CONFIG.REPORTING.MAX_FILE_SIZE_MB)));
       persistReporting((cfg) => {
@@ -7562,7 +7865,7 @@
       input.value = String(val);
       log(`📦 Limite por arquivo: ${val}MB`, "info");
     });
-    (_s = document.getElementById("numReportingMaxFiles")) == null ? void 0 : _s.addEventListener("change", (e) => {
+    (_u = document.getElementById("numReportingMaxFiles")) == null ? void 0 : _u.addEventListener("change", (e) => {
       const input = e.target;
       const val = Math.max(1, Math.min(200, Number(input.value || CONFIG.REPORTING.MAX_FILES_PER_ITEM)));
       persistReporting((cfg) => {
@@ -7571,7 +7874,7 @@
       input.value = String(val);
       log(`📚 Limite de arquivos por item: ${val}`, "info");
     });
-    (_t = document.getElementById("btnToggle")) == null ? void 0 : _t.addEventListener("click", () => {
+    (_v = document.getElementById("btnToggle")) == null ? void 0 : _v.addEventListener("click", () => {
       const est = get();
       if (est.pausado) togglePausar();
       else if (est.ativo) parar();

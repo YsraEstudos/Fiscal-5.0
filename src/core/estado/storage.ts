@@ -6,6 +6,7 @@ import { ESTADO_PADRAO } from './defaults.ts';
 import { garantirDefaultsEstado, migrarEstadoSalvo, type EstadoSalvoRaw } from './migrations.ts';
 import {
     normalizarEstimativa,
+    normalizarLogAreaHeight,
     normalizarPainelPosicao,
     normalizarPainelScrollTop,
     normalizarPainelSecoes,
@@ -29,6 +30,7 @@ function carregarEstadoAtual(salvo: EstadoSalvoRaw): EstadoApp {
     estado.painelPosicao = normalizarPainelPosicao(salvo['painelPosicao']);
     estado.painelSecoes = normalizarPainelSecoes(salvo['painelSecoes']);
     estado.painelScrollTop = normalizarPainelScrollTop(salvo['painelScrollTop']);
+    estado.logAreaHeight = normalizarLogAreaHeight(salvo['logAreaHeight']);
     estado.estimativa = normalizarEstimativa(salvo['estimativa']);
     estado.trilhaExecucao = normalizarTrilhaExecucao(salvo['trilhaExecucao']);
     estado.reporting = normalizarReportingConfig(salvo['reporting']);
@@ -94,4 +96,3 @@ export function invalidar(): void {
     cache = null;
     cacheTimestamp = 0;
 }
-

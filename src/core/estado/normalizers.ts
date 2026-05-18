@@ -73,6 +73,12 @@ export function normalizarPainelScrollTop(valor: unknown): number {
     return Math.max(0, Math.floor(num));
 }
 
+export function normalizarLogAreaHeight(valor: unknown): number {
+    const num = Number(valor);
+    if (!Number.isFinite(num)) return 110;
+    return Math.max(80, Math.min(520, Math.floor(num)));
+}
+
 export function normalizarNumeroInteiro(valor: unknown, fallback = 0): number {
     const num = Number(valor);
     if (!Number.isFinite(num)) return fallback;

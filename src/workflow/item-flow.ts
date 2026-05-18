@@ -44,7 +44,43 @@ export function tratarItemSemJsonNaRodada(
     pausarComAviso: (mensagem: string, opts?: { alertUser?: boolean; tipo?: string }) => void
 ): boolean {
     const itemTelaId = normalizarItemKey(ItemMapManager.obterItemIdAtual());
-    if (!estado.itemMapAtivo || !itemTelaId || itemExisteNoJsonAtivo(estado, itemTelaId)) return false;
+    if (!estado.itemMapAtivo) {
+        const itemKey = itemTelaId || normalizarItemKey(estado.itemAtualKey);
+        if (itemKey) {
+            EstadoManager.update((e: EstadoApp) => {
+                ItemTrace.registrarEventoItem(
+                    e as Parameters<typeof ItemTrace.registrarEventoItem>[0],
+                    itemKey,
+                    'json_inativo',
+                    {
+                        itemTelaId: itemTelaId || itemKey,
+                        resumo: 'JSON ativo obrigatório ausente',
+                        payload: {
+                            itemKey,
+                            itemTelaId,
+                            motivo: 'json_inativo',
+                            somenteNestaRodada: false,
+                        },
+                        status: 'pausado',
+                        now: Date.now(),
+                    }
+                );
+            });
+        }
+
+        const mensagem = itemTelaId
+            ? `Item ${itemTelaId} aberto na tela, mas não há JSON ativo. Aplique um JSON antes de retomar o robô.`
+            : 'Não há JSON ativo. Aplique um JSON antes de retomar o robô.';
+        if (status) {
+            status.textContent = mensagem;
+            status.style.color = '#d97706';
+        }
+
+        pausarComAviso(mensagem, { alertUser: false, tipo: 'json_inativo' });
+        return true;
+    }
+
+    if (!itemTelaId || itemExisteNoJsonAtivo(estado, itemTelaId)) return false;
 
     EstadoManager.update((e: EstadoApp) => {
         const eAny = e as unknown as Record<string, unknown>;

@@ -433,6 +433,11 @@ export function injetarEstilosPainel(): void {
             white-space: nowrap;
         }
 
+        .km-inline-button--danger {
+            background: rgba(180, 35, 24, 0.1);
+            color: var(--km-danger);
+        }
+
         .km-status {
             margin-top: 8px;
             font-size: 11px;
@@ -472,16 +477,51 @@ export function injetarEstilosPainel(): void {
             color: var(--km-muted);
         }
 
+        .km-log-actions {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            gap: 6px;
+        }
+
+        .km-log-resizer {
+            border-radius: 14px;
+            background: #1f2421;
+        }
+
         .km-log-area {
             height: 110px;
+            min-height: 80px;
+            max-height: min(520px, 60vh);
             overflow-y: auto;
-            border-radius: 14px;
+            box-sizing: border-box;
+            border-radius: 14px 14px 10px 10px;
             border: 1px solid rgba(17, 24, 39, 0.08);
             background: #1f2421;
             color: #d5f7d0;
             padding: 8px;
             font-family: Consolas, "Courier New", monospace;
             font-size: 10px;
+        }
+
+        .km-log-resize-handle {
+            height: 12px;
+            cursor: ns-resize;
+            border-radius: 0 0 14px 14px;
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.12));
+            position: relative;
+        }
+
+        .km-log-resize-handle::before {
+            content: "";
+            position: absolute;
+            left: 50%;
+            top: 4px;
+            width: 38px;
+            height: 3px;
+            transform: translateX(-50%);
+            border-radius: 999px;
+            background: rgba(213, 247, 208, 0.42);
         }
 
         .km-shortcuts {

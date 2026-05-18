@@ -40,6 +40,7 @@ export const ESTADO_PADRAO: EstadoApp = {
     painelPosicao: null,
     painelSecoes: normalizarPainelSecoes(null),
     painelScrollTop: 0,
+    logAreaHeight: 110,
     itemAtualKey: null,
     itemAtualTelaId: null,
     reportingSessionMap: {},

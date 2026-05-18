@@ -139,6 +139,14 @@ describe("data/item-map-manager", () => {
     expect(mod.obterItemIdAtual()).toBe("320780");
   });
 
+  it("obterItemIdAtual usa txtNumero quando txtNum não existe", () => {
+    mockBuscarElementoDeep.mockImplementation((sel) => {
+      if (sel === "#txtNumero") return { value: " 342799 " };
+      return null;
+    });
+    expect(mod.obterItemIdAtual()).toBe("342799");
+  });
+
   it("sincronizarItemAtual define itemAtualKey na primeira leitura", () => {
     state.itemAtualKey = null;
     mockBuscarElementoDeep.mockReturnValue({ value: "1009" });
@@ -194,6 +202,17 @@ describe("data/item-map-manager", () => {
     mockBuscarElementoDeep.mockReturnValue(null);
 
     expect(mod.getValorAcao("ncm", state)).toBe("3917.29.00");
+  });
+
+  it("getValorAcao não usa valor padrão quando JSON ativo não contém o item atual", () => {
+    state.itemMapAtivo = true;
+    state.itemAtualTelaId = "342799";
+    state.itemMap = {
+      "111111": { ncm: "3917.29.00", nbs: null, cest: null, unspsc: null, lei116: null },
+    };
+    mockBuscarElementoDeep.mockReturnValue(null);
+
+    expect(mod.getValorAcao("ncm", state)).toBeNull();
   });
 
   it("aplicarJson trata erro e JSON vazio", () => {

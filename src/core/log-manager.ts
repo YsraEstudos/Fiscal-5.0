@@ -71,6 +71,21 @@ export function preloadParaUI(): LogEntry[] {
     return memLogs!;
 }
 
+/** Retorna todos os logs como texto copiável, do mais recente para o mais antigo. */
+export function formatarTodos(): string {
+    garantirMemLogs();
+    return memLogs!.map((entry) => `${entry.timestamp} - ${entry.mensagem}`).join('\n');
+}
+
+/** Remove logs da memória, do estado persistido e do painel visível. */
+export function limpar(): void {
+    memLogs = [];
+    EstadoManager.update((st: EstadoApp) => { (st as unknown as Record<string, unknown>)['logs'] = []; });
+
+    const logArea = document.getElementById('log-area');
+    if (logArea) logArea.innerHTML = '';
+}
+
 /**
  * Atalho para LogManager.adicionar.
  * Permite `log('mensagem', 'error')` em vez de `LogManager.adicionar(...)`.

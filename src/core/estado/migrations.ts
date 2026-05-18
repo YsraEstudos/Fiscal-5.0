@@ -4,6 +4,7 @@ import { inicializarAcoes } from './actions.ts';
 import { ESTADO_PADRAO } from './defaults.ts';
 import {
     normalizarEstimativa,
+    normalizarLogAreaHeight,
     normalizarNumeroInteiro,
     normalizarPainelPosicao,
     normalizarPainelScrollTop,
@@ -66,6 +67,7 @@ export function garantirDefaultsEstado(estado: EstadoApp): EstadoApp {
     estado.progresso = normalizarProgresso(estado.progresso);
     estado.painelSecoes = normalizarPainelSecoes(estado.painelSecoes);
     estado.painelScrollTop = normalizarPainelScrollTop(estado.painelScrollTop);
+    estado.logAreaHeight = normalizarLogAreaHeight(estado.logAreaHeight);
     estado.estimativa = normalizarEstimativa(estado.estimativa);
     estado.trilhaExecucao = normalizarTrilhaExecucao(estado.trilhaExecucao);
     estado.reporting = normalizarReportingConfig(estado.reporting);
@@ -88,6 +90,7 @@ export function migrarEstadoSalvo(antigo: EstadoSalvoRaw, salvar: (estado: Estad
     novo.painelPosicao = normalizarPainelPosicao(antigo['painelPosicao']);
     novo.painelSecoes = normalizarPainelSecoes(antigo['painelSecoes']);
     novo.painelScrollTop = normalizarPainelScrollTop(antigo['painelScrollTop']);
+    novo.logAreaHeight = normalizarLogAreaHeight(antigo['logAreaHeight']);
     if (antigo['modoSimulacao'] !== undefined) novo.modoSimulacao = !!antigo['modoSimulacao'];
 
     if (antigo['globalActionDelayMs'] !== undefined) novo.globalActionDelayMs = normalizarNumeroInteiro(antigo['globalActionDelayMs'], novo.globalActionDelayMs);
@@ -115,4 +118,3 @@ export function migrarEstadoSalvo(antigo: EstadoSalvoRaw, salvar: (estado: Estad
     salvar(novo);
     return novo;
 }
-

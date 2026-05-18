@@ -21,6 +21,10 @@ import { construirListaAcoes } from './painel-builder.ts';
 import * as WorkflowExecutor from '../workflow/executor.ts';
 import type { EstadoApp } from '../core/estado-manager.ts';
 
+const LOG_AREA_DEFAULT_HEIGHT = 110;
+const LOG_AREA_MIN_HEIGHT = 80;
+const LOG_AREA_MAX_HEIGHT = 520;
+
 // ---------------------------------------------------------------------------
 // Drag & drop de reordenação de ações
 // ---------------------------------------------------------------------------
@@ -91,6 +95,73 @@ function _atualizarOrdemAcoesPorLista(container: HTMLElement): void {
     EstadoManager.persistirAcoes(estado);
     EstadoManager.set(estado);
     log('🔃 Ordem das ações atualizada', 'info');
+}
+
+function getLogAreaMaxHeight(): number {
+    const viewportMax = typeof globalThis !== 'undefined' && Number.isFinite(globalThis.innerHeight)
+        ? Math.floor(globalThis.innerHeight * 0.6)
+        : LOG_AREA_MAX_HEIGHT;
+    return Math.max(LOG_AREA_MIN_HEIGHT, Math.min(LOG_AREA_MAX_HEIGHT, viewportMax));
+}
+
+function normalizarLogAreaHeight(valor: unknown): number {
+    const num = Number(valor);
+    if (!Number.isFinite(num)) return LOG_AREA_DEFAULT_HEIGHT;
+    return Math.max(LOG_AREA_MIN_HEIGHT, Math.min(getLogAreaMaxHeight(), Math.floor(num)));
+}
+
+async function copiarTextoParaClipboard(texto: string): Promise<void> {
+    const clipboard = typeof navigator !== 'undefined' ? navigator.clipboard : null;
+    if (clipboard?.writeText) {
+        await clipboard.writeText(texto);
+        return;
+    }
+
+    const textarea = document.createElement('textarea');
+    textarea.value = texto;
+    textarea.setAttribute('readonly', 'true');
+    textarea.style.position = 'fixed';
+    textarea.style.left = '-9999px';
+    document.body.appendChild(textarea);
+    textarea.select();
+    try {
+        document.execCommand('copy');
+    } finally {
+        textarea.remove();
+    }
+}
+
+function setupLogResize(estado: EstadoApp): void {
+    const logArea = document.getElementById('log-area') as HTMLElement | null;
+    const handle = document.querySelector('[data-log-resize-handle]') as HTMLElement | null;
+    if (!logArea || !handle) return;
+
+    logArea.style.height = `${normalizarLogAreaHeight((estado as any).logAreaHeight)}px`;
+
+    let resizing = false;
+    let startY = 0;
+    let startHeight = 0;
+
+    handle.addEventListener('mousedown', (e: MouseEvent) => {
+        resizing = true;
+        startY = e.clientY;
+        startHeight = logArea.getBoundingClientRect().height || normalizarLogAreaHeight((estado as any).logAreaHeight);
+        e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', (e: MouseEvent) => {
+        if (!resizing) return;
+        const nextHeight = normalizarLogAreaHeight(startHeight + (e.clientY - startY));
+        logArea.style.height = `${nextHeight}px`;
+    });
+
+    document.addEventListener('mouseup', () => {
+        if (!resizing) return;
+        resizing = false;
+        const nextHeight = normalizarLogAreaHeight(parseFloat(logArea.style.height));
+        logArea.style.height = `${nextHeight}px`;
+        EstadoManager.update((st: any) => { st.logAreaHeight = nextHeight; });
+    });
 }
 
 // ---------------------------------------------------------------------------
@@ -246,12 +317,30 @@ export function wireEvents(toggleMinimizar: () => void): void {
     PerfilManager.renderizarSeletor();
 
     // ---- Logs existentes
+    setupLogResize(estado);
     const logsAtuais = LogManager.preloadParaUI?.() || [];
     logsAtuais.slice(0, 20).reverse().forEach((entry: any) => LogManager.atualizarUI?.(entry));
 
     // ---- Botões e sliders
     document.getElementById('drawerToggle')?.addEventListener('click', toggleMinimizar);
     document.getElementById('btnCopiarRelatorio')?.addEventListener('click', () => RelatorioErros.copiar());
+    document.getElementById('btnCopiarLogs')?.addEventListener('click', async () => {
+        const texto = LogManager.formatarTodos?.() || '';
+        if (!texto.trim()) {
+            log('ℹ️ Sem logs para copiar', 'info');
+            return;
+        }
+
+        try {
+            await copiarTextoParaClipboard(texto);
+            log('📋 Logs copiados para a área de transferência', 'info');
+        } catch (err: any) {
+            log(`❌ Erro ao copiar logs: ${err?.message || err}`, 'error');
+        }
+    });
+    document.getElementById('btnLimparLogs')?.addEventListener('click', () => {
+        LogManager.limpar?.();
+    });
 
     document.getElementById('chkSimulacao')?.addEventListener('change', (e: Event) => {
         EstadoManager.update((st: any) => { st.modoSimulacao = (e.target as HTMLInputElement).checked; });

@@ -10,6 +10,6 @@ describe("vite userscript metadata", () => {
     expect(config).toContain("name: 'FISCAL 5.0 (Robust Robot)'");
     expect(config).toContain("version: '5.0'");
     expect(config).toContain("FISCAL 5.0 com controle individual");
-    expect(config).toContain("fileName: 'FISCAL 5.0.user.js'");
+    expect(config).toContain("fileName: 'FISCAL-5.0.user.js'");
   });
 });

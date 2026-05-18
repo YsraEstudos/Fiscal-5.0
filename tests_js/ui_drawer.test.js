@@ -153,6 +153,64 @@ describe("ui/drawer", () => {
     expect(get().painelSecoes.logs).toBe(false);
   });
 
+  it("renderiza botões de log e limpa logs pelo painel", () => {
+    set(buildState({
+      minimizado: false,
+      logs: [{ timestamp: "10:00:00", mensagem: "linha antiga", tipo: "info" }],
+      painelSecoes: { ...ESTADO_PADRAO.painelSecoes, logs: true },
+    }));
+    injetarEstilos();
+    const painel = construirPainel(false);
+    document.body.appendChild(painel);
+    wireEvents(() => {});
+
+    expect(document.getElementById("btnCopiarLogs")?.textContent).toContain("Copiar tudo");
+    expect(document.getElementById("btnLimparLogs")?.textContent).toContain("Apagar");
+    set({ ...get(), logs: [{ timestamp: "10:00:00", mensagem: "linha antiga", tipo: "info" }] });
+    document.getElementById("log-area").innerHTML = "<div>10:00:00 - linha antiga</div>";
+    expect(document.getElementById("log-area")?.textContent).toContain("linha antiga");
+
+    document.getElementById("btnLimparLogs")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    expect(get().logs).toEqual([]);
+    expect(document.getElementById("log-area")?.children).toHaveLength(0);
+  });
+
+  it("persiste altura redimensionada dos logs e reaplica ao recriar", () => {
+    set(buildState({
+      minimizado: false,
+      logAreaHeight: 110,
+      painelSecoes: { ...ESTADO_PADRAO.painelSecoes, logs: true },
+    }));
+    injetarEstilos();
+    const painel = construirPainel(false);
+    document.body.appendChild(painel);
+    wireEvents(() => {});
+
+    const logArea = document.getElementById("log-area");
+    const handle = document.querySelector("[data-log-resize-handle]");
+    expect(logArea?.style.height).toBe("110px");
+
+    Object.defineProperty(logArea, "getBoundingClientRect", {
+      value: () => ({ height: 110, width: 300, top: 0, left: 0, right: 300, bottom: 110 }),
+      configurable: true,
+    });
+
+    handle?.dispatchEvent(new MouseEvent("mousedown", { clientY: 100, bubbles: true }));
+    document.dispatchEvent(new MouseEvent("mousemove", { clientY: 260, bubbles: true }));
+    document.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
+
+    expect(get().logAreaHeight).toBe(270);
+    expect(logArea?.style.height).toBe("270px");
+
+    document.body.innerHTML = "";
+    const painelRecriado = construirPainel(false);
+    document.body.appendChild(painelRecriado);
+    wireEvents(() => {});
+
+    expect(document.getElementById("log-area")?.style.height).toBe("270px");
+  });
+
   it("persiste scroll interno e restaura após recriar o painel", async () => {
     set(buildState({ minimizado: false, painelScrollTop: 0 }));
     injetarEstilos();

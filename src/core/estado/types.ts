@@ -77,6 +77,7 @@ export interface EstadoApp {
     painelPosicao: PainelPosicao | null;
     painelSecoes: PainelSecoes;
     painelScrollTop: number;
+    logAreaHeight: number;
     itemAtualKey: string | null;
     itemAtualTelaId: string | null;
     reportingSessionMap: Record<string, unknown>;
@@ -90,4 +91,3 @@ export interface EstadoApp {
     reporting: ReportingDefaults;
     acoes: Record<string, AcaoEstado>;
 }
-

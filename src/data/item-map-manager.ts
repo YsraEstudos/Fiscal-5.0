@@ -223,7 +223,11 @@ export function obterItemIdAtual(): string | null {
         buscarElementoDeep('input[id$="IdItem"]') ||
         buscarElementoDeep('#txtNum') ||
         buscarElementoDeep('input[name="ctl00$Body$txtNum"]') ||
-        buscarElementoDeep('input[name$="txtNum"]');
+        buscarElementoDeep('input[name$="txtNum"]') ||
+        buscarElementoDeep('#txtNumero') ||
+        buscarElementoDeep('input[name="ctl00$Body$txtNumero"]') ||
+        buscarElementoDeep('input[name$="txtNumero"]') ||
+        buscarElementoDeep('input[id$="txtNumero"]');
     const valor = (campo as HTMLInputElement)?.value ?? campo?.getAttribute?.('value');
     return normalizarId(valor);
 }
@@ -282,7 +286,7 @@ export function getValorAcao(acaoId: string, estado: EstadoApp): string | null {
 
     const idAtual = resolverItemMapIdAtual(estado);
     const entry = getValoresParaItem(estado, idAtual);
-    if (!entry) return acao.valor;
+    if (!entry) return null;
 
     const campoNbs = buscarElementoDeep('#txtNBS') || buscarElementoDeep('input[name$="txtNBS"]');
     const campoIncideNbs = buscarElementoDeep('#txtIncideNBS') || buscarElementoDeep('input[name$="txtIncideNBS"]');

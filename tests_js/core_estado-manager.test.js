@@ -5,6 +5,7 @@ import {
   get,
   invalidar,
   normalizarEstimativa,
+  normalizarLogAreaHeight,
   normalizarPainelScrollTop,
   normalizarPainelSecoes,
   normalizarReportingConfig,
@@ -81,6 +82,11 @@ describe("core/estado-manager", () => {
     expect(normalizarPainelScrollTop("120.8")).toBe(120);
     expect(normalizarPainelScrollTop(-10)).toBe(0);
     expect(normalizarPainelScrollTop("abc")).toBe(0);
+
+    expect(normalizarLogAreaHeight("250.9")).toBe(250);
+    expect(normalizarLogAreaHeight(20)).toBe(80);
+    expect(normalizarLogAreaHeight(999)).toBe(520);
+    expect(normalizarLogAreaHeight("abc")).toBe(110);
   });
 
   it("normaliza estimativa com valores inválidos e remove ids vazios", () => {
@@ -317,6 +323,7 @@ describe("core/estado-manager", () => {
       painelPosicao: { left: "500px", top: "88px", right: "10px" },
       painelSecoes: { resumo: false, logs: true },
       painelScrollTop: "145",
+      logAreaHeight: "360",
       estimativa: {
         totalPlanejado: 5,
         fonteTotal: "json",
@@ -333,6 +340,7 @@ describe("core/estado-manager", () => {
     expect(estado.painelSecoes.logs).toBe(true);
     expect(estado.painelSecoes.workflow).toBe(true);
     expect(estado.painelScrollTop).toBe(145);
+    expect(estado.logAreaHeight).toBe(360);
     expect(estado.estimativa.totalPlanejado).toBe(5);
     expect(estado.estimativa.fonteTotal).toBe("json");
     expect(estado.estimativa.itemAtualId).toBe("320780");

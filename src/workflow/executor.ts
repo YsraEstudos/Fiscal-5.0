@@ -20,6 +20,7 @@ import * as AspNetLifecycle from '../core/aspnet-lifecycle.ts';
 import * as Interacao from '../interaction/interacao.ts';
 import * as PaginaVerificador from './pagina-verificador.ts';
 import * as ItemMapManager from '../data/item-map-manager.ts';
+import * as EmpresaJsonRequirements from '../validation/empresa-json-requirements.ts';
 import * as Estimativa from './estimativa.ts';
 import * as ItemTrace from './item-trace.ts';
 import { isTestMode, sleep, valoresSaoIguais } from '../utils/misc.ts';
@@ -50,6 +51,8 @@ import { createHandlerMap } from './handler-registry.ts';
 import type { AcaoEstadoSlim, HandlerFn, HandlerMap, UICallbacks, WorkflowContext } from './types.ts';
 
 export type { HandlerFn, HandlerMap };
+
+type ItemFlagRecord = Record<string, unknown>;
 
 // ---------------------------------------------------------------------------
 // Callbacks de UI injetados pela Fase 5
@@ -429,6 +432,56 @@ function buildCtx(): WorkflowContext {
     };
 }
 
+function tratarCamposObrigatoriosJsonEmpresa(estado: EstadoApp, status: HTMLElement | null): boolean {
+    if (!estado.itemMapAtivo) return false;
+
+    const itemId = ItemMapManager.obterItemIdAtual()
+        || (estado.itemAtualTelaId as string | null)
+        || (estado.itemAtualKey as string | null);
+    const entry = ItemMapManager.getValoresParaItem(estado, itemId);
+    if (!itemId || !entry) return false;
+
+    const flagsPorItem = estado.itemFlags as Record<string, ItemFlagRecord>;
+    const itemFlags = flagsPorItem?.[itemId] || {};
+    const liberados = Array.isArray(itemFlags['jsonEmpresaCamposLiberados'])
+        ? itemFlags['jsonEmpresaCamposLiberados'] as string[]
+        : [];
+    const resultado = EmpresaJsonRequirements.avaliarCamposObrigatoriosJsonEmpresa({
+        empresa: EmpresaJsonRequirements.obterEmpresaAtual(),
+        itemId,
+        entry: entry as EmpresaJsonRequirements.ItemJsonEmpresa,
+        liberados,
+    });
+    if (resultado.valido) return false;
+
+    EstadoManager.update((e: EstadoApp) => {
+        const eAny = e as unknown as Record<string, unknown>;
+        eAny['itemFlags'] = eAny['itemFlags'] || {};
+        const flags = eAny['itemFlags'] as Record<string, ItemFlagRecord>;
+        const atual = flags[itemId] || {};
+        const atuaisLiberados = Array.isArray(atual['jsonEmpresaCamposLiberados'])
+            ? atual['jsonEmpresaCamposLiberados'] as string[]
+            : [];
+        flags[itemId] = {
+            ...atual,
+            jsonEmpresaCamposLiberados: [...new Set([...atuaisLiberados, ...resultado.camposFaltantes])],
+            jsonEmpresaUltimaPausa: {
+                empresa: resultado.empresa,
+                campos: resultado.camposFaltantes,
+                mensagem: resultado.mensagem,
+                timestamp: new Date().toISOString(),
+            },
+        };
+    });
+
+    if (status) {
+        status.textContent = resultado.mensagem;
+        status.style.color = '#d97706';
+    }
+    pausarComAviso(resultado.mensagem, { alertUser: false, tipo: 'json_empresa_obrigatorio' });
+    return true;
+}
+
 // ---------------------------------------------------------------------------
 // Lógica principal
 // ---------------------------------------------------------------------------
@@ -491,6 +544,8 @@ async function executarLogica(): Promise<boolean> {
 
     ItemMapManager.aplicarParaItemAtual(estadoAtual);
     if (tratarItemSemJsonNaRodada(estadoAtual, status, pausarComAviso)) return true;
+    estadoAtual = EstadoManager.get();
+    if (tratarCamposObrigatoriosJsonEmpresa(estadoAtual, status)) return true;
     if (await tratarAvisoBloqueanteItem(estadoAtual, status)) return true;
     if (retornarSeResumoItemPulado(estadoAtual, status)) return true;
 

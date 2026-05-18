@@ -23,6 +23,7 @@ export {
 
 export {
     normalizarEstimativa,
+    normalizarLogAreaHeight,
     normalizarPainelPosicao,
     normalizarPainelScrollTop,
     normalizarPainelSecoes,
@@ -36,4 +37,3 @@ export {
     set,
     update,
 } from './estado/storage.ts';
-
