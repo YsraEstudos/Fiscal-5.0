@@ -926,6 +926,7 @@ describe("workflow/executor", () => {
     state.itemAtualTelaId = "1001";
     state.itemMap = {
       "1001": { ncm: "8708.29.99", nbs: null, cest: null, unspsc: null, lei116: null },
+      "1002": { ncm: "3917.29.00", nbs: null, cest: "01.002.00", unspsc: null, lei116: null },
     };
     mockSincronizarItemAtual.mockReturnValue("1001");
     mockObterItemIdAtual.mockReturnValue("1001");
@@ -936,6 +937,59 @@ describe("workflow/executor", () => {
     expect(state.estatisticas.ultimoErro?.tipo).toBe("json_empresa_obrigatorio");
     expect(state.estatisticas.ultimoErro?.mensagem).toContain("RODONAVES exige CEST");
     expect(state.itemFlags["1001"].jsonEmpresaCamposLiberados).toEqual(["cest"]);
+  });
+
+  it("não pausa por CEST ausente quando o NCM não tem CEST compatível", async () => {
+    document.body.innerHTML = `
+      <span id="lblUsuario">ISRAEL DE SENA XAVIER MACHADO//RODONAVES</span>
+      <div id="statusRobo"></div>
+      <input id="butAcao2" value="Prosseguir" />
+    `;
+    state.itemMapAtivo = true;
+    state.itemAtualKey = "1001";
+    state.itemAtualTelaId = "1001";
+    state.itemMap = {
+      "1001": { ncm: "9999.99.99", nbs: null, cest: null, unspsc: null, lei116: null },
+    };
+    state.acoes = {
+      prosseguir: { ativo: true, seletor: "#butAcao2", valor: null, ordem: 1 },
+    };
+    mockSincronizarItemAtual.mockReturnValue("1001");
+    mockObterItemIdAtual.mockReturnValue("1001");
+    mockProsseguir.mockResolvedValue(true);
+
+    await mod.executarCiclo("test");
+
+    expect(state.pausado).toBe(false);
+    expect(state.estatisticas.ultimoErro?.tipo).not.toBe("json_empresa_obrigatorio");
+    expect(mockProsseguir).toHaveBeenCalled();
+  });
+
+  it("não pausa por CEST ausente quando nenhum item compatível do lote trouxe CEST", async () => {
+    document.body.innerHTML = `
+      <span id="lblUsuario">ISRAEL DE SENA XAVIER MACHADO//RODONAVES</span>
+      <div id="statusRobo"></div>
+      <input id="butAcao2" value="Prosseguir" />
+    `;
+    state.itemMapAtivo = true;
+    state.itemAtualKey = "1001";
+    state.itemAtualTelaId = "1001";
+    state.itemMap = {
+      "1001": { ncm: "8708.29.99", nbs: null, cest: null, unspsc: null, lei116: null },
+      "1002": { ncm: "3917.29.00", nbs: null, cest: null, unspsc: null, lei116: null },
+    };
+    state.acoes = {
+      prosseguir: { ativo: true, seletor: "#butAcao2", valor: null, ordem: 1 },
+    };
+    mockSincronizarItemAtual.mockReturnValue("1001");
+    mockObterItemIdAtual.mockReturnValue("1001");
+    mockProsseguir.mockResolvedValue(true);
+
+    await mod.executarCiclo("test");
+
+    expect(state.pausado).toBe(false);
+    expect(state.estatisticas.ultimoErro?.tipo).not.toBe("json_empresa_obrigatorio");
+    expect(mockProsseguir).toHaveBeenCalled();
   });
 
   it("não pausa de novo quando o campo obrigatório ausente já foi liberado para o item", async () => {

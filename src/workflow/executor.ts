@@ -450,6 +450,7 @@ function tratarCamposObrigatoriosJsonEmpresa(estado: EstadoApp, status: HTMLElem
         empresa: EmpresaJsonRequirements.obterEmpresaAtual(),
         itemId,
         entry: entry as EmpresaJsonRequirements.ItemJsonEmpresa,
+        itemMap: estado.itemMap as Record<string, EmpresaJsonRequirements.ItemJsonEmpresa>,
         liberados,
     });
     if (resultado.valido) return false;

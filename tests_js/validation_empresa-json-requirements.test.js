@@ -14,11 +14,17 @@ describe("validation/empresa-json-requirements", () => {
     expect(obterEmpresaAtual()).toBe("VAXXINOVA");
   });
 
-  it("RODONAVES bloqueia NCM sem CEST", () => {
+  it("RODONAVES bloqueia NCM sem CEST quando o lote indica CEST obrigatório", () => {
+    const itemMap = {
+      "1001": { ncm: "8708.29.99", nbs: null, cest: null, unspsc: null, lei116: null },
+      "1002": { ncm: "3917.29.00", nbs: null, cest: "01.002.00", unspsc: null, lei116: null },
+    };
+
     const resultado = avaliarCamposObrigatoriosJsonEmpresa({
       empresa: "RODONAVES",
       itemId: "1001",
-      entry: { ncm: "8708.29.99", nbs: null, cest: null, unspsc: null, lei116: null },
+      entry: itemMap["1001"],
+      itemMap,
       liberados: [],
     });
 
@@ -36,6 +42,54 @@ describe("validation/empresa-json-requirements", () => {
     });
 
     expect(resultado.valido).toBe(true);
+  });
+
+  it("RODONAVES não bloqueia CEST quando o NCM não tem CEST compatível", () => {
+    const resultado = avaliarCamposObrigatoriosJsonEmpresa({
+      empresa: "RODONAVES",
+      itemId: "1001",
+      entry: { ncm: "9999.99.99", nbs: null, cest: null, unspsc: null, lei116: null },
+      liberados: [],
+    });
+
+    expect(resultado.valido).toBe(true);
+    expect(resultado.camposFaltantes).toEqual([]);
+  });
+
+  it("RODONAVES bloqueia item sem CEST quando o lote tem CEST em outro NCM compatível", () => {
+    const itemMap = {
+      "1001": { ncm: "8708.29.99", nbs: null, cest: null, unspsc: null, lei116: null },
+      "1002": { ncm: "3917.29.00", nbs: null, cest: "01.002.00", unspsc: null, lei116: null },
+    };
+
+    const resultado = avaliarCamposObrigatoriosJsonEmpresa({
+      empresa: "RODONAVES",
+      itemId: "1001",
+      entry: itemMap["1001"],
+      itemMap,
+      liberados: [],
+    });
+
+    expect(resultado.valido).toBe(false);
+    expect(resultado.camposFaltantes).toEqual(["cest"]);
+  });
+
+  it("RODONAVES não bloqueia CEST quando nenhum NCM compatível do lote trouxe CEST", () => {
+    const itemMap = {
+      "1001": { ncm: "8708.29.99", nbs: null, cest: null, unspsc: null, lei116: null },
+      "1002": { ncm: "3917.29.00", nbs: null, cest: null, unspsc: null, lei116: null },
+    };
+
+    const resultado = avaliarCamposObrigatoriosJsonEmpresa({
+      empresa: "RODONAVES",
+      itemId: "1001",
+      entry: itemMap["1001"],
+      itemMap,
+      liberados: [],
+    });
+
+    expect(resultado.valido).toBe(true);
+    expect(resultado.camposFaltantes).toEqual([]);
   });
 
   it("bloqueia serviço com NBS sem Lei 116 quando empresa exige Lei 116", () => {
@@ -101,6 +155,122 @@ describe("validation/empresa-json-requirements", () => {
     expect(semUnspsc.valido).toBe(false);
     expect(semUnspsc.camposFaltantes).toEqual(["unspsc"]);
     expect(comUnspsc.valido).toBe(true);
+  });
+
+  it("ACCOR exige CEST e UNSPSC quando o lote indica CEST obrigatório", () => {
+    const itemMap = {
+      "1001": { ncm: "8708.29.99", nbs: null, cest: null, unspsc: null, lei116: null },
+      "1002": { ncm: "3917.29.00", nbs: null, cest: "01.002.00", unspsc: "30103618", lei116: null },
+    };
+
+    const resultado = avaliarCamposObrigatoriosJsonEmpresa({
+      empresa: "ACCOR",
+      itemId: "1001",
+      entry: itemMap["1001"],
+      itemMap,
+      liberados: [],
+    });
+
+    expect(resultado.valido).toBe(false);
+    expect(resultado.camposFaltantes).toEqual(["cest", "unspsc"]);
+  });
+
+  it("AZUL combina CEST, UNSPSC e Lei 116 quando aplicáveis", () => {
+    const itemMap = {
+      "1001": { ncm: "8708.29.99", nbs: "1.0105.40.00", cest: null, unspsc: null, lei116: null },
+      "1002": { ncm: "3917.29.00", nbs: null, cest: "01.002.00", unspsc: "30103618", lei116: null },
+    };
+
+    const resultado = avaliarCamposObrigatoriosJsonEmpresa({
+      empresa: "AZUL",
+      itemId: "1001",
+      entry: itemMap["1001"],
+      itemMap,
+      liberados: [],
+    });
+
+    expect(resultado.valido).toBe(false);
+    expect(resultado.camposFaltantes).toEqual(["cest", "lei116", "unspsc"]);
+  });
+
+  it("BRADESCO exige UNSPSC sem exigir NCM", () => {
+    const resultado = avaliarCamposObrigatoriosJsonEmpresa({
+      empresa: "BRADESCO",
+      itemId: "B1",
+      entry: { ncm: null, nbs: null, cest: null, unspsc: null, lei116: null },
+      liberados: [],
+    });
+
+    expect(resultado.valido).toBe(false);
+    expect(resultado.camposFaltantes).toEqual(["unspsc"]);
+  });
+
+  it("AGRARIA não exige Lei 116 só por ter NBS na lista informativa", () => {
+    const resultado = avaliarCamposObrigatoriosJsonEmpresa({
+      empresa: "AGRARIA",
+      itemId: "S1",
+      entry: { ncm: null, nbs: "1.0105.40.00", cest: null, unspsc: null, lei116: null },
+      liberados: [],
+    });
+
+    expect(resultado.valido).toBe(true);
+  });
+
+  it("CARMO ENERGY aceita alias com espaço e exige Lei 116 quando há NBS", () => {
+    const resultado = avaliarCamposObrigatoriosJsonEmpresa({
+      empresa: "CARMO ENERGY",
+      itemId: "S1",
+      entry: { ncm: null, nbs: "1.0105.40.00", cest: null, unspsc: null, lei116: null },
+      liberados: [],
+    });
+
+    expect(resultado.valido).toBe(false);
+    expect(resultado.camposFaltantes).toEqual(["lei116"]);
+  });
+
+  it("AYOSHI não exige UNSPSC", () => {
+    const resultado = avaliarCamposObrigatoriosJsonEmpresa({
+      empresa: "AYOSHI",
+      itemId: "A1",
+      entry: { ncm: "8471.30.12", nbs: null, cest: null, unspsc: null, lei116: null },
+      liberados: [],
+    });
+
+    expect(resultado.valido).toBe(true);
+  });
+
+  it("RECH não exige CEST automaticamente quando CEST é apenas condicional em GOV", () => {
+    const itemMap = {
+      "1001": { ncm: "8708.29.99", nbs: null, cest: null, unspsc: "30103618", lei116: null },
+      "1002": { ncm: "3917.29.00", nbs: null, cest: "01.002.00", unspsc: "30103618", lei116: null },
+    };
+
+    const resultado = avaliarCamposObrigatoriosJsonEmpresa({
+      empresa: "RECH",
+      itemId: "1001",
+      entry: itemMap["1001"],
+      itemMap,
+      liberados: [],
+    });
+
+    expect(resultado.valido).toBe(true);
+  });
+
+  it("OWENS continua sem CEST obrigatório após remoção informada", () => {
+    const itemMap = {
+      "1001": { ncm: "8708.29.99", nbs: null, cest: null, unspsc: null, lei116: null },
+      "1002": { ncm: "3917.29.00", nbs: null, cest: "01.002.00", unspsc: null, lei116: null },
+    };
+
+    const resultado = avaliarCamposObrigatoriosJsonEmpresa({
+      empresa: "OWENS",
+      itemId: "1001",
+      entry: itemMap["1001"],
+      itemMap,
+      liberados: [],
+    });
+
+    expect(resultado.valido).toBe(true);
   });
 
   it("considera liberados para não bloquear novamente o mesmo item", () => {
