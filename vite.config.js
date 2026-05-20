@@ -8,11 +8,15 @@ export default defineConfig({
             userscript: {
                 name: 'FISCAL 5.0 (Robust Robot)',
                 namespace: 'http://tampermonkey.net/',
-                version: '5.0',
+                version: '5.0.1',
                 description:
                     'Automação modular FISCAL 5.0 com controle individual de ações, inspeção de elementos, perfis e seletor robusto (ID + Texto).',
                 author: 'System Admin',
                 match: ['https://*.klassmatt.com.br/*'],
+                updateURL:
+                    'https://raw.githubusercontent.com/YsraEstudos/Fiscal-5.0/main/dist/FISCAL-5.0.user.js',
+                downloadURL:
+                    'https://raw.githubusercontent.com/YsraEstudos/Fiscal-5.0/main/dist/FISCAL-5.0.user.js',
                 'run-at': 'document-end',
                 grant: 'none',
             },

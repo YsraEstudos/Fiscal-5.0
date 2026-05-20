@@ -14,7 +14,7 @@ describe("validation/empresa-json-requirements", () => {
     expect(obterEmpresaAtual()).toBe("VAXXINOVA");
   });
 
-  it("RODONAVES bloqueia NCM sem CEST quando o lote indica CEST obrigatório", () => {
+  it("RODONAVES não bloqueia NCM sem CEST quando outro item do lote trouxe CEST", () => {
     const itemMap = {
       "1001": { ncm: "8708.29.99", nbs: null, cest: null, unspsc: null, lei116: null },
       "1002": { ncm: "3917.29.00", nbs: null, cest: "01.002.00", unspsc: null, lei116: null },
@@ -28,9 +28,8 @@ describe("validation/empresa-json-requirements", () => {
       liberados: [],
     });
 
-    expect(resultado.valido).toBe(false);
-    expect(resultado.camposFaltantes).toEqual(["cest"]);
-    expect(resultado.mensagem).toContain("RODONAVES exige CEST");
+    expect(resultado.valido).toBe(true);
+    expect(resultado.camposFaltantes).toEqual([]);
   });
 
   it("RODONAVES passa quando NCM tem CEST", () => {
@@ -56,7 +55,7 @@ describe("validation/empresa-json-requirements", () => {
     expect(resultado.camposFaltantes).toEqual([]);
   });
 
-  it("RODONAVES bloqueia item sem CEST quando o lote tem CEST em outro NCM compatível", () => {
+  it("RODONAVES não bloqueia item sem CEST quando o lote tem CEST em outro item", () => {
     const itemMap = {
       "1001": { ncm: "8708.29.99", nbs: null, cest: null, unspsc: null, lei116: null },
       "1002": { ncm: "3917.29.00", nbs: null, cest: "01.002.00", unspsc: null, lei116: null },
@@ -70,11 +69,11 @@ describe("validation/empresa-json-requirements", () => {
       liberados: [],
     });
 
-    expect(resultado.valido).toBe(false);
-    expect(resultado.camposFaltantes).toEqual(["cest"]);
+    expect(resultado.valido).toBe(true);
+    expect(resultado.camposFaltantes).toEqual([]);
   });
 
-  it("RODONAVES não bloqueia CEST quando nenhum NCM compatível do lote trouxe CEST", () => {
+  it("RODONAVES bloqueia CEST quando nenhum item do lote trouxe CEST", () => {
     const itemMap = {
       "1001": { ncm: "8708.29.99", nbs: null, cest: null, unspsc: null, lei116: null },
       "1002": { ncm: "3917.29.00", nbs: null, cest: null, unspsc: null, lei116: null },
@@ -88,8 +87,9 @@ describe("validation/empresa-json-requirements", () => {
       liberados: [],
     });
 
-    expect(resultado.valido).toBe(true);
-    expect(resultado.camposFaltantes).toEqual([]);
+    expect(resultado.valido).toBe(false);
+    expect(resultado.camposFaltantes).toEqual(["cest"]);
+    expect(resultado.mensagem).toContain("RODONAVES exige CEST");
   });
 
   it("bloqueia serviço com NBS sem Lei 116 quando empresa exige Lei 116", () => {
@@ -157,7 +157,7 @@ describe("validation/empresa-json-requirements", () => {
     expect(comUnspsc.valido).toBe(true);
   });
 
-  it("ACCOR exige CEST e UNSPSC quando o lote indica CEST obrigatório", () => {
+  it("ACCOR exige só UNSPSC quando outro item do lote trouxe CEST", () => {
     const itemMap = {
       "1001": { ncm: "8708.29.99", nbs: null, cest: null, unspsc: null, lei116: null },
       "1002": { ncm: "3917.29.00", nbs: null, cest: "01.002.00", unspsc: "30103618", lei116: null },
@@ -172,7 +172,7 @@ describe("validation/empresa-json-requirements", () => {
     });
 
     expect(resultado.valido).toBe(false);
-    expect(resultado.camposFaltantes).toEqual(["cest", "unspsc"]);
+    expect(resultado.camposFaltantes).toEqual(["unspsc"]);
   });
 
   it("AZUL combina CEST, UNSPSC e Lei 116 quando aplicáveis", () => {
@@ -190,7 +190,7 @@ describe("validation/empresa-json-requirements", () => {
     });
 
     expect(resultado.valido).toBe(false);
-    expect(resultado.camposFaltantes).toEqual(["cest", "lei116", "unspsc"]);
+    expect(resultado.camposFaltantes).toEqual(["lei116", "unspsc"]);
   });
 
   it("BRADESCO exige UNSPSC sem exigir NCM", () => {

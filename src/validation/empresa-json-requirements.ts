@@ -253,9 +253,9 @@ export function ncmTemCestCompativel(ncm: unknown): boolean {
     return NCM_SH_COM_CEST_NORMALIZADOS.some((padrao) => ncmNorm.startsWith(padrao));
 }
 
-function loteIndicaCestObrigatorio(entry: ItemJsonEmpresa, itemMap?: Record<string, ItemJsonEmpresa> | null): boolean {
+function loteNaoTrouxeNenhumCest(entry: ItemJsonEmpresa, itemMap?: Record<string, ItemJsonEmpresa> | null): boolean {
     const entries = itemMap ? Object.values(itemMap) : [entry];
-    return entries.some((item) => ncmTemCestCompativel(item?.ncm) && temValor(item?.cest));
+    return !entries.some((item) => temValor(item?.cest));
 }
 
 function labelCampo(campo: CampoJsonEmpresa): string {
@@ -307,7 +307,7 @@ export function avaliarCamposObrigatoriosJsonEmpresa({
     if (regra.ncm && !pareceServico && !temValor(dados.ncm) && !liberadosSet.has('ncm')) {
         faltantes.push('ncm');
     }
-    if (regra.cestQuandoNcm && loteIndicaCestObrigatorio(dados, itemMap) && ncmTemCestCompativel(dados.ncm) && !temValor(dados.cest) && !liberadosSet.has('cest')) {
+    if (regra.cestQuandoNcm && loteNaoTrouxeNenhumCest(dados, itemMap) && ncmTemCestCompativel(dados.ncm) && !temValor(dados.cest) && !liberadosSet.has('cest')) {
         faltantes.push('cest');
     }
     if (regra.lei116QuandoNbs && temValor(dados.nbs) && !temValor(dados.lei116) && !liberadosSet.has('lei116')) {

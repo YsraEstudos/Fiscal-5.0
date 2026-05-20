@@ -1,9 +1,11 @@
 // ==UserScript==
 // @name         FISCAL 5.0 (Robust Robot)
 // @namespace    http://tampermonkey.net/
-// @version      5.0
+// @version      5.0.1
 // @author       System Admin
 // @description  Automação modular FISCAL 5.0 com controle individual de ações, inspeção de elementos, perfis e seletor robusto (ID + Texto).
+// @downloadURL  https://raw.githubusercontent.com/YsraEstudos/Fiscal-5.0/main/dist/FISCAL-5.0.user.js
+// @updateURL    https://raw.githubusercontent.com/YsraEstudos/Fiscal-5.0/main/dist/FISCAL-5.0.user.js
 // @match        https://*.klassmatt.com.br/*
 // @grant        none
 // @run-at       document-end
@@ -2891,9 +2893,9 @@
     if (!ncmNorm) return false;
     return NCM_SH_COM_CEST_NORMALIZADOS.some((padrao) => ncmNorm.startsWith(padrao));
   }
-  function loteIndicaCestObrigatorio(entry, itemMap) {
+  function loteNaoTrouxeNenhumCest(entry, itemMap) {
     const entries = itemMap ? Object.values(itemMap) : [entry];
-    return entries.some((item) => ncmTemCestCompativel(item == null ? void 0 : item.ncm) && temValor(item == null ? void 0 : item.cest));
+    return !entries.some((item) => temValor(item == null ? void 0 : item.cest));
   }
   function labelCampo(campo) {
     if (campo === "ncm") return "NCM";
@@ -2935,7 +2937,7 @@
     if (regra.ncm && !pareceServico && !temValor(dados.ncm) && !liberadosSet.has("ncm")) {
       faltantes.push("ncm");
     }
-    if (regra.cestQuandoNcm && loteIndicaCestObrigatorio(dados, itemMap) && ncmTemCestCompativel(dados.ncm) && !temValor(dados.cest) && !liberadosSet.has("cest")) {
+    if (regra.cestQuandoNcm && loteNaoTrouxeNenhumCest(dados, itemMap) && ncmTemCestCompativel(dados.ncm) && !temValor(dados.cest) && !liberadosSet.has("cest")) {
       faltantes.push("cest");
     }
     if (regra.lei116QuandoNbs && temValor(dados.nbs) && !temValor(dados.lei116) && !liberadosSet.has("lei116")) {
