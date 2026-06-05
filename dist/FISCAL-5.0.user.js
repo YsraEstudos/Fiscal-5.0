@@ -4336,8 +4336,10 @@
     const modalAberto = ctx.isModalUnspscAberto(acaoUnspsc.seletor, acaoSelecionar.seletor);
     const lupa = (acaoLupa == null ? void 0 : acaoLupa.ativo) ? buscarElementoDeep(acaoLupa.seletor) : null;
     const campoUnspsc = (acaoUnspsc == null ? void 0 : acaoUnspsc.ativo) ? modalDiv1 ? modalDiv1.querySelector(acaoUnspsc.seletor) : buscarElementoDeep(acaoUnspsc.seletor) : null;
-    if (modalAberto || lupa && elementoVisivel(lupa) || campoUnspsc && elementoVisivel(campoUnspsc)) {
-      return false;
+    if (!workflowState2.isCompleta("selecionar")) {
+      if (modalAberto || lupa && elementoVisivel(lupa) || campoUnspsc && elementoVisivel(campoUnspsc)) {
+        return false;
+      }
     }
     const campoNcm = encontrarCampoNcmPreferido(acaoNcm.seletor);
     if (campoNcm && elementoVisivel(campoNcm)) return false;

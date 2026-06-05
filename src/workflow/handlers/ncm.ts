@@ -346,8 +346,14 @@ export async function abaFiscal(estado: EstadoApp, status: HTMLElement | null, c
         ? (modalDiv1 ? modalDiv1.querySelector(acaoUnspsc.seletor) : buscarElementoDeep(acaoUnspsc.seletor))
         : null;
 
-    if (modalAberto || (lupa && elementoVisivel(lupa as HTMLElement)) || (campoUnspsc && elementoVisivel(campoUnspsc as HTMLElement))) {
-        return false;
+    // Se UNSPSC ainda NÃO foi concluído e o modal/lupa/campo está visível,
+    // não interromper o fluxo de UNSPSC indo para a aba Fiscal.
+    // Porém, se o UNSPSC JÁ foi concluído (selecionar completa), permitir
+    // navegar à aba Fiscal para preencher o NCM que ficou pendente.
+    if (!workflowState.isCompleta('selecionar')) {
+        if (modalAberto || (lupa && elementoVisivel(lupa as HTMLElement)) || (campoUnspsc && elementoVisivel(campoUnspsc as HTMLElement))) {
+            return false;
+        }
     }
 
     const campoNcm = encontrarCampoNcmPreferido(acaoNcm.seletor);
