@@ -2918,11 +2918,29 @@
     return `${empresa} exige ${labels}${contexto}${item}. Continuar mesmo assim?`;
   }
   function obterEmpresaAtual() {
-    const el = buscarElementoDeep("#lblUsuario") || document.querySelector("#lblUsuario");
-    const raw = normalizarEspacosLocal((el == null ? void 0 : el.textContent) || "");
-    if (!raw) return null;
-    const parts = raw.split("//").map((p) => normalizarEmpresa(p)).filter(Boolean);
-    return parts.length >= 2 ? parts[1] : normalizarEmpresa(raw);
+    var _a;
+    let el = buscarElementoDeep("#lblUsuario") || document.querySelector("#lblUsuario");
+    if (!el && typeof window !== "undefined" && window.top) {
+      try {
+        el = window.top.document.querySelector("#lblUsuario");
+      } catch {
+      }
+    }
+    if (el) {
+      const raw = normalizarEspacosLocal(el.textContent || "");
+      if (raw) {
+        const parts = raw.split("//").map((p) => normalizarEmpresa(p)).filter(Boolean);
+        return parts.length >= 2 ? parts[1] : normalizarEmpresa(raw);
+      }
+    }
+    const infoSin = document.querySelector("#Label_infoSIN");
+    if (infoSin) {
+      const match = (_a = infoSin.textContent) == null ? void 0 : _a.match(/Empresa:\s*(.+)$/i);
+      if (match && match[1]) {
+        return normalizarEmpresa(match[1].trim());
+      }
+    }
+    return null;
   }
   function avaliarCamposObrigatoriosJsonEmpresa({
     empresa,

@@ -278,11 +278,27 @@ function montarMensagem(empresa: string, itemId: string | null, campos: CampoJso
 }
 
 export function obterEmpresaAtual(): string | null {
-    const el = buscarElementoDeep('#lblUsuario') || document.querySelector('#lblUsuario');
-    const raw = normalizarEspacosLocal(el?.textContent || '');
-    if (!raw) return null;
-    const parts = raw.split('//').map((p) => normalizarEmpresa(p)).filter(Boolean);
-    return parts.length >= 2 ? parts[1] : normalizarEmpresa(raw);
+    let el = buscarElementoDeep('#lblUsuario') || document.querySelector('#lblUsuario');
+    if (!el && typeof window !== 'undefined' && window.top) {
+        try {
+            el = window.top.document.querySelector('#lblUsuario');
+        } catch { /* ignore cross-origin */ }
+    }
+    if (el) {
+        const raw = normalizarEspacosLocal(el.textContent || '');
+        if (raw) {
+            const parts = raw.split('//').map((p) => normalizarEmpresa(p)).filter(Boolean);
+            return parts.length >= 2 ? parts[1] : normalizarEmpresa(raw);
+        }
+    }
+    const infoSin = document.querySelector('#Label_infoSIN');
+    if (infoSin) {
+        const match = infoSin.textContent?.match(/Empresa:\s*(.+)$/i);
+        if (match && match[1]) {
+            return normalizarEmpresa(match[1].trim());
+        }
+    }
+    return null;
 }
 
 export function avaliarCamposObrigatoriosJsonEmpresa({
