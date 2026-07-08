@@ -5,6 +5,7 @@ export interface FiscalHint {
     termo: string;
     ncm?: string;
     unspsc?: string;
+    empresa?: string;
 }
 
 export interface FiscalHintsApplyOptions {
@@ -81,6 +82,7 @@ export function importarDicasFiscaisJson(json: string): FiscalHintsImportResult 
                 termo: String(record.termo ?? record.frase ?? record.term ?? '').trim(),
                 ncm: normalizarCodigo(record.ncm ?? record.NCM),
                 unspsc: obterUnspsc(record),
+                empresa: record.empresa ? String(record.empresa).trim().toUpperCase() : undefined,
             };
             const errosDica = validarDica(dica, idx + 1);
             if (errosDica.length) {
@@ -103,6 +105,7 @@ export function exportarDicasFiscaisJson(dicas: Record<string, FiscalHint>): str
         termo: dica.termo,
         ...(dica.ncm ? { ncm: dica.ncm } : {}),
         ...(dica.unspsc ? { unspsc: dica.unspsc } : {}),
+        ...(dica.empresa ? { empresa: dica.empresa } : {}),
     }));
     return JSON.stringify(lista, null, 2);
 }
@@ -146,9 +149,17 @@ function encontrarTermo(texto: string, termo: string): { inicio: number; fim: nu
     return { inicio, fim };
 }
 
-function obterDicasOrdenadas(dicas: Record<string, FiscalHint>): FiscalHint[] {
+function obterDicasOrdenadas(dicas: Record<string, FiscalHint>, empresaAtual?: string | null): FiscalHint[] {
+    const empNorm = empresaAtual ? empresaAtual.trim().toUpperCase() : null;
     return Object.values(dicas || {})
-        .filter((dica) => normalizarTermoFiscal(dica.termo) && (dica.ncm || dica.unspsc))
+        .filter((dica) => {
+            const termoValido = normalizarTermoFiscal(dica.termo) && (dica.ncm || dica.unspsc);
+            if (!termoValido) return false;
+            if (dica.empresa) {
+                return empNorm === dica.empresa.toUpperCase();
+            }
+            return true;
+        })
         .sort((a, b) => normalizarTermoFiscal(b.termo).length - normalizarTermoFiscal(a.termo).length);
 }
 
@@ -237,13 +248,13 @@ function destacarDescricao(el: HTMLElement, dicas: FiscalHint[]): void {
     });
 }
 
-export function aplicarDicasFiscais(options: FiscalHintsApplyOptions): void {
+export function aplicarDicasFiscais(options: FiscalHintsApplyOptions, empresaAtual?: string | null): void {
     limparPopup();
-    const descricoes = Array.from(document.querySelectorAll('#divDescricaoCompleta .descricao, .descricao[id^="txtD"]')) as HTMLElement[];
+    const descricoes = Array.from(document.querySelectorAll('#divDescricaoCompleta .descricao, .descricao[id^="txtD"], #txtDescricao')) as HTMLElement[];
     descricoes.forEach(restaurarDescricao);
 
     if (!options.ativo) return;
-    const dicas = obterDicasOrdenadas(options.dicas);
+    const dicas = obterDicasOrdenadas(options.dicas, empresaAtual);
     if (!dicas.length) return;
 
     descricoes.forEach((el) => destacarDescricao(el, dicas));

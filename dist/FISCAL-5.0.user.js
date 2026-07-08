@@ -7015,7 +7015,8 @@
         const dica = {
           termo: String(record.termo ?? record.frase ?? record.term ?? "").trim(),
           ncm: normalizarCodigo(record.ncm ?? record.NCM),
-          unspsc: obterUnspsc(record)
+          unspsc: obterUnspsc(record),
+          empresa: record.empresa ? String(record.empresa).trim().toUpperCase() : void 0
         };
         const errosDica = validarDica(dica, idx + 1);
         if (errosDica.length) {
@@ -7035,7 +7036,8 @@
       id,
       termo: dica.termo,
       ...dica.ncm ? { ncm: dica.ncm } : {},
-      ...dica.unspsc ? { unspsc: dica.unspsc } : {}
+      ...dica.unspsc ? { unspsc: dica.unspsc } : {},
+      ...dica.empresa ? { empresa: dica.empresa } : {}
     }));
     return JSON.stringify(lista, null, 2);
   }
@@ -7072,8 +7074,16 @@
     const fim = (mapa.indices[fimIndiceNormalizado] ?? inicio) + 1;
     return { inicio, fim };
   }
-  function obterDicasOrdenadas(dicas) {
-    return Object.values(dicas || {}).filter((dica) => normalizarTermoFiscal(dica.termo) && (dica.ncm || dica.unspsc)).sort((a, b) => normalizarTermoFiscal(b.termo).length - normalizarTermoFiscal(a.termo).length);
+  function obterDicasOrdenadas(dicas, empresaAtual) {
+    const empNorm = empresaAtual ? empresaAtual.trim().toUpperCase() : null;
+    return Object.values(dicas || {}).filter((dica) => {
+      const termoValido = normalizarTermoFiscal(dica.termo) && (dica.ncm || dica.unspsc);
+      if (!termoValido) return false;
+      if (dica.empresa) {
+        return empNorm === dica.empresa.toUpperCase();
+      }
+      return true;
+    }).sort((a, b) => normalizarTermoFiscal(b.termo).length - normalizarTermoFiscal(a.termo).length);
   }
   function limparPopup() {
     var _a;
@@ -7148,12 +7158,12 @@
       abrirPopup(mark, match.dica);
     });
   }
-  function aplicarDicasFiscais(options) {
+  function aplicarDicasFiscais(options, empresaAtual) {
     limparPopup();
-    const descricoes = Array.from(document.querySelectorAll('#divDescricaoCompleta .descricao, .descricao[id^="txtD"]'));
+    const descricoes = Array.from(document.querySelectorAll('#divDescricaoCompleta .descricao, .descricao[id^="txtD"], #txtDescricao'));
     descricoes.forEach(restaurarDescricao);
     if (!options.ativo) return;
-    const dicas = obterDicasOrdenadas(options.dicas);
+    const dicas = obterDicasOrdenadas(options.dicas, empresaAtual);
     if (!dicas.length) return;
     descricoes.forEach((el) => destacarDescricao(el, dicas));
   }
@@ -8614,7 +8624,7 @@
     };
   }
   function aplicarDicasFiscaisDoEstado() {
-    aplicarDicasFiscais(getFiscalHintsOptions(get()));
+    aplicarDicasFiscais(getFiscalHintsOptions(get()), obterEmpresaAtual());
   }
   function setFiscalHintsStatus(mensagem, tipo = "info") {
     const el = document.getElementById("fiscalHintsStatus");
@@ -9176,7 +9186,7 @@
     aplicarDicasFiscais({
       ativo: estado.fiscalHintsAtivo !== false,
       dicas: estado.fiscalHints || {}
-    });
+    }, obterEmpresaAtual());
   }
   function agendarAplicacaoDicasFiscais() {
     if (typeof globalThis === "undefined") return;
@@ -9193,7 +9203,7 @@
       const relevante = mutations.some((mutation) => Array.from(mutation.addedNodes).some((node) => {
         var _a, _b;
         if (!(node instanceof HTMLElement)) return false;
-        return !!((_a = node.querySelector) == null ? void 0 : _a.call(node, '#divDescricaoCompleta .descricao, .descricao[id^="txtD"]')) || ((_b = node.matches) == null ? void 0 : _b.call(node, '#divDescricaoCompleta, .descricao[id^="txtD"]'));
+        return !!((_a = node.querySelector) == null ? void 0 : _a.call(node, '#divDescricaoCompleta .descricao, .descricao[id^="txtD"], #txtDescricao')) || ((_b = node.matches) == null ? void 0 : _b.call(node, '#divDescricaoCompleta, .descricao[id^="txtD"], #txtDescricao'));
       }));
       if (relevante) agendarAplicacaoDicasFiscais();
     });

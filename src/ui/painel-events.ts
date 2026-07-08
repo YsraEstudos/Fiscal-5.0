@@ -17,6 +17,7 @@ import { debounce, clone } from '../utils/misc.ts';
 import * as PerfilManager from './perfil-manager.js';
 import * as InspecaoManager from './inspecao-manager.ts';
 import * as RelatorioErros from './relatorio-erros.ts';
+import { obterEmpresaAtual } from '../validation/empresa-json-requirements.ts';
 import * as FiscalHints from './fiscal-hints.ts';
 import { construirListaAcoes } from './painel-builder.ts';
 import * as WorkflowExecutor from '../workflow/executor.ts';
@@ -173,7 +174,7 @@ function getFiscalHintsOptions(estado: EstadoApp): FiscalHints.FiscalHintsApplyO
 }
 
 function aplicarDicasFiscaisDoEstado(): void {
-    FiscalHints.aplicarDicasFiscais(getFiscalHintsOptions(EstadoManager.get() as EstadoApp));
+    FiscalHints.aplicarDicasFiscais(getFiscalHintsOptions(EstadoManager.get() as EstadoApp), obterEmpresaAtual());
 }
 
 function setFiscalHintsStatus(mensagem: string, tipo: 'info' | 'error' = 'info'): void {

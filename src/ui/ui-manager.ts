@@ -11,6 +11,7 @@ import { obterResumoTrilhaUI } from '../workflow/item-trace.ts';
 import { escapeHtml } from '../utils/misc.ts';
 import { injetarEstilos, construirPainel, getPainelEl } from './painel-builder.ts';
 import * as FiscalHints from './fiscal-hints.ts';
+import { obterEmpresaAtual } from '../validation/empresa-json-requirements.ts';
 import { wireEvents } from './painel-events.ts';
 import type { EstadoApp } from '../core/estado-manager.ts';
 
@@ -228,7 +229,7 @@ function aplicarDicasFiscaisEstado(): void {
     FiscalHints.aplicarDicasFiscais({
         ativo: (estado as any).fiscalHintsAtivo !== false,
         dicas: ((estado as any).fiscalHints || {}) as any,
-    });
+    }, obterEmpresaAtual());
 }
 
 function agendarAplicacaoDicasFiscais(): void {
@@ -247,8 +248,8 @@ function inicializarDicasFiscaisPagina(): void {
     _fiscalHintsObserver = new MutationObserver((mutations) => {
         const relevante = mutations.some((mutation) => Array.from(mutation.addedNodes).some((node) => {
             if (!(node instanceof HTMLElement)) return false;
-            return !!node.querySelector?.('#divDescricaoCompleta .descricao, .descricao[id^="txtD"]')
-                || node.matches?.('#divDescricaoCompleta, .descricao[id^="txtD"]');
+            return !!node.querySelector?.('#divDescricaoCompleta .descricao, .descricao[id^="txtD"], #txtDescricao')
+                || node.matches?.('#divDescricaoCompleta, .descricao[id^="txtD"], #txtDescricao');
         }));
         if (relevante) agendarAplicacaoDicasFiscais();
     });

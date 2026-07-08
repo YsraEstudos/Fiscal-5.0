@@ -83,4 +83,64 @@ describe("ui/fiscal-hints", () => {
     await Promise.resolve();
     expect(writeText).toHaveBeenCalledWith("25101929");
   });
+
+  it("funciona em elementos de id txtDescricao e aceita dicas globais e por empresa", () => {
+    document.body.innerHTML = `
+      <div class="kl-msg">
+        <span id="txtDescricao">NOME ITEM: LANTERNA LATERAL; APLICACAO: CAMINHAO;</span>
+      </div>
+    `;
+
+    // 1. Dica global (sem empresa)
+    aplicarDicasFiscais({
+      ativo: true,
+      dicas: {
+        "aplicacao-caminhao": {
+          termo: "aplicação: caminhão",
+          ncm: "8708.93.00",
+        },
+      },
+    }, "RODONAVES");
+
+    let destaque = document.querySelector(".km-fiscal-hint-mark");
+    expect(destaque).not.toBeNull();
+    expect(destaque.textContent).toBe("APLICACAO: CAMINHAO");
+
+    // Reset
+    document.body.innerHTML = `
+      <div class="kl-msg">
+        <span id="txtDescricao">NOME ITEM: LANTERNA LATERAL; APLICACAO: CAMINHAO;</span>
+      </div>
+    `;
+
+    // 2. Dica para empresa diferente (não deve grifar)
+    aplicarDicasFiscais({
+      ativo: true,
+      dicas: {
+        "aplicacao-caminhao": {
+          termo: "aplicação: caminhão",
+          ncm: "8708.93.00",
+          empresa: "PETROBRAS",
+        },
+      },
+    }, "RODONAVES");
+
+    destaque = document.querySelector(".km-fiscal-hint-mark");
+    expect(destaque).toBeNull();
+
+    // 3. Dica para a mesma empresa (deve grifar)
+    aplicarDicasFiscais({
+      ativo: true,
+      dicas: {
+        "aplicacao-caminhao": {
+          termo: "aplicação: caminhão",
+          ncm: "8708.93.00",
+          empresa: "RODONAVES",
+        },
+      },
+    }, "RODONAVES");
+
+    destaque = document.querySelector(".km-fiscal-hint-mark");
+    expect(destaque).not.toBeNull();
+  });
 });
