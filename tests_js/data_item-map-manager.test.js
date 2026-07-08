@@ -288,4 +288,45 @@ describe("data/item-map-manager", () => {
     expect(parsed["991"].lei116).toBe("7.02");
     expect(mockTocar).toHaveBeenCalledWith("success");
   });
+
+  // -------------------------------------------------------------------
+  // Testes de contrato HTML — atualizarStatusUI
+  // Estes testes garantem que o contrato DOM entre item-map-manager.ts
+  // e o HTML do painel (painel-sections.ts) é mantido.
+  // -------------------------------------------------------------------
+
+  describe("contrato: atualizarStatusUI", () => {
+    it("atualiza #itemMapStatus com texto 'JSON ativo' quando ativo", () => {
+      state.itemMapAtivo = true;
+      state.itemMap = { "1": { ncm: "8471.30.12" } };
+      mod.atualizarStatusUI(state);
+      const el = document.getElementById("itemMapStatus");
+      expect(el.textContent).toMatch(/JSON ativo/);
+      expect(el.style.color).toBe("rgb(11, 114, 133)");
+    });
+
+    it("atualiza #itemMapStatus com texto 'desativado' quando inativo", () => {
+      state.itemMapAtivo = false;
+      state.itemMap = {};
+      mod.atualizarStatusUI(state);
+      const el = document.getElementById("itemMapStatus");
+      expect(el.textContent).toMatch(/desativado/);
+      expect(el.style.color).toBe("rgb(102, 102, 102)");
+    });
+
+    it("não falha quando #itemMapStatus não existe no DOM", () => {
+      document.body.innerHTML = "";
+      expect(() => mod.atualizarStatusUI(state)).not.toThrow();
+    });
+
+    it("mostra detalhes do item quando itemId e entry são fornecidos", () => {
+      state.itemMapAtivo = true;
+      state.itemMap = { "42": { ncm: "1234.56.78", nbs: null, cest: null, unspsc: "99999999", lei116: null } };
+      mod.atualizarStatusUI(state, { itemId: "42", entry: state.itemMap["42"] });
+      const el = document.getElementById("itemMapStatus");
+      expect(el.textContent).toContain("Item 42");
+      expect(el.textContent).toContain("1234.56.78");
+    });
+  });
 });
+

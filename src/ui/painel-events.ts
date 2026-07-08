@@ -17,6 +17,7 @@ import { debounce, clone } from '../utils/misc.ts';
 import * as PerfilManager from './perfil-manager.js';
 import * as InspecaoManager from './inspecao-manager.ts';
 import * as RelatorioErros from './relatorio-erros.ts';
+import * as FiscalHints from './fiscal-hints.ts';
 import { construirListaAcoes } from './painel-builder.ts';
 import * as WorkflowExecutor from '../workflow/executor.ts';
 import type { EstadoApp } from '../core/estado-manager.ts';
@@ -162,6 +163,73 @@ function setupLogResize(estado: EstadoApp): void {
         logArea.style.height = `${nextHeight}px`;
         EstadoManager.update((st: any) => { st.logAreaHeight = nextHeight; });
     });
+}
+
+function getFiscalHintsOptions(estado: EstadoApp): FiscalHints.FiscalHintsApplyOptions {
+    return {
+        ativo: (estado as any).fiscalHintsAtivo !== false,
+        dicas: ((estado as any).fiscalHints || {}) as Record<string, FiscalHints.FiscalHint>,
+    };
+}
+
+function aplicarDicasFiscaisDoEstado(): void {
+    FiscalHints.aplicarDicasFiscais(getFiscalHintsOptions(EstadoManager.get() as EstadoApp));
+}
+
+function setFiscalHintsStatus(mensagem: string, tipo: 'info' | 'error' = 'info'): void {
+    const el = document.getElementById('fiscalHintsStatus');
+    if (!el) return;
+    el.textContent = mensagem;
+    el.style.color = tipo === 'error' ? '#b42318' : '#6c5947';
+}
+
+function atualizarListaDicasFiscais(estado: EstadoApp): void {
+    const container = document.getElementById('fiscalHintsLista');
+    if (!container) return;
+    const dicas = Object.entries(((estado as any).fiscalHints || {}) as Record<string, FiscalHints.FiscalHint>);
+    container.className = dicas.length ? 'km-fiscal-hint-list' : 'km-helper-text';
+    container.replaceChildren();
+
+    if (!dicas.length) {
+        container.textContent = 'Nenhuma dica cadastrada.';
+        return;
+    }
+
+    dicas.forEach(([id, dica]) => {
+        const row = document.createElement('div');
+        row.className = 'km-fiscal-hint-row';
+        row.dataset.kmFiscalId = id;
+
+        const copy = document.createElement('div');
+        copy.className = 'km-fiscal-hint-row-copy';
+        const termo = document.createElement('strong');
+        termo.textContent = dica.termo || '';
+        const codigos = document.createElement('span');
+        codigos.textContent = [dica.ncm ? `NCM ${dica.ncm}` : '', dica.unspsc ? `UNSPSC ${dica.unspsc}` : '']
+            .filter(Boolean)
+            .join(' / ');
+        copy.append(termo, codigos);
+
+        const remover = document.createElement('button');
+        remover.className = 'km-inline-button km-inline-button--danger';
+        remover.type = 'button';
+        remover.dataset.kmFiscalRemove = id;
+        remover.textContent = 'Remover';
+        row.append(copy, remover);
+        container.appendChild(row);
+    });
+}
+
+function persistirDicasFiscais(dicas: Record<string, FiscalHints.FiscalHint>, json?: string): EstadoApp {
+    const estado = EstadoManager.update((st: any) => {
+        st.fiscalHints = dicas;
+        st.fiscalHintsJson = json ?? FiscalHints.exportarDicasFiscaisJson(dicas);
+    }) as EstadoApp;
+    const textarea = document.getElementById('fiscalHintsJson') as HTMLTextAreaElement | null;
+    if (textarea) textarea.value = (estado as any).fiscalHintsJson || '';
+    atualizarListaDicasFiscais(estado);
+    aplicarDicasFiscaisDoEstado();
+    return estado;
 }
 
 // ---------------------------------------------------------------------------
@@ -354,6 +422,13 @@ export function wireEvents(toggleMinimizar: () => void): void {
     });
 
     // ---- ItemMap
+    // @contract ── Wiring do JSON por item (não alterar IDs nem chamadas) ──
+    // Elementos esperados (gerados por painel-sections.ts → renderJsonSection):
+    //   #itemMapJson       → textarea, carrega estado.itemMapJson
+    //   #chkItemMapAtivo   → checkbox, toggle estado.itemMapAtivo
+    //   #btnItemMapAplicar → click → ItemMapManager.aplicarJson(textarea.value)
+    //   #btnItemMapCriar   → click → ItemMapManager.gerarJsonDoItemAtual(textarea)
+    // Ao final do wireEvents: ItemMapManager.atualizarStatusUI() é chamado.
     const itemMapTextarea = document.getElementById('itemMapJson') as HTMLTextAreaElement;
     if (itemMapTextarea) itemMapTextarea.value = (estado as any).itemMapJson || '';
 
@@ -370,6 +445,67 @@ export function wireEvents(toggleMinimizar: () => void): void {
 
     document.getElementById('btnItemMapCriar')?.addEventListener('click', () => {
         ItemMapManager.gerarJsonDoItemAtual(itemMapTextarea);
+    });
+
+    // ---- Dicas fiscais por termo
+    const fiscalHintsTextarea = document.getElementById('fiscalHintsJson') as HTMLTextAreaElement | null;
+    if (fiscalHintsTextarea && !fiscalHintsTextarea.value.trim()) {
+        fiscalHintsTextarea.value = FiscalHints.exportarDicasFiscaisJson(((estado as any).fiscalHints || {}) as Record<string, FiscalHints.FiscalHint>);
+    }
+
+    document.getElementById('chkFiscalHintsAtivo')?.addEventListener('change', (e: Event) => {
+        EstadoManager.update((st: any) => { st.fiscalHintsAtivo = (e.target as HTMLInputElement).checked; });
+        aplicarDicasFiscaisDoEstado();
+        log((e.target as HTMLInputElement).checked ? '🔎 Dicas fiscais ativadas' : '🔎 Dicas fiscais desativadas', 'info');
+    });
+
+    document.getElementById('btnFiscalHintAdicionar')?.addEventListener('click', () => {
+        const termo = (document.getElementById('txtFiscalHintTermo') as HTMLInputElement | null)?.value || '';
+        const ncm = (document.getElementById('txtFiscalHintNcm') as HTMLInputElement | null)?.value || '';
+        const unspsc = (document.getElementById('txtFiscalHintUnspsc') as HTMLInputElement | null)?.value || '';
+        const atuais = Object.values(((EstadoManager.get() as any).fiscalHints || {}) as Record<string, FiscalHints.FiscalHint>);
+        const resultado = FiscalHints.importarDicasFiscaisJson(JSON.stringify([...atuais, { termo, ncm, unspsc }]));
+        if (!resultado.ok) {
+            setFiscalHintsStatus(resultado.erros.join(' | '), 'error');
+            return;
+        }
+        persistirDicasFiscais(resultado.dicas);
+        ['txtFiscalHintTermo', 'txtFiscalHintNcm', 'txtFiscalHintUnspsc'].forEach((id) => {
+            const input = document.getElementById(id) as HTMLInputElement | null;
+            if (input) input.value = '';
+        });
+        setFiscalHintsStatus('Dica adicionada.');
+        log(`🔎 Dica fiscal adicionada para: ${termo}`, 'info');
+    });
+
+    document.getElementById('btnFiscalHintsImportar')?.addEventListener('click', () => {
+        const json = fiscalHintsTextarea?.value || '';
+        const resultado = FiscalHints.importarDicasFiscaisJson(json);
+        if (!resultado.ok) {
+            setFiscalHintsStatus(resultado.erros.join(' | '), 'error');
+            return;
+        }
+        persistirDicasFiscais(resultado.dicas, FiscalHints.exportarDicasFiscaisJson(resultado.dicas));
+        setFiscalHintsStatus('JSON aplicado.');
+        log('🔎 JSON de dicas fiscais aplicado', 'info');
+    });
+
+    document.getElementById('btnFiscalHintsExportar')?.addEventListener('click', () => {
+        const est = EstadoManager.get() as EstadoApp;
+        const json = FiscalHints.exportarDicasFiscaisJson(((est as any).fiscalHints || {}) as Record<string, FiscalHints.FiscalHint>);
+        EstadoManager.update((st: any) => { st.fiscalHintsJson = json; });
+        if (fiscalHintsTextarea) fiscalHintsTextarea.value = json;
+        setFiscalHintsStatus('JSON atualizado.');
+    });
+
+    document.getElementById('fiscalHintsLista')?.addEventListener('click', (e: Event) => {
+        const btn = (e.target as HTMLElement).closest('[data-km-fiscal-remove]') as HTMLElement | null;
+        if (!btn) return;
+        const id = btn.dataset.kmFiscalRemove || '';
+        const dicas = { ...(((EstadoManager.get() as any).fiscalHints || {}) as Record<string, FiscalHints.FiscalHint>) };
+        delete dicas[id];
+        persistirDicasFiscais(dicas);
+        setFiscalHintsStatus('Dica removida.');
     });
 
     // ---- Sliders de delay
@@ -470,5 +606,7 @@ export function wireEvents(toggleMinimizar: () => void): void {
     });
 
     ItemMapManager.atualizarStatusUI(EstadoManager.get() as EstadoApp);
+    atualizarListaDicasFiscais(estado);
+    aplicarDicasFiscaisDoEstado();
     if (container) setupDragAndDrop(container);
 }

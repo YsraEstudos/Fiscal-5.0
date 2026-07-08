@@ -43,6 +43,9 @@ describe("ui/painel-builder", () => {
         pausado: false,
         modoSimulacao: false,
         reporting: {},
+        fiscalHintsAtivo: true,
+        fiscalHintsJson: "",
+        fiscalHints: {},
         acoes: {}
     });
     mockGetAcoesOrdenadas.mockReturnValue([]);
@@ -86,6 +89,7 @@ describe("ui/painel-builder", () => {
     expect(painel.classList.contains("is-collapsed")).toBe(true);
     expect(painel.innerHTML).toContain("FISCAL 5.0");
     expect(painel.innerHTML).toContain("Resumo da execução");
+    expect(painel.innerHTML).toContain("Dicas fiscais");
   });
 
   it("construirListaAcoes constrói a lista baseada nas acoesOrdenadas", () => {

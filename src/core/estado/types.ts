@@ -41,6 +41,7 @@ export interface PainelSecoes {
     perfil: boolean;
     logs: boolean;
     progresso: boolean;
+    fiscalHints: boolean;
 }
 
 export interface PainelPosicao {
@@ -78,16 +79,26 @@ export interface EstadoApp {
     painelSecoes: PainelSecoes;
     painelScrollTop: number;
     logAreaHeight: number;
+    /** @contract — usado por item-map-manager.ts, executor.ts, item-flow.ts */
     itemAtualKey: string | null;
+    /** @contract — usado por item-map-manager.ts, executor.ts, item-flow.ts */
     itemAtualTelaId: string | null;
     reportingSessionMap: Record<string, unknown>;
     estimativa: EstimativaEstado;
     trilhaExecucao: unknown;
+    /** @contract — usado por item-map-manager.ts, item-flow.ts, executor.ts */
     itemFlags: Record<string, unknown>;
+    /** @contract — liga/desliga o sistema JSON por item (item-map-manager.ts) */
     itemMapAtivo: boolean;
+    /** @contract — JSON bruto do textarea (item-map-manager.ts, painel-events.ts) */
     itemMapJson: string;
+    /** @contract — mapa parsed ID→ItemMapEntry (item-map-manager.ts, progress-totals.ts) */
     itemMap: Record<string, unknown>;
+    /** @contract — anti-duplicação de log (item-map-manager.ts) */
     itemMapUltimoAplicadoId: string | null;
+    fiscalHintsAtivo: boolean;
+    fiscalHintsJson: string;
+    fiscalHints: Record<string, unknown>;
     reporting: ReportingDefaults;
     acoes: Record<string, AcaoEstado>;
 }

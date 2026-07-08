@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         FISCAL 5.0 (Robust Robot)
 // @namespace    http://tampermonkey.net/
-// @version      5.0.2
+// @version      5.1.0
 // @author       System Admin
 // @description  Automação modular FISCAL 5.0 com controle individual de ações, inspeção de elementos, perfis e seletor robusto (ID + Texto).
 // @downloadURL  https://raw.githubusercontent.com/YsraEstudos/Fiscal-5.0/main/dist/FISCAL-5.0.user.js
@@ -578,7 +578,8 @@
     opcoes: false,
     perfil: false,
     logs: false,
-    progresso: true
+    progresso: true,
+    fiscalHints: true
   });
   function asObject(valor) {
     return valor && typeof valor === "object" ? valor : {};
@@ -735,6 +736,9 @@
     itemMapJson: "",
     itemMap: {},
     itemMapUltimoAplicadoId: null,
+    fiscalHintsAtivo: true,
+    fiscalHintsJson: "",
+    fiscalHints: {},
     reporting: normalizarReportingConfig(REPORTING_DEFAULTS),
     acoes: {}
   };
@@ -854,6 +858,9 @@
     if (antigo["itemMapUltimoAplicadoId"]) novo.itemMapUltimoAplicadoId = String(antigo["itemMapUltimoAplicadoId"]);
     if (antigo["itemAtualTelaId"]) novo.itemAtualTelaId = String(antigo["itemAtualTelaId"]);
     if (isRecord(antigo["reportingSessionMap"])) novo.reportingSessionMap = antigo["reportingSessionMap"];
+    if (antigo["fiscalHintsAtivo"] !== void 0) novo.fiscalHintsAtivo = !!antigo["fiscalHintsAtivo"];
+    if (antigo["fiscalHintsJson"] !== void 0) novo.fiscalHintsJson = String(antigo["fiscalHintsJson"]);
+    if (isRecord(antigo["fiscalHints"])) novo.fiscalHints = antigo["fiscalHints"];
     novo.estimativa = normalizarEstimativa(antigo["estimativa"]);
     novo.trilhaExecucao = normalizarTrilhaExecucao(antigo["trilhaExecucao"]);
     novo.reporting = normalizarReportingConfig(antigo["reporting"]);
@@ -6964,6 +6971,195 @@
   }
   const PANEL_ID = "painel-robo-pro";
   const STYLE_ID = "fiscal-pro-styles";
+  const ORIGINAL_TEXT_ATTR = "data-km-fiscal-original-text";
+  const MARK_CLASS = "km-fiscal-hint-mark";
+  const POPUP_ID = "km-fiscal-hint-popup";
+  function normalizarTermoFiscal(valor) {
+    return String(valor ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim().toLowerCase();
+  }
+  function criarSlugDica(termo, index = 0) {
+    const slug = normalizarTermoFiscal(termo).replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 80);
+    return index > 0 ? `${slug || "dica"}-${index + 1}` : slug || "dica";
+  }
+  function normalizarCodigo(valor) {
+    const texto = String(valor ?? "").trim();
+    return texto || void 0;
+  }
+  function obterUnspsc(raw) {
+    return normalizarCodigo(raw.unspsc ?? raw.UNSPSC ?? raw.NSPSC ?? raw.nspsc);
+  }
+  function validarDica(dica, indice) {
+    const erros = [];
+    if (!normalizarTermoFiscal(dica.termo)) erros.push(`Regra ${indice}: termo obrigatório`);
+    if (!dica.ncm && !dica.unspsc) erros.push(`Regra ${indice}: informe NCM ou UNSPSC`);
+    if (dica.ncm && !CONFIG.VALIDADORES.ncm.regex.test(dica.ncm)) {
+      erros.push(`Regra ${indice}: NCM inválido (${dica.ncm})`);
+    }
+    if (dica.unspsc && !CONFIG.VALIDADORES.unspsc.regex.test(dica.unspsc)) {
+      erros.push(`Regra ${indice}: UNSPSC inválido (${dica.unspsc})`);
+    }
+    return erros;
+  }
+  function importarDicasFiscaisJson(json) {
+    const erros = [];
+    const dicas = {};
+    try {
+      const parsed = JSON.parse(String(json || "[]"));
+      const lista = Array.isArray(parsed) ? parsed : Object.entries(parsed || {}).map(([id, value]) => ({ id, ...value }));
+      lista.forEach((raw, idx) => {
+        if (!raw || typeof raw !== "object") {
+          erros.push(`Regra ${idx + 1}: objeto inválido`);
+          return;
+        }
+        const record = raw;
+        const dica = {
+          termo: String(record.termo ?? record.frase ?? record.term ?? "").trim(),
+          ncm: normalizarCodigo(record.ncm ?? record.NCM),
+          unspsc: obterUnspsc(record)
+        };
+        const errosDica = validarDica(dica, idx + 1);
+        if (errosDica.length) {
+          erros.push(...errosDica);
+          return;
+        }
+        const id = String(record.id || criarSlugDica(dica.termo, idx)).trim();
+        dicas[id] = dica;
+      });
+    } catch (err) {
+      erros.push(`JSON inválido: ${(err == null ? void 0 : err.message) || err}`);
+    }
+    return { ok: erros.length === 0, dicas, erros };
+  }
+  function exportarDicasFiscaisJson(dicas) {
+    const lista = Object.entries(dicas || {}).map(([id, dica]) => ({
+      id,
+      termo: dica.termo,
+      ...dica.ncm ? { ncm: dica.ncm } : {},
+      ...dica.unspsc ? { unspsc: dica.unspsc } : {}
+    }));
+    return JSON.stringify(lista, null, 2);
+  }
+  function criarMapaNormalizado(texto) {
+    let normalizado = "";
+    const indices = [];
+    let ultimoFoiEspaco = false;
+    for (let i = 0; i < texto.length; i += 1) {
+      const chars = texto[i].normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+      for (const char of chars) {
+        if (/\s/.test(char)) {
+          if (!ultimoFoiEspaco) {
+            normalizado += " ";
+            indices.push(i);
+            ultimoFoiEspaco = true;
+          }
+          continue;
+        }
+        normalizado += char;
+        indices.push(i);
+        ultimoFoiEspaco = false;
+      }
+    }
+    return { normalizado, indices };
+  }
+  function encontrarTermo(texto, termo) {
+    const alvo = normalizarTermoFiscal(termo);
+    if (!alvo) return null;
+    const mapa = criarMapaNormalizado(texto);
+    const inicioNormalizado = mapa.normalizado.indexOf(alvo);
+    if (inicioNormalizado < 0) return null;
+    const inicio = mapa.indices[inicioNormalizado] ?? 0;
+    const fimIndiceNormalizado = inicioNormalizado + alvo.length - 1;
+    const fim = (mapa.indices[fimIndiceNormalizado] ?? inicio) + 1;
+    return { inicio, fim };
+  }
+  function obterDicasOrdenadas(dicas) {
+    return Object.values(dicas || {}).filter((dica) => normalizarTermoFiscal(dica.termo) && (dica.ncm || dica.unspsc)).sort((a, b) => normalizarTermoFiscal(b.termo).length - normalizarTermoFiscal(a.termo).length);
+  }
+  function limparPopup() {
+    var _a;
+    (_a = document.getElementById(POPUP_ID)) == null ? void 0 : _a.remove();
+  }
+  async function copiarTexto(texto) {
+    var _a;
+    if ((_a = navigator.clipboard) == null ? void 0 : _a.writeText) {
+      await navigator.clipboard.writeText(texto);
+      return;
+    }
+    const textarea = document.createElement("textarea");
+    textarea.value = texto;
+    textarea.setAttribute("readonly", "true");
+    textarea.style.position = "fixed";
+    textarea.style.left = "-9999px";
+    document.body.appendChild(textarea);
+    textarea.select();
+    try {
+      document.execCommand("copy");
+    } finally {
+      textarea.remove();
+    }
+  }
+  function abrirPopup(alvo, dica) {
+    limparPopup();
+    const rect = alvo.getBoundingClientRect();
+    const popup = document.createElement("div");
+    popup.id = POPUP_ID;
+    popup.innerHTML = `
+        <div class="km-fiscal-popup-title">${escapeHtml(dica.termo)}</div>
+        <div class="km-fiscal-popup-actions">
+            ${dica.ncm ? `<button type="button" data-km-copy-fiscal="ncm">NCM ${escapeHtml(dica.ncm)}</button>` : ""}
+            ${dica.unspsc ? `<button type="button" data-km-copy-fiscal="unspsc">UNSPSC ${escapeHtml(dica.unspsc)}</button>` : ""}
+        </div>
+    `;
+    popup.style.top = `${Math.max(8, rect.bottom + 6)}px`;
+    popup.style.left = `${Math.max(8, Math.min(rect.left, window.innerWidth - 260))}px`;
+    popup.addEventListener("click", async (event) => {
+      const button = event.target.closest("[data-km-copy-fiscal]");
+      if (!button) return;
+      const tipo = button.getAttribute("data-km-copy-fiscal");
+      const valor = tipo === "ncm" ? dica.ncm : dica.unspsc;
+      if (!valor) return;
+      await copiarTexto(valor);
+      button.textContent = "Copiado";
+    });
+    document.body.appendChild(popup);
+  }
+  function restaurarDescricao(el) {
+    const original = el.getAttribute(ORIGINAL_TEXT_ATTR);
+    if (original != null) {
+      el.textContent = original;
+      return original;
+    }
+    const texto = el.textContent || "";
+    el.setAttribute(ORIGINAL_TEXT_ATTR, texto);
+    return texto;
+  }
+  function destacarDescricao(el, dicas) {
+    const texto = restaurarDescricao(el);
+    const match = dicas.map((dica) => ({ dica, pos: encontrarTermo(texto, dica.termo) })).find((entry) => entry.pos);
+    if (!(match == null ? void 0 : match.pos)) return;
+    const antes = texto.slice(0, match.pos.inicio);
+    const trecho = texto.slice(match.pos.inicio, match.pos.fim);
+    const depois = texto.slice(match.pos.fim);
+    el.innerHTML = `${escapeHtml(antes)}<button type="button" class="${MARK_CLASS}">${escapeHtml(trecho)}</button>${escapeHtml(depois)}`;
+    const mark = el.querySelector(`.${MARK_CLASS}`);
+    mark == null ? void 0 : mark.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      abrirPopup(mark, match.dica);
+    });
+  }
+  function aplicarDicasFiscais(options) {
+    limparPopup();
+    const descricoes = Array.from(document.querySelectorAll('#divDescricaoCompleta .descricao, .descricao[id^="txtD"]'));
+    descricoes.forEach(restaurarDescricao);
+    if (!options.ativo) return;
+    const dicas = obterDicasOrdenadas(options.dicas);
+    if (!dicas.length) return;
+    descricoes.forEach((el) => destacarDescricao(el, dicas));
+  }
+  function fecharPopupDicasFiscais() {
+    limparPopup();
+  }
   function formatarSegundos(ms) {
     return `${(Number(ms || 0) / 1e3).toFixed(1)}s`;
   }
@@ -7119,6 +7315,57 @@
         </section>
     `;
   }
+  function renderFiscalHintRows(estado) {
+    const dicas = Object.entries(estado.fiscalHints || {});
+    if (!dicas.length) return '<div id="fiscalHintsLista" class="km-helper-text">Nenhuma dica cadastrada.</div>';
+    return `
+        <div id="fiscalHintsLista" class="km-fiscal-hint-list">
+            ${dicas.map(([id, dica]) => `
+                <div class="km-fiscal-hint-row" data-km-fiscal-id="${escapeHtml(id)}">
+                    <div class="km-fiscal-hint-row-copy">
+                        <strong>${escapeHtml(dica.termo || "")}</strong>
+                        <span>${escapeHtml([dica.ncm ? `NCM ${dica.ncm}` : "", dica.unspsc ? `UNSPSC ${dica.unspsc}` : ""].filter(Boolean).join(" / "))}</span>
+                    </div>
+                    <button class="km-inline-button km-inline-button--danger" type="button" data-km-fiscal-remove="${escapeHtml(id)}">Remover</button>
+                </div>
+            `).join("")}
+        </div>
+    `;
+  }
+  function renderFiscalHintsSection(estado) {
+    const json = estado.fiscalHintsJson || exportarDicasFiscaisJson(estado.fiscalHints || {});
+    return `
+        <section class="km-card">
+            <label class="km-section-label">Dicas fiscais</label>
+            <label class="km-checkline">
+                <input type="checkbox" id="chkFiscalHintsAtivo" ${estado.fiscalHintsAtivo !== false ? "checked" : ""}>
+                <span>Destacar termos na descrição</span>
+            </label>
+            <div class="km-field">
+                <label for="txtFiscalHintTermo">Termo ou frase</label>
+                <input type="text" id="txtFiscalHintTermo" placeholder="APLICACAO: CAMINHAO">
+            </div>
+            <div class="km-field-grid">
+                <div class="km-field">
+                    <label for="txtFiscalHintNcm">NCM</label>
+                    <input type="text" id="txtFiscalHintNcm" placeholder="8708.93.00">
+                </div>
+                <div class="km-field">
+                    <label for="txtFiscalHintUnspsc">UNSPSC / NSPSC</label>
+                    <input type="text" id="txtFiscalHintUnspsc" placeholder="25101929">
+                </div>
+            </div>
+            <button id="btnFiscalHintAdicionar" class="km-secondary-button" type="button">Adicionar dica</button>
+            ${renderFiscalHintRows(estado)}
+            <textarea id="fiscalHintsJson" class="km-textarea" placeholder='[{ "termo": "APLICACAO: CAMINHAO", "ncm": "8708.93.00", "unspsc": "25101929" }]'>${escapeHtml(json)}</textarea>
+            <div class="km-button-row">
+                <button id="btnFiscalHintsImportar" class="km-secondary-button" type="button">Aplicar JSON</button>
+                <button id="btnFiscalHintsExportar" class="km-secondary-button" type="button">Atualizar JSON</button>
+            </div>
+            <div id="fiscalHintsStatus" class="km-helper-text"></div>
+        </section>
+    `;
+  }
   function renderJsonSection(estado) {
     return `
         <section class="km-card">
@@ -7214,6 +7461,7 @@
                 ${renderSecaoColapsavel(estado, "perfil", "Perfil", renderPerfilSection())}
                 ${renderSecaoColapsavel(estado, "workflow", "Ações do Workflow", renderWorkflowSection())}
                 ${renderSecaoColapsavel(estado, "opcoes", "Opções", renderOpcoesSection(estado))}
+                ${renderSecaoColapsavel(estado, "fiscalHints", "Dicas fiscais", renderFiscalHintsSection(estado))}
                 ${renderSecaoColapsavel(estado, "json", "JSON por Item", renderJsonSection(estado))}
                 ${renderSecaoColapsavel(estado, "progresso", "Progresso", renderProgressoSection())}
                 ${renderSecaoColapsavel(estado, "controle", "Controle", renderControleSection(estado))}
@@ -7818,6 +8066,86 @@
             transform: none;
         }
 
+        .km-fiscal-hint-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .km-fiscal-hint-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            padding: 8px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.68);
+            border: 1px solid rgba(90, 68, 44, 0.1);
+        }
+
+        .km-fiscal-hint-row-copy {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            min-width: 0;
+            font-size: 10px;
+        }
+
+        .km-fiscal-hint-row-copy strong,
+        .km-fiscal-hint-row-copy span {
+            overflow-wrap: anywhere;
+        }
+
+        .km-fiscal-hint-mark {
+            display: inline;
+            border: 0;
+            border-radius: 6px;
+            padding: 1px 4px;
+            background: #ffe08a;
+            color: #3b2a00;
+            font: inherit;
+            cursor: pointer;
+            box-shadow: inset 0 0 0 1px rgba(118, 84, 0, 0.24);
+        }
+
+        #km-fiscal-hint-popup {
+            position: fixed;
+            z-index: 2147483646;
+            width: min(252px, calc(100vw - 16px));
+            box-sizing: border-box;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid rgba(50, 40, 24, 0.18);
+            background: #fffdf8;
+            color: #2f241b;
+            box-shadow: 0 12px 28px rgba(0, 0, 0, 0.18);
+            font-family: "Segoe UI", Tahoma, sans-serif;
+        }
+
+        .km-fiscal-popup-title {
+            margin-bottom: 8px;
+            font-size: 11px;
+            font-weight: 700;
+            overflow-wrap: anywhere;
+        }
+
+        .km-fiscal-popup-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .km-fiscal-popup-actions button {
+            border: 0;
+            border-radius: 8px;
+            padding: 8px;
+            background: rgba(14, 90, 72, 0.1);
+            color: #0a4336;
+            cursor: pointer;
+            font-size: 11px;
+            text-align: left;
+        }
+
         @media (max-width: 640px) {
             #painel-robo-pro {
                 width: calc(100vw - 20px);
@@ -8279,8 +8607,64 @@
       });
     });
   }
+  function getFiscalHintsOptions(estado) {
+    return {
+      ativo: estado.fiscalHintsAtivo !== false,
+      dicas: estado.fiscalHints || {}
+    };
+  }
+  function aplicarDicasFiscaisDoEstado() {
+    aplicarDicasFiscais(getFiscalHintsOptions(get()));
+  }
+  function setFiscalHintsStatus(mensagem, tipo = "info") {
+    const el = document.getElementById("fiscalHintsStatus");
+    if (!el) return;
+    el.textContent = mensagem;
+    el.style.color = tipo === "error" ? "#b42318" : "#6c5947";
+  }
+  function atualizarListaDicasFiscais(estado) {
+    const container = document.getElementById("fiscalHintsLista");
+    if (!container) return;
+    const dicas = Object.entries(estado.fiscalHints || {});
+    container.className = dicas.length ? "km-fiscal-hint-list" : "km-helper-text";
+    container.replaceChildren();
+    if (!dicas.length) {
+      container.textContent = "Nenhuma dica cadastrada.";
+      return;
+    }
+    dicas.forEach(([id, dica]) => {
+      const row = document.createElement("div");
+      row.className = "km-fiscal-hint-row";
+      row.dataset.kmFiscalId = id;
+      const copy = document.createElement("div");
+      copy.className = "km-fiscal-hint-row-copy";
+      const termo = document.createElement("strong");
+      termo.textContent = dica.termo || "";
+      const codigos = document.createElement("span");
+      codigos.textContent = [dica.ncm ? `NCM ${dica.ncm}` : "", dica.unspsc ? `UNSPSC ${dica.unspsc}` : ""].filter(Boolean).join(" / ");
+      copy.append(termo, codigos);
+      const remover = document.createElement("button");
+      remover.className = "km-inline-button km-inline-button--danger";
+      remover.type = "button";
+      remover.dataset.kmFiscalRemove = id;
+      remover.textContent = "Remover";
+      row.append(copy, remover);
+      container.appendChild(row);
+    });
+  }
+  function persistirDicasFiscais(dicas, json) {
+    const estado = update((st) => {
+      st.fiscalHints = dicas;
+      st.fiscalHintsJson = json ?? exportarDicasFiscaisJson(dicas);
+    });
+    const textarea = document.getElementById("fiscalHintsJson");
+    if (textarea) textarea.value = estado.fiscalHintsJson || "";
+    atualizarListaDicasFiscais(estado);
+    aplicarDicasFiscaisDoEstado();
+    return estado;
+  }
   function wireEvents(toggleMinimizar2) {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z, _A;
     const estado = get();
     const fmtS = (ms) => `${(Number(ms || 0) / 1e3).toFixed(1)}s`;
     const painelConteudo = document.getElementById("painelConteudo");
@@ -8454,8 +8838,67 @@
     (_i = document.getElementById("btnItemMapCriar")) == null ? void 0 : _i.addEventListener("click", () => {
       gerarJsonDoItemAtual(itemMapTextarea);
     });
+    const fiscalHintsTextarea = document.getElementById("fiscalHintsJson");
+    if (fiscalHintsTextarea && !fiscalHintsTextarea.value.trim()) {
+      fiscalHintsTextarea.value = exportarDicasFiscaisJson(estado.fiscalHints || {});
+    }
+    (_j = document.getElementById("chkFiscalHintsAtivo")) == null ? void 0 : _j.addEventListener("change", (e) => {
+      update((st) => {
+        st.fiscalHintsAtivo = e.target.checked;
+      });
+      aplicarDicasFiscaisDoEstado();
+      log(e.target.checked ? "🔎 Dicas fiscais ativadas" : "🔎 Dicas fiscais desativadas", "info");
+    });
+    (_k = document.getElementById("btnFiscalHintAdicionar")) == null ? void 0 : _k.addEventListener("click", () => {
+      var _a2, _b2, _c2;
+      const termo = ((_a2 = document.getElementById("txtFiscalHintTermo")) == null ? void 0 : _a2.value) || "";
+      const ncm2 = ((_b2 = document.getElementById("txtFiscalHintNcm")) == null ? void 0 : _b2.value) || "";
+      const unspsc2 = ((_c2 = document.getElementById("txtFiscalHintUnspsc")) == null ? void 0 : _c2.value) || "";
+      const atuais = Object.values(get().fiscalHints || {});
+      const resultado2 = importarDicasFiscaisJson(JSON.stringify([...atuais, { termo, ncm: ncm2, unspsc: unspsc2 }]));
+      if (!resultado2.ok) {
+        setFiscalHintsStatus(resultado2.erros.join(" | "), "error");
+        return;
+      }
+      persistirDicasFiscais(resultado2.dicas);
+      ["txtFiscalHintTermo", "txtFiscalHintNcm", "txtFiscalHintUnspsc"].forEach((id) => {
+        const input = document.getElementById(id);
+        if (input) input.value = "";
+      });
+      setFiscalHintsStatus("Dica adicionada.");
+      log(`🔎 Dica fiscal adicionada para: ${termo}`, "info");
+    });
+    (_l = document.getElementById("btnFiscalHintsImportar")) == null ? void 0 : _l.addEventListener("click", () => {
+      const json = (fiscalHintsTextarea == null ? void 0 : fiscalHintsTextarea.value) || "";
+      const resultado2 = importarDicasFiscaisJson(json);
+      if (!resultado2.ok) {
+        setFiscalHintsStatus(resultado2.erros.join(" | "), "error");
+        return;
+      }
+      persistirDicasFiscais(resultado2.dicas, exportarDicasFiscaisJson(resultado2.dicas));
+      setFiscalHintsStatus("JSON aplicado.");
+      log("🔎 JSON de dicas fiscais aplicado", "info");
+    });
+    (_m = document.getElementById("btnFiscalHintsExportar")) == null ? void 0 : _m.addEventListener("click", () => {
+      const est = get();
+      const json = exportarDicasFiscaisJson(est.fiscalHints || {});
+      update((st) => {
+        st.fiscalHintsJson = json;
+      });
+      if (fiscalHintsTextarea) fiscalHintsTextarea.value = json;
+      setFiscalHintsStatus("JSON atualizado.");
+    });
+    (_n = document.getElementById("fiscalHintsLista")) == null ? void 0 : _n.addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-km-fiscal-remove]");
+      if (!btn) return;
+      const id = btn.dataset.kmFiscalRemove || "";
+      const dicas = { ...get().fiscalHints || {} };
+      delete dicas[id];
+      persistirDicasFiscais(dicas);
+      setFiscalHintsStatus("Dica removida.");
+    });
     const deb = (fn) => debounce(fn, 80);
-    (_j = document.getElementById("globalActionDelaySlider")) == null ? void 0 : _j.addEventListener("input", deb((e) => {
+    (_o = document.getElementById("globalActionDelaySlider")) == null ? void 0 : _o.addEventListener("input", deb((e) => {
       const valor = parseInt(e.target.value, 10);
       const label = document.getElementById("globalActionDelayLabel");
       if (label) label.textContent = fmtS(valor);
@@ -8463,7 +8906,7 @@
         st.globalActionDelayMs = valor;
       });
     }));
-    (_k = document.getElementById("clickCooldownSlider")) == null ? void 0 : _k.addEventListener("input", deb((e) => {
+    (_p = document.getElementById("clickCooldownSlider")) == null ? void 0 : _p.addEventListener("input", deb((e) => {
       const valor = parseInt(e.target.value, 10);
       const label = document.getElementById("clickCooldownLabel");
       if (label) label.textContent = fmtS(valor);
@@ -8478,37 +8921,37 @@
         persistirAcoes(st);
       });
     };
-    (_l = document.getElementById("chkReportingMedia")) == null ? void 0 : _l.addEventListener("change", (e) => {
+    (_q = document.getElementById("chkReportingMedia")) == null ? void 0 : _q.addEventListener("change", (e) => {
       persistReporting((cfg) => {
         cfg.enabledMedia = !!e.target.checked;
       });
       log(`🖼️ Coleta de mídia ${e.target.checked ? "ativada" : "desativada"}`, "info");
     });
-    (_m = document.getElementById("chkReportingEnabled")) == null ? void 0 : _m.addEventListener("change", (e) => {
+    (_r = document.getElementById("chkReportingEnabled")) == null ? void 0 : _r.addEventListener("change", (e) => {
       persistReporting((cfg) => {
         cfg.enabledReport = !!e.target.checked;
       });
       log(`📝 Geração de relatório PDF/MD ${e.target.checked ? "ativada" : "desativada"}`, "info");
     });
-    (_n = document.getElementById("chkReportingClickMediaTab")) == null ? void 0 : _n.addEventListener("change", (e) => {
+    (_s = document.getElementById("chkReportingClickMediaTab")) == null ? void 0 : _s.addEventListener("change", (e) => {
       persistReporting((cfg) => {
         cfg.clickMediaTabBeforeCollect = !!e.target.checked;
       });
       log(`🖱️ Clique na aba Mídias antes da coleta ${e.target.checked ? "ativado" : "desativado"}`, "info");
     });
-    (_o = document.getElementById("chkReportingAcompanhamento")) == null ? void 0 : _o.addEventListener("change", (e) => {
+    (_t = document.getElementById("chkReportingAcompanhamento")) == null ? void 0 : _t.addEventListener("change", (e) => {
       persistReporting((cfg) => {
         cfg.enabledAcompanhamento = !!e.target.checked;
       });
       log(`📜 Coleta de acompanhamento ${e.target.checked ? "ativada" : "desativada"}`, "info");
     });
-    (_p = document.getElementById("chkReportingBlock")) == null ? void 0 : _p.addEventListener("change", (e) => {
+    (_u = document.getElementById("chkReportingBlock")) == null ? void 0 : _u.addEventListener("change", (e) => {
       persistReporting((cfg) => {
         cfg.blockOnReportError = !!e.target.checked;
       });
       log(`🧱 Bloqueio em erro de relatório ${e.target.checked ? "ativado" : "desativado"}`, "info");
     });
-    (_q = document.getElementById("txtReportingServiceUrl")) == null ? void 0 : _q.addEventListener("change", (e) => {
+    (_v = document.getElementById("txtReportingServiceUrl")) == null ? void 0 : _v.addEventListener("change", (e) => {
       const input = e.target;
       const novo = String(input.value || "").trim() || CONFIG.REPORTING.SERVICE_DEFAULT;
       persistReporting((cfg) => {
@@ -8517,7 +8960,7 @@
       input.value = novo;
       log(`🔗 Serviço de relatório: ${novo}`, "info");
     });
-    (_r = document.getElementById("txtReportingApiToken")) == null ? void 0 : _r.addEventListener("change", (e) => {
+    (_w = document.getElementById("txtReportingApiToken")) == null ? void 0 : _w.addEventListener("change", (e) => {
       const input = e.target;
       const token = String(input.value || "").trim();
       persistReporting((cfg) => {
@@ -8526,14 +8969,14 @@
       input.value = token;
       log(`🔐 Token de API ${token ? "configurado" : "removido"}`, "info");
     });
-    (_s = document.getElementById("selReportingTransport")) == null ? void 0 : _s.addEventListener("change", (e) => {
+    (_x = document.getElementById("selReportingTransport")) == null ? void 0 : _x.addEventListener("change", (e) => {
       const transport = String(e.target.value || "auto").trim();
       persistReporting((cfg) => {
         cfg.transport = transport;
       });
       log(`🚚 Transporte de relatório: ${transport}`, "info");
     });
-    (_t = document.getElementById("numReportingMaxFileMb")) == null ? void 0 : _t.addEventListener("change", (e) => {
+    (_y = document.getElementById("numReportingMaxFileMb")) == null ? void 0 : _y.addEventListener("change", (e) => {
       const input = e.target;
       const val = Math.max(1, Math.min(200, Number(input.value || CONFIG.REPORTING.MAX_FILE_SIZE_MB)));
       persistReporting((cfg) => {
@@ -8542,7 +8985,7 @@
       input.value = String(val);
       log(`📦 Limite por arquivo: ${val}MB`, "info");
     });
-    (_u = document.getElementById("numReportingMaxFiles")) == null ? void 0 : _u.addEventListener("change", (e) => {
+    (_z = document.getElementById("numReportingMaxFiles")) == null ? void 0 : _z.addEventListener("change", (e) => {
       const input = e.target;
       const val = Math.max(1, Math.min(200, Number(input.value || CONFIG.REPORTING.MAX_FILES_PER_ITEM)));
       persistReporting((cfg) => {
@@ -8551,13 +8994,15 @@
       input.value = String(val);
       log(`📚 Limite de arquivos por item: ${val}`, "info");
     });
-    (_v = document.getElementById("btnToggle")) == null ? void 0 : _v.addEventListener("click", () => {
+    (_A = document.getElementById("btnToggle")) == null ? void 0 : _A.addEventListener("click", () => {
       const est = get();
       if (est.pausado) togglePausar();
       else if (est.ativo) parar();
       else iniciar();
     });
     atualizarStatusUI(get());
+    atualizarListaDicasFiscais(estado);
+    aplicarDicasFiscaisDoEstado();
     if (container) setupDragAndDrop(container);
   }
   const SAFE_TOP = 12;
@@ -8723,6 +9168,47 @@
     toggle.title = _painelMinimizado ? "Expandir" : "Recolher";
     manterPainelVisivel(painel);
   }
+  let _fiscalHintsObserver = null;
+  let _fiscalHintsTimer = null;
+  let _fiscalHintsGlobalController = null;
+  function aplicarDicasFiscaisEstado() {
+    const estado = get();
+    aplicarDicasFiscais({
+      ativo: estado.fiscalHintsAtivo !== false,
+      dicas: estado.fiscalHints || {}
+    });
+  }
+  function agendarAplicacaoDicasFiscais() {
+    if (typeof globalThis === "undefined") return;
+    if (_fiscalHintsTimer != null) globalThis.clearTimeout(_fiscalHintsTimer);
+    _fiscalHintsTimer = globalThis.setTimeout(() => {
+      _fiscalHintsTimer = null;
+      aplicarDicasFiscaisEstado();
+    }, 120);
+  }
+  function inicializarDicasFiscaisPagina() {
+    aplicarDicasFiscaisEstado();
+    if (_fiscalHintsObserver) _fiscalHintsObserver.disconnect();
+    _fiscalHintsObserver = new MutationObserver((mutations) => {
+      const relevante = mutations.some((mutation) => Array.from(mutation.addedNodes).some((node) => {
+        var _a, _b;
+        if (!(node instanceof HTMLElement)) return false;
+        return !!((_a = node.querySelector) == null ? void 0 : _a.call(node, '#divDescricaoCompleta .descricao, .descricao[id^="txtD"]')) || ((_b = node.matches) == null ? void 0 : _b.call(node, '#divDescricaoCompleta, .descricao[id^="txtD"]'));
+      }));
+      if (relevante) agendarAplicacaoDicasFiscais();
+    });
+    if (document.body) _fiscalHintsObserver.observe(document.body, { childList: true, subtree: true });
+    if (_fiscalHintsGlobalController) _fiscalHintsGlobalController.abort();
+    _fiscalHintsGlobalController = new AbortController();
+    document.addEventListener("click", (e) => {
+      const target = e.target;
+      if (target.closest("#km-fiscal-hint-popup") || target.closest(".km-fiscal-hint-mark")) return;
+      fecharPopupDicasFiscais();
+    }, { signal: _fiscalHintsGlobalController.signal });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") fecharPopupDicasFiscais();
+    }, { signal: _fiscalHintsGlobalController.signal });
+  }
   function criarPainel() {
     if (getPainelEl()) return;
     const estado = get();
@@ -8778,6 +9264,7 @@
   function inicializar() {
     conectarCallbacksUI();
     criarPainel();
+    inicializarDicasFiscaisPagina();
     registrarAtalhos();
     const estado = get();
     if (estado.ativo && !estado.pausado) {
@@ -8792,6 +9279,16 @@
       _keyboardController == null ? void 0 : _keyboardController.abort();
     } catch {
     }
+    try {
+      _fiscalHintsObserver == null ? void 0 : _fiscalHintsObserver.disconnect();
+    } catch {
+    }
+    try {
+      _fiscalHintsGlobalController == null ? void 0 : _fiscalHintsGlobalController.abort();
+    } catch {
+    }
+    if (_fiscalHintsTimer != null && typeof globalThis !== "undefined") globalThis.clearTimeout(_fiscalHintsTimer);
+    fecharPopupDicasFiscais();
     fechar();
     limpar();
   }

@@ -2,6 +2,40 @@
  * Gerenciador de mapeamento JSON por item (ID → NCM/UNSPSC).
  * Permite carregar um JSON com mapa de valores e aplicar por item.
  * Extraído do monólito (linhas 1102–1375).
+ *
+ * @contract  ── NÃO ALTERAR SEM REVISAR TODOS OS CONSUMIDORES ──
+ *
+ * Este módulo é o coração do sistema "JSON por item". Sua interface pública,
+ * seletores DOM que ele lê, e propriedades do estado que ele manipula formam
+ * um contrato estável com o HTML do painel e o workflow do executor.
+ *
+ * ▸ API pública exportada (não renomear/remover):
+ *   parseJsonParaMapa, aplicarJson, aplicarParaItemAtual,
+ *   getValoresParaItem, getValorAcao, obterItemIdAtual,
+ *   sincronizarItemAtual, atualizarStatusUI, gerarJsonDoItemAtual,
+ *   normalizarCest
+ *
+ * ▸ Tipos exportados:
+ *   ItemMapEntry, ParseResult
+ *
+ * ▸ Elemento DOM atualizado:
+ *   #itemMapStatus  → atualizarStatusUI() define .textContent e .style.color
+ *
+ * ▸ Seletores DOM lidos para ID do item (obterItemIdAtual):
+ *   URL params: IdItem, idItem, itemId, ItemId
+ *   #txtIdItem, #hfIdItem, #hidIdItem, #txtNum, #txtNumero
+ *   + variantes input[name$=...] e input[id$=...]
+ *
+ * ▸ Seletores DOM lidos para geração (gerarJsonDoItemAtual):
+ *   #txtNBS, #txtCest, #txtCodigoUnspsc, #txtCodUNSPSC
+ *   + encontrarCampoNcmPreferido, encontrarCampoLei116Grupo/Subgrupo
+ *
+ * ▸ Propriedades do EstadoApp manipuladas:
+ *   itemMapAtivo, itemMapJson, itemMap, itemMapUltimoAplicadoId,
+ *   itemAtualKey, itemAtualTelaId, itemFlags
+ *
+ * Consumidores principais: painel-events.ts, painel-sections.ts,
+ * executor.ts, item-flow.ts, progress-totals.ts
  */
 
 import { CONFIG } from '../config/constants.ts';

@@ -76,6 +76,7 @@ describe("core/estado-manager", () => {
     const secoes = normalizarPainelSecoes({ resumo: false, logs: true, inexistente: true });
     expect(secoes.resumo).toBe(false);
     expect(secoes.logs).toBe(true);
+    expect(secoes.fiscalHints).toBe(true);
     expect(secoes.workflow).toBe(true);
     expect("inexistente" in secoes).toBe(false);
 
@@ -177,6 +178,9 @@ describe("core/estado-manager", () => {
       itemMapUltimoAplicadoId: 42,
       itemAtualTelaId: 777,
       reportingSessionMap: { "item-1": "run-1" },
+      fiscalHintsAtivo: true,
+      fiscalHintsJson: `[{"termo":"APLICACAO: CAMINHAO","unspsc":"25101929"}]`,
+      fiscalHints: { "aplicacao-caminhao": { termo: "APLICACAO: CAMINHAO", unspsc: "25101929" } },
     }));
 
     const estado = get();
@@ -193,6 +197,9 @@ describe("core/estado-manager", () => {
     expect(estado.itemMapUltimoAplicadoId).toBe("42");
     expect(estado.itemAtualTelaId).toBe("777");
     expect(estado.reportingSessionMap["item-1"]).toBe("run-1");
+    expect(estado.fiscalHintsAtivo).toBe(true);
+    expect(estado.fiscalHintsJson).toContain("APLICACAO");
+    expect(estado.fiscalHints["aplicacao-caminhao"].unspsc).toBe("25101929");
   });
 
   it("migra delayMs legado e aplica defaults de tarefas sem valor explícito", () => {

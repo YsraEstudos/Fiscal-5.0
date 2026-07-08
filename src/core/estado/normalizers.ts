@@ -13,6 +13,7 @@ export const PAINEL_SECOES_PADRAO: Readonly<PainelSecoes> = Object.freeze({
     perfil: false,
     logs: false,
     progresso: true,
+    fiscalHints: true,
 });
 
 function asObject(valor: unknown): RawObject {

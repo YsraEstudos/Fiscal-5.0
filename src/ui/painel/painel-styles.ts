@@ -597,6 +597,86 @@ export function injetarEstilosPainel(): void {
             transform: none;
         }
 
+        .km-fiscal-hint-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .km-fiscal-hint-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            padding: 8px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.68);
+            border: 1px solid rgba(90, 68, 44, 0.1);
+        }
+
+        .km-fiscal-hint-row-copy {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            min-width: 0;
+            font-size: 10px;
+        }
+
+        .km-fiscal-hint-row-copy strong,
+        .km-fiscal-hint-row-copy span {
+            overflow-wrap: anywhere;
+        }
+
+        .km-fiscal-hint-mark {
+            display: inline;
+            border: 0;
+            border-radius: 6px;
+            padding: 1px 4px;
+            background: #ffe08a;
+            color: #3b2a00;
+            font: inherit;
+            cursor: pointer;
+            box-shadow: inset 0 0 0 1px rgba(118, 84, 0, 0.24);
+        }
+
+        #km-fiscal-hint-popup {
+            position: fixed;
+            z-index: 2147483646;
+            width: min(252px, calc(100vw - 16px));
+            box-sizing: border-box;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid rgba(50, 40, 24, 0.18);
+            background: #fffdf8;
+            color: #2f241b;
+            box-shadow: 0 12px 28px rgba(0, 0, 0, 0.18);
+            font-family: "Segoe UI", Tahoma, sans-serif;
+        }
+
+        .km-fiscal-popup-title {
+            margin-bottom: 8px;
+            font-size: 11px;
+            font-weight: 700;
+            overflow-wrap: anywhere;
+        }
+
+        .km-fiscal-popup-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .km-fiscal-popup-actions button {
+            border: 0;
+            border-radius: 8px;
+            padding: 8px;
+            background: rgba(14, 90, 72, 0.1);
+            color: #0a4336;
+            cursor: pointer;
+            font-size: 11px;
+            text-align: left;
+        }
+
         @media (max-width: 640px) {
             #painel-robo-pro {
                 width: calc(100vw - 20px);

@@ -3,6 +3,7 @@ import type { EstadoApp } from '../../core/estado-manager.ts';
 import {
     renderControleSection,
     renderJsonSection,
+    renderFiscalHintsSection,
     renderLogsSection,
     renderOpcoesSection,
     renderPerfilSection,
@@ -50,6 +51,7 @@ export function renderPainelShell(estado: EstadoApp, painelMinimizado: boolean):
                 ${renderSecaoColapsavel(estado, 'perfil', 'Perfil', renderPerfilSection())}
                 ${renderSecaoColapsavel(estado, 'workflow', 'Ações do Workflow', renderWorkflowSection())}
                 ${renderSecaoColapsavel(estado, 'opcoes', 'Opções', renderOpcoesSection(estado))}
+                ${renderSecaoColapsavel(estado, 'fiscalHints', 'Dicas fiscais', renderFiscalHintsSection(estado))}
                 ${renderSecaoColapsavel(estado, 'json', 'JSON por Item', renderJsonSection(estado))}
                 ${renderSecaoColapsavel(estado, 'progresso', 'Progresso', renderProgressoSection())}
                 ${renderSecaoColapsavel(estado, 'controle', 'Controle', renderControleSection(estado))}

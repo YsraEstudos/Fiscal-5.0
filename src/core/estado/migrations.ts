@@ -104,6 +104,9 @@ export function migrarEstadoSalvo(antigo: EstadoSalvoRaw, salvar: (estado: Estad
     if (antigo['itemMapUltimoAplicadoId']) novo.itemMapUltimoAplicadoId = String(antigo['itemMapUltimoAplicadoId']);
     if (antigo['itemAtualTelaId']) novo.itemAtualTelaId = String(antigo['itemAtualTelaId']);
     if (isRecord(antigo['reportingSessionMap'])) novo.reportingSessionMap = antigo['reportingSessionMap'];
+    if (antigo['fiscalHintsAtivo'] !== undefined) novo.fiscalHintsAtivo = !!antigo['fiscalHintsAtivo'];
+    if (antigo['fiscalHintsJson'] !== undefined) novo.fiscalHintsJson = String(antigo['fiscalHintsJson']);
+    if (isRecord(antigo['fiscalHints'])) novo.fiscalHints = antigo['fiscalHints'] as Record<string, unknown>;
 
     novo.estimativa = normalizarEstimativa(antigo['estimativa']);
     novo.trilhaExecucao = normalizarTrilhaExecucao(antigo['trilhaExecucao']);

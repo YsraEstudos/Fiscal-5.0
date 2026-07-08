@@ -10,6 +10,7 @@ import { obterResumoUI } from '../workflow/estimativa.ts';
 import { obterResumoTrilhaUI } from '../workflow/item-trace.ts';
 import { escapeHtml } from '../utils/misc.ts';
 import { injetarEstilos, construirPainel, getPainelEl } from './painel-builder.ts';
+import * as FiscalHints from './fiscal-hints.ts';
 import { wireEvents } from './painel-events.ts';
 import type { EstadoApp } from '../core/estado-manager.ts';
 
@@ -218,6 +219,53 @@ export function toggleMinimizar(): void {
     manterPainelVisivel(painel);
 }
 
+let _fiscalHintsObserver: MutationObserver | null = null;
+let _fiscalHintsTimer: number | null = null;
+let _fiscalHintsGlobalController: AbortController | null = null;
+
+function aplicarDicasFiscaisEstado(): void {
+    const estado = EstadoManager.get() as EstadoApp;
+    FiscalHints.aplicarDicasFiscais({
+        ativo: (estado as any).fiscalHintsAtivo !== false,
+        dicas: ((estado as any).fiscalHints || {}) as any,
+    });
+}
+
+function agendarAplicacaoDicasFiscais(): void {
+    if (typeof globalThis === 'undefined') return;
+    if (_fiscalHintsTimer != null) globalThis.clearTimeout(_fiscalHintsTimer);
+    _fiscalHintsTimer = globalThis.setTimeout(() => {
+        _fiscalHintsTimer = null;
+        aplicarDicasFiscaisEstado();
+    }, 120) as unknown as number;
+}
+
+function inicializarDicasFiscaisPagina(): void {
+    aplicarDicasFiscaisEstado();
+
+    if (_fiscalHintsObserver) _fiscalHintsObserver.disconnect();
+    _fiscalHintsObserver = new MutationObserver((mutations) => {
+        const relevante = mutations.some((mutation) => Array.from(mutation.addedNodes).some((node) => {
+            if (!(node instanceof HTMLElement)) return false;
+            return !!node.querySelector?.('#divDescricaoCompleta .descricao, .descricao[id^="txtD"]')
+                || node.matches?.('#divDescricaoCompleta, .descricao[id^="txtD"]');
+        }));
+        if (relevante) agendarAplicacaoDicasFiscais();
+    });
+    if (document.body) _fiscalHintsObserver.observe(document.body, { childList: true, subtree: true });
+
+    if (_fiscalHintsGlobalController) _fiscalHintsGlobalController.abort();
+    _fiscalHintsGlobalController = new AbortController();
+    document.addEventListener('click', (e: MouseEvent) => {
+        const target = e.target as HTMLElement;
+        if (target.closest('#km-fiscal-hint-popup') || target.closest('.km-fiscal-hint-mark')) return;
+        FiscalHints.fecharPopupDicasFiscais();
+    }, { signal: _fiscalHintsGlobalController.signal });
+    document.addEventListener('keydown', (e: KeyboardEvent) => {
+        if (e.key === 'Escape') FiscalHints.fecharPopupDicasFiscais();
+    }, { signal: _fiscalHintsGlobalController.signal });
+}
+
 function criarPainel(): void {
     if (getPainelEl()) return;
 
@@ -285,6 +333,7 @@ function conectarCallbacksUI(): void {
 export function inicializar(): void {
     conectarCallbacksUI();
     criarPainel();
+    inicializarDicasFiscaisPagina();
     registrarAtalhos();
 
     const estado = EstadoManager.get() as EstadoApp;
@@ -298,6 +347,10 @@ export function limparTudo(): void {
     const painel = getPainelEl() as any;
     if (painel?._dragController) painel._dragController.abort();
     try { _keyboardController?.abort(); } catch { /* ignore */ }
+    try { _fiscalHintsObserver?.disconnect(); } catch { /* ignore */ }
+    try { _fiscalHintsGlobalController?.abort(); } catch { /* ignore */ }
+    if (_fiscalHintsTimer != null && typeof globalThis !== 'undefined') globalThis.clearTimeout(_fiscalHintsTimer);
+    FiscalHints.fecharPopupDicasFiscais();
     AudioManager.fechar();
     WorkflowExecutor.limpar();
 }

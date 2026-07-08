@@ -3,6 +3,7 @@ import { normalizarReportingConfig } from '../../core/estado-manager.ts';
 import { escapeHtml } from '../../utils/misc.ts';
 import { obterResumoUI } from '../../workflow/estimativa.ts';
 import { obterResumoTrilhaUI } from '../../workflow/item-trace.ts';
+import { exportarDicasFiscaisJson } from '../fiscal-hints.ts';
 import type { EstadoApp } from '../../core/estado-manager.ts';
 
 function formatarSegundos(ms: number | string | null | undefined): string {
@@ -168,6 +169,73 @@ export function renderOpcoesSection(estado: EstadoApp): string {
     `;
 }
 
+function renderFiscalHintRows(estado: EstadoApp): string {
+    const dicas = Object.entries((estado as any).fiscalHints || {});
+    if (!dicas.length) return '<div id="fiscalHintsLista" class="km-helper-text">Nenhuma dica cadastrada.</div>';
+
+    return `
+        <div id="fiscalHintsLista" class="km-fiscal-hint-list">
+            ${dicas.map(([id, dica]: [string, any]) => `
+                <div class="km-fiscal-hint-row" data-km-fiscal-id="${escapeHtml(id)}">
+                    <div class="km-fiscal-hint-row-copy">
+                        <strong>${escapeHtml(dica.termo || '')}</strong>
+                        <span>${escapeHtml([dica.ncm ? `NCM ${dica.ncm}` : '', dica.unspsc ? `UNSPSC ${dica.unspsc}` : ''].filter(Boolean).join(' / '))}</span>
+                    </div>
+                    <button class="km-inline-button km-inline-button--danger" type="button" data-km-fiscal-remove="${escapeHtml(id)}">Remover</button>
+                </div>
+            `).join('')}
+        </div>
+    `;
+}
+
+export function renderFiscalHintsSection(estado: EstadoApp): string {
+    const json = (estado as any).fiscalHintsJson || exportarDicasFiscaisJson((estado as any).fiscalHints || {});
+    return `
+        <section class="km-card">
+            <label class="km-section-label">Dicas fiscais</label>
+            <label class="km-checkline">
+                <input type="checkbox" id="chkFiscalHintsAtivo" ${(estado as any).fiscalHintsAtivo !== false ? 'checked' : ''}>
+                <span>Destacar termos na descrição</span>
+            </label>
+            <div class="km-field">
+                <label for="txtFiscalHintTermo">Termo ou frase</label>
+                <input type="text" id="txtFiscalHintTermo" placeholder="APLICACAO: CAMINHAO">
+            </div>
+            <div class="km-field-grid">
+                <div class="km-field">
+                    <label for="txtFiscalHintNcm">NCM</label>
+                    <input type="text" id="txtFiscalHintNcm" placeholder="8708.93.00">
+                </div>
+                <div class="km-field">
+                    <label for="txtFiscalHintUnspsc">UNSPSC / NSPSC</label>
+                    <input type="text" id="txtFiscalHintUnspsc" placeholder="25101929">
+                </div>
+            </div>
+            <button id="btnFiscalHintAdicionar" class="km-secondary-button" type="button">Adicionar dica</button>
+            ${renderFiscalHintRows(estado)}
+            <textarea id="fiscalHintsJson" class="km-textarea" placeholder='[{ "termo": "APLICACAO: CAMINHAO", "ncm": "8708.93.00", "unspsc": "25101929" }]'>${escapeHtml(json)}</textarea>
+            <div class="km-button-row">
+                <button id="btnFiscalHintsImportar" class="km-secondary-button" type="button">Aplicar JSON</button>
+                <button id="btnFiscalHintsExportar" class="km-secondary-button" type="button">Atualizar JSON</button>
+            </div>
+            <div id="fiscalHintsStatus" class="km-helper-text"></div>
+        </section>
+    `;
+}
+
+/**
+ * @contract  ── IDs HTML gerados são contrato com painel-events.ts e item-map-manager.ts ──
+ *
+ * Elementos gerados (não renomear/remover):
+ *   #chkItemMapAtivo   → checkbox ativar JSON (wired em painel-events.ts)
+ *   #itemMapJson       → textarea do JSON bruto (wired em painel-events.ts)
+ *   #btnItemMapAplicar → botão aplicar JSON (wired em painel-events.ts)
+ *   #btnItemMapCriar   → botão criar JSON do item (wired em painel-events.ts)
+ *   #itemMapStatus     → div status (atualizado por item-map-manager.ts → atualizarStatusUI)
+ *
+ * Classes CSS usadas: km-card, km-section-label, km-checkline, km-textarea,
+ *   km-button-row, km-secondary-button, km-helper-text
+ */
 export function renderJsonSection(estado: EstadoApp): string {
     return `
         <section class="km-card">

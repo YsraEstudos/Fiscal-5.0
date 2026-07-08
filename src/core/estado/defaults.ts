@@ -51,6 +51,9 @@ export const ESTADO_PADRAO: EstadoApp = {
     itemMapJson: '',
     itemMap: {},
     itemMapUltimoAplicadoId: null,
+    fiscalHintsAtivo: true,
+    fiscalHintsJson: '',
+    fiscalHints: {},
     reporting: normalizarReportingConfig(REPORTING_DEFAULTS),
     acoes: {},
 };

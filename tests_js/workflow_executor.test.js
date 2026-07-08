@@ -926,7 +926,7 @@ describe("workflow/executor", () => {
     state.itemAtualTelaId = "1001";
     state.itemMap = {
       "1001": { ncm: "8708.29.99", nbs: null, cest: null, unspsc: null, lei116: null },
-      "1002": { ncm: "3917.29.00", nbs: null, cest: "01.002.00", unspsc: null, lei116: null },
+      "1002": { ncm: "3917.29.00", nbs: null, cest: null, unspsc: null, lei116: null },
     };
     mockSincronizarItemAtual.mockReturnValue("1001");
     mockObterItemIdAtual.mockReturnValue("1001");
@@ -976,7 +976,7 @@ describe("workflow/executor", () => {
     state.itemAtualTelaId = "1001";
     state.itemMap = {
       "1001": { ncm: "8708.29.99", nbs: null, cest: null, unspsc: null, lei116: null },
-      "1002": { ncm: "3917.29.00", nbs: null, cest: null, unspsc: null, lei116: null },
+      "1002": { ncm: "3917.29.00", nbs: null, cest: "01.002.00", unspsc: null, lei116: null },
     };
     state.acoes = {
       prosseguir: { ativo: true, seletor: "#butAcao2", valor: null, ordem: 1 },
