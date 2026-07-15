@@ -9,6 +9,8 @@ export interface AvisoCriticoPause {
     fonte?: string;
     numeroExecucoes?: number;
     mensagem?: string;
+    detalhes?: string[];
+    evidencia?: string;
 }
 
 export function isValidacaoNcmLiberada(estado: EstadoApp): boolean {
@@ -74,6 +76,14 @@ export function registrarPausaCriticaNaTrilha(aviso: AvisoCriticoPause | null | 
         tipoEvento = 'pausado_por_validacao_nbs';
         resumo = 'Pausado por NBS inválido';
         payload = { mensagem: aviso.mensagem || '' };
+    } else if (aviso.tipo === 'acompanhamento_alerta') {
+        tipoEvento = 'pausado_por_alerta_acompanhamento';
+        resumo = 'Pausado por destaque no acompanhamento';
+        payload = {
+            mensagem: aviso.mensagem || '',
+            detalhes: aviso.detalhes || [],
+            evidencia: aviso.evidencia || '',
+        };
     }
 
     if (!tipoEvento) return;

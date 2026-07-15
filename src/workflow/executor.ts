@@ -43,6 +43,7 @@ import {
     registrarAvisoValidacaoNcmAguardando,
     registrarPausaCriticaNaTrilha,
 } from './critical-pauses.ts';
+import * as AcompanhamentoAlert from './acompanhamento-alert.ts';
 import { createWorkflowScheduler, LOOP_TICK_MS } from './scheduler.ts';
 import { createHandlerMap } from './handler-registry.ts';
 import type { AcaoEstadoSlim, HandlerFn, HandlerMap, UICallbacks, WorkflowContext } from './types.ts';
@@ -551,6 +552,40 @@ async function executarLogica(): Promise<boolean> {
     if (tratarItemSemJsonNaRodada(estadoAtual, status, pausarComAviso)) return true;
     estadoAtual = EstadoManager.get();
     if (tratarCamposObrigatoriosJsonEmpresa(estadoAtual, status)) return true;
+
+    const acompanhamento = AcompanhamentoAlert.scanAcompanhamento(
+        (estadoAtual.itemAtualTelaId as string | null) || ItemMapManager.obterItemIdAtual()
+    );
+    if (acompanhamento.alert) {
+        const { matches, evidence } = acompanhamento.alert;
+        const itemId = (estadoAtual.itemAtualTelaId as string | null)
+            || (estadoAtual.itemAtualKey as string | null)
+            || ItemMapManager.obterItemIdAtual()
+            || '-';
+        const detalhe = matches.join(', ');
+        const mensagem = `Acompanhamento identificou destaque vermelho no item ${itemId}: ${detalhe}. Trecho: ${evidence}`;
+
+        if (status) {
+            status.textContent = '❌ Destaque vermelho no acompanhamento - ciclo pausado';
+            status.style.color = '#dc3545';
+        }
+        registrarPausaCriticaNaTrilha({
+            tipo: 'acompanhamento_alerta',
+            mensagem,
+            detalhes: matches,
+            evidencia: evidence,
+        });
+        pausarComAviso(mensagem, { alertUser: false, tipo: 'acompanhamento_alerta' });
+        return true;
+    }
+    if (acompanhamento.status === 'loading') {
+        if (status) {
+            status.textContent = '⏳ Aguardando carregamento do acompanhamento...';
+            status.style.color = '#d63384';
+        }
+        return false;
+    }
+
     if (await tratarAvisoBloqueanteItem(estadoAtual, status)) return true;
     if (retornarSeResumoItemPulado(estadoAtual, status)) return true;
 

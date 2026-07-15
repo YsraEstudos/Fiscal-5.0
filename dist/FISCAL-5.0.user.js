@@ -157,7 +157,8 @@
   const CRITICAL_EVENT_TYPES = /* @__PURE__ */ new Set([
     "pausado_por_reincidencia",
     "pausado_por_validacao_ncm",
-    "pausado_por_validacao_nbs"
+    "pausado_por_validacao_nbs",
+    "pausado_por_alerta_acompanhamento"
   ]);
   const EVENT_LABELS = Object.freeze({
     item_aberto: "Item aberto para processamento",
@@ -172,7 +173,8 @@
     item_pulado_na_rodada: "Item pulado nesta rodada",
     pausado_por_reincidencia: "Pausado por reincidência da etapa",
     pausado_por_validacao_ncm: "Pausado por NCM inválido",
-    pausado_por_validacao_nbs: "Pausado por NBS inválido"
+    pausado_por_validacao_nbs: "Pausado por NBS inválido",
+    pausado_por_alerta_acompanhamento: "Pausado por destaque no acompanhamento"
   });
   const TRILHA_EXECUCAO_PADRAO = Object.freeze({
     runId: null,
@@ -3498,6 +3500,14 @@
       tipoEvento = "pausado_por_validacao_nbs";
       resumo = "Pausado por NBS inválido";
       payload = { mensagem: aviso.mensagem || "" };
+    } else if (aviso.tipo === "acompanhamento_alerta") {
+      tipoEvento = "pausado_por_alerta_acompanhamento";
+      resumo = "Pausado por destaque no acompanhamento";
+      payload = {
+        mensagem: aviso.mensagem || "",
+        detalhes: aviso.detalhes || [],
+        evidencia: aviso.evidencia || ""
+      };
     }
     if (!tipoEvento) return;
     update((e) => {
@@ -3514,6 +3524,93 @@
         }
       );
     });
+  }
+  const LAYOUT_SELECTOR = '.km-sin-layout[data-km-sin-root="1"]';
+  const ATTENTION_SELECTOR = ".km-sin-item.is-attention";
+  const ATTENTION_WORD_PATTERN = /\b(UNSPSC|NSPSC|NCM|NBS|NC|LEI)\b/gi;
+  const NCM_CODE_PATTERN = new RegExp("(?<![\\d.])\\d{4}(?:[.\\s]\\d{2}){2}\\b", "g");
+  const NBS_CODE_PATTERN = /\b\d{1,2}[.\s]\d{4}[.\s]\d{2}[.\s]\d{2}\b/g;
+  function normalizeSpaces(value) {
+    return value.replace(/\s+/g, " ").trim();
+  }
+  function normalizeItemId(value) {
+    const normalized = String(value ?? "").trim();
+    return normalized || null;
+  }
+  function findViewRoot(itemId) {
+    const roots = Array.from(document.querySelectorAll("#UpdatePanel1 .kl-view, .kl-view"));
+    if (roots.length === 0) return document;
+    if (itemId) {
+      const exactRoot = roots.find((root) => {
+        const field = root.querySelector('#txtNumero, #txtIdItem, input[name$="txtNumero"], input[name$="txtIdItem"]');
+        return normalizeItemId((field == null ? void 0 : field.value) ?? (field == null ? void 0 : field.getAttribute("value"))) === itemId;
+      });
+      if (exactRoot) return exactRoot;
+    }
+    return roots.find((root) => root.querySelector(LAYOUT_SELECTOR)) || roots[0];
+  }
+  function textWithoutLinks(element) {
+    const clone2 = element.cloneNode(true);
+    clone2.querySelectorAll("a").forEach((link) => link.remove());
+    return normalizeSpaces(clone2.textContent || "");
+  }
+  function getCardEvidence(card) {
+    const sourceNodes = Array.from(card.querySelectorAll(".km-sin-desc, .km-sin-note"));
+    const sources = sourceNodes.length > 0 ? sourceNodes : [card];
+    return normalizeSpaces(sources.map(textWithoutLinks).filter(Boolean).join(" ")).slice(0, 300);
+  }
+  function getAttentionMatches(evidence) {
+    const matches = [];
+    const seen = /* @__PURE__ */ new Set();
+    const add = (value) => {
+      const normalized = normalizeSpaces(value).toUpperCase();
+      if (!normalized || seen.has(normalized)) return;
+      seen.add(normalized);
+      matches.push(normalized);
+    };
+    for (const match of evidence.matchAll(ATTENTION_WORD_PATTERN)) {
+      add(match[1]);
+    }
+    for (const match of evidence.matchAll(NCM_CODE_PATTERN)) {
+      add(match[0]);
+    }
+    for (const match of evidence.matchAll(NBS_CODE_PATTERN)) {
+      add(match[0]);
+    }
+    return matches;
+  }
+  function isLoading(layout) {
+    var _a, _b;
+    const stateText = ((_a = layout.querySelector(".km-sin-state")) == null ? void 0 : _a.textContent) || "";
+    const bodyText = ((_b = layout.querySelector(".km-sin-body")) == null ? void 0 : _b.textContent) || "";
+    return /\b(carregando|buscando)\b/i.test(`${stateText} ${bodyText}`);
+  }
+  function scanAcompanhamento(itemId) {
+    const scope = findViewRoot(normalizeItemId(itemId));
+    const layouts = Array.from(scope.querySelectorAll(LAYOUT_SELECTOR));
+    const visibleLayouts = layouts.filter((layout) => {
+      const aside = layout.querySelector(".km-sin-aside");
+      return !aside || !aside.hidden;
+    });
+    if (visibleLayouts.length === 0) {
+      return { status: "absent", alert: null };
+    }
+    for (const layout of visibleLayouts) {
+      for (const card of Array.from(layout.querySelectorAll(ATTENTION_SELECTOR))) {
+        const evidence = getCardEvidence(card);
+        const matches = getAttentionMatches(evidence);
+        if (matches.length > 0) {
+          return {
+            status: "ready",
+            alert: { matches, evidence, element: card }
+          };
+        }
+      }
+    }
+    if (visibleLayouts.some(isLoading)) {
+      return { status: "loading", alert: null };
+    }
+    return { status: "ready", alert: null };
   }
   const LOOP_TICK_MS = 300;
   function createWorkflowScheduler(runCycle) {
@@ -4970,6 +5067,34 @@
     if (tratarItemSemJsonNaRodada(estadoAtual, status, pausarComAviso)) return true;
     estadoAtual = get();
     if (tratarCamposObrigatoriosJsonEmpresa(estadoAtual, status)) return true;
+    const acompanhamento = scanAcompanhamento(
+      estadoAtual.itemAtualTelaId || obterItemIdAtual()
+    );
+    if (acompanhamento.alert) {
+      const { matches, evidence } = acompanhamento.alert;
+      const itemId = estadoAtual.itemAtualTelaId || estadoAtual.itemAtualKey || obterItemIdAtual() || "-";
+      const detalhe = matches.join(", ");
+      const mensagem = `Acompanhamento identificou destaque vermelho no item ${itemId}: ${detalhe}. Trecho: ${evidence}`;
+      if (status) {
+        status.textContent = "❌ Destaque vermelho no acompanhamento - ciclo pausado";
+        status.style.color = "#dc3545";
+      }
+      registrarPausaCriticaNaTrilha({
+        tipo: "acompanhamento_alerta",
+        mensagem,
+        detalhes: matches,
+        evidencia: evidence
+      });
+      pausarComAviso(mensagem, { alertUser: false, tipo: "acompanhamento_alerta" });
+      return true;
+    }
+    if (acompanhamento.status === "loading") {
+      if (status) {
+        status.textContent = "⏳ Aguardando carregamento do acompanhamento...";
+        status.style.color = "#d63384";
+      }
+      return false;
+    }
     if (await tratarAvisoBloqueanteItem(estadoAtual, status)) return true;
     if (retornarSeResumoItemPulado(estadoAtual, status)) return true;
     const avisoCritico = detectarAvisoCritico();

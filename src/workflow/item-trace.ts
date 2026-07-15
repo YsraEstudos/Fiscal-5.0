@@ -11,6 +11,7 @@ const CRITICAL_EVENT_TYPES = new Set([
     'pausado_por_reincidencia',
     'pausado_por_validacao_ncm',
     'pausado_por_validacao_nbs',
+    'pausado_por_alerta_acompanhamento',
 ]);
 
 export const EVENT_LABELS: Readonly<Record<string, string>> = Object.freeze({
@@ -27,6 +28,7 @@ export const EVENT_LABELS: Readonly<Record<string, string>> = Object.freeze({
     pausado_por_reincidencia: 'Pausado por reincidência da etapa',
     pausado_por_validacao_ncm: 'Pausado por NCM inválido',
     pausado_por_validacao_nbs: 'Pausado por NBS inválido',
+    pausado_por_alerta_acompanhamento: 'Pausado por destaque no acompanhamento',
 });
 
 // ---------------------------------------------------------------------------
