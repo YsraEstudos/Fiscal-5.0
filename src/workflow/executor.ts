@@ -44,6 +44,7 @@ import {
     registrarPausaCriticaNaTrilha,
 } from './critical-pauses.ts';
 import * as AcompanhamentoAlert from './acompanhamento-alert.ts';
+import * as AcompanhamentoPauseControl from './acompanhamento-pause-control.ts';
 import { createWorkflowScheduler, LOOP_TICK_MS } from './scheduler.ts';
 import { createHandlerMap } from './handler-registry.ts';
 import type { AcaoEstadoSlim, HandlerFn, HandlerMap, UICallbacks, WorkflowContext } from './types.ts';
@@ -556,7 +557,8 @@ async function executarLogica(): Promise<boolean> {
     const acompanhamento = AcompanhamentoAlert.scanAcompanhamento(
         (estadoAtual.itemAtualTelaId as string | null) || ItemMapManager.obterItemIdAtual()
     );
-    if (acompanhamento.alert) {
+    const pausaAcompanhamentoAtiva = estadoAtual.pausarAcompanhamento !== false;
+    if (acompanhamento.alert && pausaAcompanhamentoAtiva) {
         const { matches, evidence } = acompanhamento.alert;
         const itemId = (estadoAtual.itemAtualTelaId as string | null)
             || (estadoAtual.itemAtualKey as string | null)
@@ -879,6 +881,8 @@ export function parar(): void {
 
 export function limpar(): void {
     scheduler.cancelarTimer();
+
+    AcompanhamentoPauseControl.limpar();
     CooldownManager.limpar();
     buscaSemItemInicioTs = null;
     retornoItemBloqueadoEmAndamento = false;
@@ -888,6 +892,7 @@ export function limpar(): void {
 // Inicialização: hooks ASP.NET e interceptor de alertas NCM
 // ---------------------------------------------------------------------------
 export function inicializarHooks(): void {
+    AcompanhamentoPauseControl.inicializar();
     AspNetLifecycle.hook();
     AspNetLifecycle.subscribe(() => wake('asp_endRequest'));
 

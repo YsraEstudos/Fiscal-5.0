@@ -101,6 +101,10 @@ export function renderOpcoesSection(estado: EstadoApp): string {
                     <input type="checkbox" id="chkPausarReincidencia" ${estado.pausarEmReincidencia !== false ? 'checked' : ''}>
                     <span>Pausar ao detectar 2ª passagem na etapa</span>
                 </label>
+                <label class="km-checkline" title="Ao desativar, a opção volta automaticamente após 10 minutos.">
+                    <input type="checkbox" id="chkPausarAcompanhamento" ${estado.pausarAcompanhamento !== false ? 'checked' : ''}>
+                    <span>Pausar ao detectar alertas no acompanhamento</span>
+                </label>
 
                 <div class="km-field">
                     <label>Delay global entre ações <span id="globalActionDelayLabel">${formatarSegundos(estado.globalActionDelayMs ?? 1200)}</span></label>

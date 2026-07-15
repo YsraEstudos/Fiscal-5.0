@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         FISCAL 5.0 (Robust Robot)
 // @namespace    http://tampermonkey.net/
-// @version      5.2.2
+// @version      5.2.3
 // @author       System Admin
 // @description  Automação modular FISCAL 5.0 com controle individual de ações, inspeção de elementos, perfis e seletor robusto (ID + Texto).
 // @downloadURL  https://raw.githubusercontent.com/YsraEstudos/Fiscal-5.0/main/dist/FISCAL-5.0.user.js
@@ -111,7 +111,7 @@
     return v1 === v2;
   }
   let context = null;
-  function inicializar$1() {
+  function inicializar$2() {
     if (isTestMode()) return false;
     if (context) return true;
     try {
@@ -126,7 +126,7 @@
   }
   function tocar(tipo = "success") {
     if (isTestMode()) return;
-    if (!context && !inicializar$1()) return;
+    if (!context && !inicializar$2()) return;
     if (!context) return;
     if (context.state === "suspended") void context.resume();
     const notas = CONFIG.SONS[tipo] ?? CONFIG.SONS.success;
@@ -558,6 +558,8 @@
     ativo: false,
     pausado: false,
     pausarEmReincidencia: true,
+    pausarAcompanhamento: true,
+    pausarAcompanhamentoReativarEm: null,
     minimizado: true,
     modoSimulacao: false,
     modoInspecao: false,
@@ -686,6 +688,13 @@
     if (antigo["ativo"] !== void 0) novo.ativo = !!antigo["ativo"];
     if (antigo["pausado"] !== void 0) novo.pausado = !!antigo["pausado"];
     if (antigo["pausarEmReincidencia"] !== void 0) novo.pausarEmReincidencia = !!antigo["pausarEmReincidencia"];
+    const pausaAcompanhamentoSalva = antigo["pausarAcompanhamento"] ?? antigo["pausarNcmAcompanhamento"];
+    if (pausaAcompanhamentoSalva !== void 0) novo.pausarAcompanhamento = !!pausaAcompanhamentoSalva;
+    const prazoPausaAcompanhamento = antigo["pausarAcompanhamentoReativarEm"] ?? antigo["pausarNcmAcompanhamentoReativarEm"];
+    if (prazoPausaAcompanhamento !== void 0) {
+      const prazo = Number(prazoPausaAcompanhamento);
+      novo.pausarAcompanhamentoReativarEm = Number.isFinite(prazo) && prazo > 0 ? Math.floor(prazo) : null;
+    }
     if (antigo["minimizado"] !== void 0) novo.minimizado = !!antigo["minimizado"];
     if (Array.isArray(antigo["logs"])) novo.logs = antigo["logs"];
     if (isRecord(antigo["estatisticas"])) novo.estatisticas = antigo["estatisticas"];
@@ -736,6 +745,12 @@
     estado.estimativa = normalizarEstimativa(salvo["estimativa"]);
     estado.trilhaExecucao = normalizarTrilhaExecucao(salvo["trilhaExecucao"]);
     estado.pausarEmReincidencia = salvo["pausarEmReincidencia"] !== void 0 ? !!salvo["pausarEmReincidencia"] : true;
+    const pausaAcompanhamentoSalva = salvo["pausarAcompanhamento"] ?? salvo["pausarNcmAcompanhamento"];
+    estado.pausarAcompanhamento = pausaAcompanhamentoSalva !== void 0 ? !!pausaAcompanhamentoSalva : true;
+    const prazoPausaAcompanhamento = Number(
+      salvo["pausarAcompanhamentoReativarEm"] ?? salvo["pausarNcmAcompanhamentoReativarEm"]
+    );
+    estado.pausarAcompanhamentoReativarEm = estado.pausarAcompanhamento ? null : Number.isFinite(prazoPausaAcompanhamento) && prazoPausaAcompanhamento > 0 ? Math.floor(prazoPausaAcompanhamento) : null;
     estado = inicializarAcoes(estado);
     return garantirDefaultsEstado(estado);
   }
@@ -816,7 +831,7 @@
     garantirMemLogs();
     return memLogs.map((entry) => `${entry.timestamp} - ${entry.mensagem}`).join("\n");
   }
-  function limpar$2() {
+  function limpar$3() {
     memLogs = [];
     update((st) => {
       st["logs"] = [];
@@ -843,7 +858,7 @@
     if (!expira) return 0;
     return Math.max(0, expira - Date.now());
   }
-  function limpar$1(key) {
+  function limpar$2(key) {
     if (key) cooldowns.delete(key);
     else cooldowns.clear();
   }
@@ -3199,7 +3214,7 @@
     return count;
   }
   function calcularTotaisDinamicos(estado, itensInfo = { elegiveis: [] }, concluidosSet = obterConcluidosSet(estado)) {
-    var _a;
+    var _a, _b, _c;
     if (estado == null ? void 0 : estado.itemMapAtivo) {
       const totalJson = getTotalPlanejadoJson(estado);
       const concluidosFallback = contarConcluidosEfetivos(estado, concluidosSet);
@@ -3216,8 +3231,15 @@
     const concluidosEfetivos = contarConcluidosEfetivos(estado, concluidosSet);
     const resumoServidor = obterResumoPendentesServidor();
     const pendentesFallback = Math.max(0, Number(((_a = itensInfo == null ? void 0 : itensInfo.elegiveis) == null ? void 0 : _a.length) || 0));
-    const pendentesServidor = Number.isFinite(resumoServidor == null ? void 0 : resumoServidor.total) ? Math.max(0, resumoServidor.total) : pendentesFallback;
-    const totalPlanejado = concluidosEfetivos + pendentesServidor;
+    const possuiItensVisiveis = Number((itensInfo == null ? void 0 : itensInfo.totalVisiveis) || 0) > 0 || pendentesFallback > 0;
+    const totalAnterior = Math.max(
+      0,
+      Number(((_b = estado == null ? void 0 : estado.progresso) == null ? void 0 : _b.total) || 0),
+      Number(((_c = estado == null ? void 0 : estado.estimativa) == null ? void 0 : _c.totalPlanejado) || 0)
+    );
+    const semInformacaoDeLista = !Number.isFinite(resumoServidor == null ? void 0 : resumoServidor.total) && !possuiItensVisiveis;
+    const totalPlanejado = semInformacaoDeLista && totalAnterior > 0 ? Math.max(totalAnterior, concluidosEfetivos) : concluidosEfetivos + (Number.isFinite(resumoServidor == null ? void 0 : resumoServidor.total) ? Math.max(0, resumoServidor.total) : pendentesFallback);
+    const pendentesServidor = Math.max(0, totalPlanejado - concluidosEfetivos);
     return { totalPlanejado, concluidosEfetivos, pendentesServidor, fonteTotal: "fila" };
   }
   function aplicarTotaisDinamicosNoEstado(estado, totais, now = Date.now()) {
@@ -3611,6 +3633,81 @@
       return { status: "loading", alert: null };
     }
     return { status: "ready", alert: null };
+  }
+  const ACOMPANHAMENTO_REATIVACAO_MS = 10 * 60 * 1e3;
+  let reativacaoTimer = null;
+  function limparTimer() {
+    if (reativacaoTimer != null) {
+      clearTimeout(reativacaoTimer);
+      reativacaoTimer = null;
+    }
+  }
+  function atualizarCheckbox(ativo) {
+    if (typeof document === "undefined") return;
+    const checkbox = document.getElementById("chkPausarAcompanhamento");
+    if (checkbox) checkbox.checked = ativo;
+  }
+  function obterPrazo(estado) {
+    const prazo = Number(estado.pausarAcompanhamentoReativarEm);
+    return Number.isFinite(prazo) && prazo > 0 ? prazo : null;
+  }
+  function reativarAutomaticamente() {
+    reativacaoTimer = null;
+    const estado = get();
+    if (estado.pausarAcompanhamento !== false) return;
+    const prazo = obterPrazo(estado);
+    if (prazo != null && prazo > Date.now()) {
+      agendarReativacao(prazo);
+      return;
+    }
+    update((e) => {
+      e.pausarAcompanhamento = true;
+      e.pausarAcompanhamentoReativarEm = null;
+    });
+    atualizarCheckbox(true);
+    log("⏱️ Pausa por alerta do acompanhamento reativada automaticamente após 10 minutos.", "info");
+  }
+  function agendarReativacao(prazo) {
+    limparTimer();
+    reativacaoTimer = setTimeout(reativarAutomaticamente, Math.max(0, prazo - Date.now()));
+  }
+  function inicializar$1() {
+    limparTimer();
+    const estado = get();
+    if (estado.pausarAcompanhamento !== false) return;
+    const prazo = obterPrazo(estado);
+    if (prazo == null) {
+      const novoPrazo = Date.now() + ACOMPANHAMENTO_REATIVACAO_MS;
+      update((e) => {
+        e.pausarAcompanhamentoReativarEm = novoPrazo;
+      });
+      agendarReativacao(novoPrazo);
+      return;
+    }
+    if (prazo <= Date.now()) {
+      reativarAutomaticamente();
+      return;
+    }
+    agendarReativacao(prazo);
+  }
+  function configurar(ativo) {
+    limparTimer();
+    const agora = Date.now();
+    const reativarEm = ativo ? null : agora + ACOMPANHAMENTO_REATIVACAO_MS;
+    update((e) => {
+      e.pausarAcompanhamento = ativo;
+      e.pausarAcompanhamentoReativarEm = reativarEm;
+    });
+    atualizarCheckbox(ativo);
+    if (ativo) {
+      log("⛔ Pausa por alerta do acompanhamento ATIVADA", "info");
+      return;
+    }
+    agendarReativacao(reativarEm);
+    log("✅ Pausa por alerta do acompanhamento DESATIVADA por 10 minutos.", "info");
+  }
+  function limpar$1() {
+    limparTimer();
   }
   const LOOP_TICK_MS = 300;
   function createWorkflowScheduler(runCycle) {
@@ -4446,7 +4543,7 @@
       await interagir(resultadoEl, null, "resultado");
       workflowState2.unspscSelecionado = true;
       set("resultado", CONFIG.DELAYS.RESULTADO_COOLDOWN);
-      limpar$1("aguardandoResultados");
+      limpar$2("aguardandoResultados");
       return true;
     }
     return false;
@@ -5070,7 +5167,8 @@
     const acompanhamento = scanAcompanhamento(
       estadoAtual.itemAtualTelaId || obterItemIdAtual()
     );
-    if (acompanhamento.alert) {
+    const pausaAcompanhamentoAtiva = estadoAtual.pausarAcompanhamento !== false;
+    if (acompanhamento.alert && pausaAcompanhamentoAtiva) {
       const { matches, evidence } = acompanhamento.alert;
       const itemId = estadoAtual.itemAtualTelaId || estadoAtual.itemAtualKey || obterItemIdAtual() || "-";
       const detalhe = matches.join(", ");
@@ -5342,10 +5440,12 @@
   function limpar() {
     scheduler.cancelarTimer();
     limpar$1();
+    limpar$2();
     buscaSemItemInicioTs = null;
     retornoItemBloqueadoEmAndamento = false;
   }
   function inicializarHooks() {
+    inicializar$1();
     hook();
     subscribe(() => wake("asp_endRequest"));
     const alertOriginal = globalThis.alert;
@@ -5735,6 +5835,10 @@
                 <label class="km-checkline">
                     <input type="checkbox" id="chkPausarReincidencia" ${estado.pausarEmReincidencia !== false ? "checked" : ""}>
                     <span>Pausar ao detectar 2ª passagem na etapa</span>
+                </label>
+                <label class="km-checkline" title="Ao desativar, a opção volta automaticamente após 10 minutos.">
+                    <input type="checkbox" id="chkPausarAcompanhamento" ${estado.pausarAcompanhamento !== false ? "checked" : ""}>
+                    <span>Pausar ao detectar alertas no acompanhamento</span>
                 </label>
 
                 <div class="km-field">
@@ -7463,8 +7567,9 @@
     return estado;
   }
   function wireEvents(toggleMinimizar2) {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q;
     const estado = get();
+    inicializar$1();
     const fmtS = (ms) => `${(Number(ms || 0) / 1e3).toFixed(1)}s`;
     const painelConteudo = document.getElementById("painelConteudo");
     painelConteudo == null ? void 0 : painelConteudo.addEventListener("click", (e) => {
@@ -7600,7 +7705,7 @@
       }
     });
     (_c = document.getElementById("btnLimparLogs")) == null ? void 0 : _c.addEventListener("click", () => {
-      limpar$2 == null ? void 0 : limpar$2();
+      limpar$3 == null ? void 0 : limpar$3();
     });
     (_d = document.getElementById("chkSimulacao")) == null ? void 0 : _d.addEventListener("change", (e) => {
       update((st) => {
@@ -7616,9 +7721,12 @@
       });
       log(ativo ? "⛔ Pausa por reincidência ATIVADA" : "✅ Pausa por reincidência DESATIVADA", "info");
     });
+    (_f = document.getElementById("chkPausarAcompanhamento")) == null ? void 0 : _f.addEventListener("change", (e) => {
+      configurar(!!e.target.checked);
+    });
     const itemMapTextarea = document.getElementById("itemMapJson");
     if (itemMapTextarea) itemMapTextarea.value = estado.itemMapJson || "";
-    (_f = document.getElementById("chkItemMapAtivo")) == null ? void 0 : _f.addEventListener("change", (e) => {
+    (_g = document.getElementById("chkItemMapAtivo")) == null ? void 0 : _g.addEventListener("change", (e) => {
       update((st) => {
         st.itemMapAtivo = e.target.checked;
       });
@@ -7626,27 +7734,27 @@
       log(novoEstado.itemMapAtivo ? "🧾 JSON por item ATIVADO" : "🧾 JSON por item DESATIVADO", "info");
       atualizarStatusUI(novoEstado);
     });
-    (_g = document.getElementById("btnItemMapAplicar")) == null ? void 0 : _g.addEventListener("click", () => {
+    (_h = document.getElementById("btnItemMapAplicar")) == null ? void 0 : _h.addEventListener("click", () => {
       aplicarJson((itemMapTextarea == null ? void 0 : itemMapTextarea.value) || "");
     });
-    (_h = document.getElementById("btnItemMapCriar")) == null ? void 0 : _h.addEventListener("click", () => {
+    (_i = document.getElementById("btnItemMapCriar")) == null ? void 0 : _i.addEventListener("click", () => {
       gerarJsonDoItemAtual(itemMapTextarea);
     });
     const fiscalHintsTextarea = document.getElementById("fiscalHintsJson");
     if (fiscalHintsTextarea && !fiscalHintsTextarea.value.trim()) {
       fiscalHintsTextarea.value = exportarDicasFiscaisJson(estado.fiscalHints || {});
     }
-    (_i = document.getElementById("btnFiscalHintsGerenciar")) == null ? void 0 : _i.addEventListener("click", () => {
+    (_j = document.getElementById("btnFiscalHintsGerenciar")) == null ? void 0 : _j.addEventListener("click", () => {
       abrirGerenciadorDicas();
     });
-    (_j = document.getElementById("chkFiscalHintsAtivo")) == null ? void 0 : _j.addEventListener("change", (e) => {
+    (_k = document.getElementById("chkFiscalHintsAtivo")) == null ? void 0 : _k.addEventListener("change", (e) => {
       update((st) => {
         st.fiscalHintsAtivo = e.target.checked;
       });
       aplicarDicasFiscaisDoEstado();
       log(e.target.checked ? "🔎 Dicas fiscais ativadas" : "🔎 Dicas fiscais desativadas", "info");
     });
-    (_k = document.getElementById("btnFiscalHintAdicionar")) == null ? void 0 : _k.addEventListener("click", () => {
+    (_l = document.getElementById("btnFiscalHintAdicionar")) == null ? void 0 : _l.addEventListener("click", () => {
       var _a2, _b2, _c2;
       const termo = ((_a2 = document.getElementById("txtFiscalHintTermo")) == null ? void 0 : _a2.value) || "";
       const ncm2 = ((_b2 = document.getElementById("txtFiscalHintNcm")) == null ? void 0 : _b2.value) || "";
@@ -7665,7 +7773,7 @@
       setFiscalHintsStatus("Dica adicionada.");
       log(`🔎 Dica fiscal adicionada para: ${termo}`, "info");
     });
-    (_l = document.getElementById("btnFiscalHintsImportar")) == null ? void 0 : _l.addEventListener("click", () => {
+    (_m = document.getElementById("btnFiscalHintsImportar")) == null ? void 0 : _m.addEventListener("click", () => {
       const json = (fiscalHintsTextarea == null ? void 0 : fiscalHintsTextarea.value) || "";
       const resultado2 = importarDicasFiscaisJson(json);
       if (!resultado2.ok) {
@@ -7676,7 +7784,7 @@
       setFiscalHintsStatus("JSON aplicado.");
       log("🔎 JSON de dicas fiscais aplicado", "info");
     });
-    (_m = document.getElementById("btnFiscalHintsExportar")) == null ? void 0 : _m.addEventListener("click", () => {
+    (_n = document.getElementById("btnFiscalHintsExportar")) == null ? void 0 : _n.addEventListener("click", () => {
       const est = get();
       const json = exportarDicasFiscaisJson(est.fiscalHints || {});
       update((st) => {
@@ -7686,7 +7794,7 @@
       setFiscalHintsStatus("JSON atualizado.");
     });
     const deb = (fn) => debounce(fn, 80);
-    (_n = document.getElementById("globalActionDelaySlider")) == null ? void 0 : _n.addEventListener("input", deb((e) => {
+    (_o = document.getElementById("globalActionDelaySlider")) == null ? void 0 : _o.addEventListener("input", deb((e) => {
       const valor = parseInt(e.target.value, 10);
       const label = document.getElementById("globalActionDelayLabel");
       if (label) label.textContent = fmtS(valor);
@@ -7694,7 +7802,7 @@
         st.globalActionDelayMs = valor;
       });
     }));
-    (_o = document.getElementById("clickCooldownSlider")) == null ? void 0 : _o.addEventListener("input", deb((e) => {
+    (_p = document.getElementById("clickCooldownSlider")) == null ? void 0 : _p.addEventListener("input", deb((e) => {
       const valor = parseInt(e.target.value, 10);
       const label = document.getElementById("clickCooldownLabel");
       if (label) label.textContent = fmtS(valor);
@@ -7702,7 +7810,7 @@
         st.clickCooldownMs = valor;
       });
     }));
-    (_p = document.getElementById("btnToggle")) == null ? void 0 : _p.addEventListener("click", () => {
+    (_q = document.getElementById("btnToggle")) == null ? void 0 : _q.addEventListener("click", () => {
       const est = get();
       if (est.pausado) togglePausar();
       else if (est.ativo) parar();
@@ -8013,7 +8121,7 @@
     } else {
       inicializar();
     }
-    document.addEventListener("click", () => inicializar$1(), { once: true });
+    document.addEventListener("click", () => inicializar$2(), { once: true });
   }
   if (typeof globalThis !== "undefined") {
     globalThis.addEventListener("beforeunload", limparTudo);

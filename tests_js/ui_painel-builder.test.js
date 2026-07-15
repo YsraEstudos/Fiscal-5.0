@@ -89,6 +89,7 @@ describe("ui/painel-builder", () => {
     expect(painel.innerHTML).toContain("Resumo da execução");
     expect(painel.innerHTML).toContain("Dicas fiscais");
     expect(painel.innerHTML).toContain('btnFiscalHintsGerenciar');
+    expect(painel.innerHTML).toContain('chkPausarAcompanhamento');
     expect(painel.innerHTML).not.toContain('fiscalHintsLista');
     expect(painel.innerHTML).not.toContain('km-fiscal-hint-row');
   });

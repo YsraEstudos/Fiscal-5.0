@@ -38,7 +38,7 @@ export function contarConcluidosEfetivos(
 
 export function calcularTotaisDinamicos(
     estado: EstadoApp,
-    itensInfo: { elegiveis: Element[] } = { elegiveis: [] },
+    itensInfo: { elegiveis: Element[]; totalVisiveis?: number } = { elegiveis: [] },
     concluidosSet: Set<string> = obterConcluidosSet(estado)
 ): TotaisDinamicos {
     if (estado?.itemMapAtivo) {
@@ -58,8 +58,19 @@ export function calcularTotaisDinamicos(
     const concluidosEfetivos = contarConcluidosEfetivos(estado, concluidosSet);
     const resumoServidor = PaginaVerificador.obterResumoPendentesServidor();
     const pendentesFallback = Math.max(0, Number(itensInfo?.elegiveis?.length || 0));
-    const pendentesServidor = Number.isFinite(resumoServidor?.total) ? Math.max(0, resumoServidor!.total) : pendentesFallback;
-    const totalPlanejado = concluidosEfetivos + pendentesServidor;
+    const possuiItensVisiveis = Number(itensInfo?.totalVisiveis || 0) > 0 || pendentesFallback > 0;
+    const totalAnterior = Math.max(
+        0,
+        Number(estado?.progresso?.total || 0),
+        Number(estado?.estimativa?.totalPlanejado || 0)
+    );
+    const semInformacaoDeLista = !Number.isFinite(resumoServidor?.total) && !possuiItensVisiveis;
+    const totalPlanejado = semInformacaoDeLista && totalAnterior > 0
+        ? Math.max(totalAnterior, concluidosEfetivos)
+        : concluidosEfetivos + (Number.isFinite(resumoServidor?.total)
+            ? Math.max(0, resumoServidor!.total)
+            : pendentesFallback);
+    const pendentesServidor = Math.max(0, totalPlanejado - concluidosEfetivos);
     return { totalPlanejado, concluidosEfetivos, pendentesServidor, fonteTotal: 'fila' };
 }
 

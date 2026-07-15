@@ -20,6 +20,7 @@ import * as FiscalHints from './fiscal-hints.ts';
 import { abrirGerenciadorDicasFiscais } from './fiscal-hints-manager.ts';
 import { construirListaAcoes } from './painel-builder.ts';
 import * as WorkflowExecutor from '../workflow/executor.ts';
+import * as AcompanhamentoPauseControl from '../workflow/acompanhamento-pause-control.ts';
 import type { EstadoApp } from '../core/estado-manager.ts';
 
 const LOG_AREA_DEFAULT_HEIGHT = 110;
@@ -214,6 +215,7 @@ function persistirDicasFiscais(dicas: Record<string, FiscalHints.FiscalHint>, js
 // ---------------------------------------------------------------------------
 export function wireEvents(toggleMinimizar: () => void): void {
     const estado = EstadoManager.get() as EstadoApp;
+    AcompanhamentoPauseControl.inicializar();
     const fmtS = (ms: number | string | null | undefined) => `${(Number(ms || 0) / 1000).toFixed(1)}s`;
     const painelConteudo = document.getElementById('painelConteudo');
 
@@ -391,6 +393,9 @@ export function wireEvents(toggleMinimizar: () => void): void {
         const ativo = !!(e.target as HTMLInputElement).checked;
         EstadoManager.update((st: any) => { st.pausarEmReincidencia = ativo; });
         log(ativo ? '⛔ Pausa por reincidência ATIVADA' : '✅ Pausa por reincidência DESATIVADA', 'info');
+    });
+    document.getElementById('chkPausarAcompanhamento')?.addEventListener('change', (e: Event) => {
+        AcompanhamentoPauseControl.configurar(!!(e.target as HTMLInputElement).checked);
     });
 
     // ---- ItemMap

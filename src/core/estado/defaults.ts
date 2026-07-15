@@ -26,6 +26,8 @@ export const ESTADO_PADRAO: EstadoApp = {
     ativo: false,
     pausado: false,
     pausarEmReincidencia: true,
+    pausarAcompanhamento: true,
+    pausarAcompanhamentoReativarEm: null,
     minimizado: true,
     modoSimulacao: false,
     modoInspecao: false,

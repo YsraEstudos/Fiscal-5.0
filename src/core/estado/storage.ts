@@ -38,7 +38,18 @@ function carregarEstadoAtual(salvo: EstadoSalvoRaw): EstadoApp {
     estado.pausarEmReincidencia = salvo['pausarEmReincidencia'] !== undefined
         ? !!salvo['pausarEmReincidencia']
         : true;
-
+    const pausaAcompanhamentoSalva = salvo['pausarAcompanhamento'] ?? salvo['pausarNcmAcompanhamento'];
+    estado.pausarAcompanhamento = pausaAcompanhamentoSalva !== undefined
+        ? !!pausaAcompanhamentoSalva
+        : true;
+    const prazoPausaAcompanhamento = Number(
+        salvo['pausarAcompanhamentoReativarEm'] ?? salvo['pausarNcmAcompanhamentoReativarEm']
+    );
+    estado.pausarAcompanhamentoReativarEm = estado.pausarAcompanhamento
+        ? null
+        : Number.isFinite(prazoPausaAcompanhamento) && prazoPausaAcompanhamento > 0
+            ? Math.floor(prazoPausaAcompanhamento)
+            : null;
     estado = inicializarAcoes(estado);
     return garantirDefaultsEstado(estado);
 }

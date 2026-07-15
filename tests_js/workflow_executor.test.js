@@ -20,6 +20,7 @@ const mockDetectarAvisoBloqueanteItem = vi.fn(() => null);
 const mockIsMensagemNcmInvalido = vi.fn(() => false);
 const mockIsMensagemNbsInvalido = vi.fn(() => false);
 const mockIsMensagemSubGrupoInvalido = vi.fn(() => false);
+const mockScanAcompanhamento = vi.fn(() => ({ status: 'absent', alert: null }));
 const mockEncontrarItensPendentes = vi.fn(() => []);
 const mockEncontrarItensPendentesInfo = vi.fn(() => ({ elegiveis: [], ignorados: 0 }));
 const mockEncontrarBotaoProximo = vi.fn(() => null);
@@ -96,6 +97,10 @@ vi.mock("../src/interaction/interacao.ts", () => ({
   interagir: mockInteragir,
   setRegistrarInteracao: vi.fn(),
 }));
+vi.mock("../src/workflow/acompanhamento-alert.ts", () => ({
+  scanAcompanhamento: mockScanAcompanhamento,
+}));
+
 vi.mock("../src/workflow/pagina-verificador.ts", () => ({
   paginaOcupada: mockPaginaOcupada,
   detectarAvisoCritico: mockDetectarAvisoCritico,
@@ -166,6 +171,7 @@ function buildState(overrides = {}) {
     ativo: true,
     pausado: false,
     pausarEmReincidencia: true,
+    pausarAcompanhamento: true,
     minimizado: false,
     globalActionDelayMs: 0,
     clickCooldownMs: 0,
@@ -236,6 +242,7 @@ describe("workflow/executor", () => {
     mockVerificarSessao.mockReturnValue(true);
     mockDetectarModoUnspsc.mockReturnValue("modal");
     mockUnspscDescricaoDefinida.mockReturnValue(false);
+    mockScanAcompanhamento.mockReturnValue({ status: 'absent', alert: null });
     mockSincronizarItemAtual.mockReturnValue(null);
     mockObterItemIdAtual.mockReturnValue(null);
     mockGetValoresParaItem.mockImplementation((estado, itemId) => {
@@ -395,6 +402,30 @@ describe("workflow/executor", () => {
     expect(eventos).not.toContain("pausado_por_reincidencia");
   });
 
+  it("não pausa por alertas NCM, NBS, UNSPSC e LEI quando a opção está desativada", async () => {
+    state.itemMapAtivo = true;
+    state.itemMap = { "320780": { ncm: "8471.30.12" } };
+    state.pausarAcompanhamento = false;
+    mockSincronizarItemAtual.mockImplementation(() => {
+      state.itemAtualKey = "320780";
+      state.itemAtualTelaId = "320780";
+      return "320780";
+    });
+    mockScanAcompanhamento.mockReturnValue({
+      status: "ready",
+      alert: {
+        matches: ["NBS", "UNSPSC", "LEI"],
+        evidence: "Alertas apresentados no acompanhamento",
+        element: document.createElement("div"),
+      },
+    });
+
+    await mod.executarCiclo("test");
+
+    expect(state.pausado).toBe(false);
+    const eventos = state.trilhaExecucao.items["320780"]?.events?.map((evento) => evento.tipo) || [];
+    expect(eventos).not.toContain("pausado_por_alerta_acompanhamento");
+  });
   it("pausa por NCM inválido quando a janela de validação está liberada", async () => {
     state.itemMapAtivo = true;
     state.itemMap = { "320780": { ncm: "8471.30.12" } };
@@ -798,6 +829,27 @@ describe("workflow/executor", () => {
     expect(state.progresso.total).toBe(3);
     expect(state.estimativa.restantes).toBe(1);
     expect(state.estatisticas.processados).toBe(2);
+  });
+
+  it("mantém o total conhecido ao abrir um item sem lista visível", async () => {
+    state.itemMapAtivo = false;
+    state.progresso = { atual: 0, total: 5, ultimoProcessado: null, concluidosIds: [] };
+    state.estimativa.totalPlanejado = 5;
+    mockObterResumoPendentesServidor.mockReturnValue(null);
+    mockEncontrarItensPendentesInfo.mockReturnValue({
+      elegiveis: [],
+      ignorados: 0,
+      inelegiveisConhecidos: [],
+      desconhecidos: [],
+      totalVisiveis: 0,
+    });
+
+    await mod.executarCiclo("item-aberto");
+
+    expect(state.progresso.atual).toBe(0);
+    expect(state.progresso.total).toBe(5);
+    expect(state.estimativa.totalPlanejado).toBe(5);
+    expect(state.estimativa.restantes).toBe(5);
   });
 
   it("no modo JSON continua abrindo o item da lista antes de validar o ID real da tela", async () => {

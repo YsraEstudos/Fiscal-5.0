@@ -77,6 +77,13 @@ export function migrarEstadoSalvo(antigo: EstadoSalvoRaw, salvar: (estado: Estad
     if (antigo['ativo'] !== undefined) novo.ativo = !!antigo['ativo'];
     if (antigo['pausado'] !== undefined) novo.pausado = !!antigo['pausado'];
     if (antigo['pausarEmReincidencia'] !== undefined) novo.pausarEmReincidencia = !!antigo['pausarEmReincidencia'];
+    const pausaAcompanhamentoSalva = antigo['pausarAcompanhamento'] ?? antigo['pausarNcmAcompanhamento'];
+    if (pausaAcompanhamentoSalva !== undefined) novo.pausarAcompanhamento = !!pausaAcompanhamentoSalva;
+    const prazoPausaAcompanhamento = antigo['pausarAcompanhamentoReativarEm'] ?? antigo['pausarNcmAcompanhamentoReativarEm'];
+    if (prazoPausaAcompanhamento !== undefined) {
+        const prazo = Number(prazoPausaAcompanhamento);
+        novo.pausarAcompanhamentoReativarEm = Number.isFinite(prazo) && prazo > 0 ? Math.floor(prazo) : null;
+    }
     if (antigo['minimizado'] !== undefined) novo.minimizado = !!antigo['minimizado'];
     if (Array.isArray(antigo['logs'])) novo.logs = antigo['logs'] as typeof novo.logs;
     if (isRecord(antigo['estatisticas'])) novo.estatisticas = antigo['estatisticas'] as typeof novo.estatisticas;

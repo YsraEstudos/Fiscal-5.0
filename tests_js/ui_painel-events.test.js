@@ -8,6 +8,8 @@ const mockLog = vi.fn();
 const mockTocar = vi.fn();
 const mockValidar = vi.fn();
 const mockAplicarVisual = vi.fn();
+const mockConfigurarPausaAcompanhamento = vi.fn();
+const mockInicializarPausaAcompanhamento = vi.fn();
 
 vi.mock("../src/config/constants.ts", () => ({
   CONFIG: {
@@ -67,6 +69,11 @@ vi.mock("../src/ui/painel-builder.ts", () => ({
   construirListaAcoes: vi.fn(),
 }));
 
+vi.mock("../src/workflow/acompanhamento-pause-control.ts", () => ({
+  configurar: mockConfigurarPausaAcompanhamento,
+  inicializar: mockInicializarPausaAcompanhamento,
+}));
+
 vi.mock("../src/workflow/executor.ts", () => ({
   iniciar: vi.fn(),
   parar: vi.fn(),
@@ -104,6 +111,7 @@ describe("ui/painel-events", () => {
         </div>
       </div>
       <input type="checkbox" id="chkSimulacao">
+      <input type="checkbox" id="chkPausarAcompanhamento">
       <button id="drawerToggle"></button>
     `;
 
@@ -142,6 +150,14 @@ describe("ui/painel-events", () => {
     expect(st.modoSimulacao).toBe(true);
   });
 
+  it("checkbox de alerta no acompanhamento usa a pausa temporária", () => {
+    mod.wireEvents(vi.fn());
+    const chk = document.getElementById("chkPausarAcompanhamento");
+    chk.checked = false;
+    chk.dispatchEvent(new Event("change"));
+
+    expect(mockConfigurarPausaAcompanhamento).toHaveBeenCalledWith(false);
+  });
   it("checkbox de ação chk_acao1 salva valor no estado e persiste", () => {
     mod.wireEvents(vi.fn());
     const chk = document.getElementById("chk_acao1");

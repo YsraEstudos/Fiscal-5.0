@@ -300,6 +300,19 @@ describe("core/estado-manager", () => {
     expect(estado.acoes.prosseguir.seletor).toContain("#butAcao2");
   });
 
+  it("carrega a pausa do acompanhamento e seu prazo de reativação", () => {
+    const prazo = Date.now() + 600000;
+    localStorage.setItem(CONFIG.STORAGE_KEY, JSON.stringify({
+      ...ESTADO_PADRAO,
+      schemaVersion: CONFIG.SCHEMA_VERSION,
+      pausarAcompanhamento: false,
+      pausarAcompanhamentoReativarEm: prazo,
+    }));
+
+    const estado = get();
+    expect(estado.pausarAcompanhamento).toBe(false);
+    expect(estado.pausarAcompanhamentoReativarEm).toBe(prazo);
+  });
   it("mantém a flag pausarEmReincidencia ao carregar estado salvo", () => {
     localStorage.setItem(CONFIG.STORAGE_KEY, JSON.stringify({
       ...ESTADO_PADRAO,
