@@ -21,9 +21,11 @@ Quando a página `https://sso.klassmatt.com.br/painel.aspx` estiver aberta, o dr
 1. Informe uma empresa por linha, usando o nome/código exibido no cartão do SSO.
 2. Clique em **Salvar lista**.
 3. As empresas abertas aparecem em verde; as fechadas aparecem em vermelho.
-4. Clique em **Abrir empresas fechadas** para o script pesquisar cada empresa em `#pesquisar` e clicar no cartão correspondente, abrindo a página em uma nova aba.
+4. Clique em **Abrir empresas fechadas** para o script pesquisar cada empresa em `#pesquisar` e clicar no cartão correspondente, abrindo todas as páginas em segundo plano com `GM_openInTab`, sem repetir o clique.
 
 O status das demais abas é publicado por um batimento temporário. Para que uma aba seja reconhecida como aberta, o FISCAL 5.0 precisa estar ativo nela; abas sem batimento recente voltam a ser classificadas como fechadas. A lista é compartilhada entre os subdomínios Klassmatt por um cookie de configuração no domínio `.klassmatt.com.br`.
+Também são aceitos nomes colados com `**AGROVALE**`, marcadores (`- AGROVALE`) ou numeração. O script remove essa formatação antes de comparar.
+
 
 Exemplo:
 

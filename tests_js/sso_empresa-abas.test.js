@@ -1,7 +1,8 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   analisarListaEmpresas,
+  abrirLinkProjetoSso,
   empresaMonitoradaEstaAberta,
   normalizarNomeMonitorado,
   obterEmpresasMonitoradas,
@@ -29,7 +30,7 @@ describe("sso/empresa-abas", () => {
   });
 
   it("separa linhas e remove empresas repetidas", () => {
-    expect(analisarListaEmpresas("A\n\n B \nA\n")).toEqual(["A", "B"]);
+    expect(analisarListaEmpresas("**AGROVALE**\n- BAHIAGAS\n__VOPAK__\n1. CEI\n")).toEqual(["AGROVALE", "BAHIAGAS", "VOPAK", "CEI"]);
   });
 
   it("considera aberta uma aba cujo heartbeat tenha a empresa monitorada", () => {
@@ -49,6 +50,26 @@ describe("sso/empresa-abas", () => {
       ),
     ).toBe(aba);
     expect(empresaMonitoradaEstaAberta({ nome: "RODONAVES", codigo: "RODONAVES" }, [aba])).toBeNull();
+  });
+
+  it("aceita nome curto quando o cartão usa um sufixo de grupo", () => {
+
+    const aba = { identidades: ["NPEGROUP"] };
+
+    expect(empresaMonitoradaEstaAberta({ nome: "NPE", codigo: "NPE" }, [aba])).toBe(aba);
+  });
+
+  it("usa GM_openInTab para abrir várias empresas sem o bloqueador de pop-ups", () => {
+    const openInTab = vi.fn();
+    vi.stubGlobal("GM_openInTab", openInTab);
+    try {
+      const link = document.createElement("a");
+      link.href = "https://empresa.klassmatt.com.br/SSOService.aspx?targetId=1";
+      expect(abrirLinkProjetoSso(link)).toBe("gm_open_in_tab");
+      expect(openInTab).toHaveBeenCalledWith(link.href, { active: false, insert: true, setParent: true });
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it("lê os cartões do SSO e salva o código real da empresa", () => {

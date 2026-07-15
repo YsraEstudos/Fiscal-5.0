@@ -1,14 +1,14 @@
 // ==UserScript==
 // @name         FISCAL 5.0 (Robust Robot)
 // @namespace    http://tampermonkey.net/
-// @version      5.2.5
+// @version      5.2.7
 // @author       System Admin
 // @description  Automação modular FISCAL 5.0 com controle individual de ações, inspeção de elementos, perfis e seletor robusto (ID + Texto).
 // @downloadURL  https://raw.githubusercontent.com/YsraEstudos/Fiscal-5.0/main/dist/FISCAL-5.0.user.js
 // @updateURL    https://raw.githubusercontent.com/YsraEstudos/Fiscal-5.0/main/dist/FISCAL-5.0.user.js
 // @match        https://*.klassmatt.com.br/*
 // @match        http://*.klassmatt.com.br/*
-// @grant        none
+// @grant        GM_openInTab
 // @run-at       document-end
 // ==/UserScript==
 
@@ -6029,6 +6029,9 @@
     const host = location.hostname.toLowerCase();
     return (host === "sso.klassmatt.com.br" || host === "sso2.klassmatt.com.br") && /\/painel\.aspx$/i.test(location.pathname);
   }
+  function normalizarLinhaEmpresa(valor) {
+    return valor.trim().replace(/^\s*(?:[-*•]\s+|\d+[.)]\s+)/, "").replace(/^(?:\*{1,3}|_{1,3})\s*/, "").replace(/\s*(?:\*{1,3}|_{1,3})$/, "").trim();
+  }
   function normalizarNomeMonitorado(valor) {
     return String(valor ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/[_\-/.]+/g, " ").replace(/[^A-Z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
   }
@@ -6041,7 +6044,12 @@
   function identidadesCombinam(primeiro, segundo) {
     const chavesPrimeiro = chavesComparacao(primeiro);
     const chavesSegundo = new Set(chavesComparacao(segundo));
-    return chavesPrimeiro.some((chave) => chavesSegundo.has(chave));
+    if (chavesPrimeiro.some((chave) => chavesSegundo.has(chave))) return true;
+    return chavesPrimeiro.some((chavePrimeiro) => [...chavesSegundo].some((chaveSegundo) => {
+      const menor = chavePrimeiro.length <= chaveSegundo.length ? chavePrimeiro : chaveSegundo;
+      const maior = chavePrimeiro.length <= chaveSegundo.length ? chaveSegundo : chavePrimeiro;
+      return menor.length >= 3 && maior.startsWith(menor);
+    }));
   }
   function deduplicarEmpresas(empresas) {
     const vistos = /* @__PURE__ */ new Set();
@@ -6072,7 +6080,7 @@
   }
   function analisarListaEmpresas(valor) {
     return [...new Set(
-      String(valor || "").split(/\r?\n/).map((linha) => linha.trim()).filter(Boolean)
+      String(valor || "").split(/\r?\n/).map((linha) => normalizarLinhaEmpresa(linha)).filter(Boolean)
     )];
   }
   function obterEmpresasMonitoradas() {
@@ -6256,6 +6264,15 @@ RODONAVES - PRD">${escapeHtml(empresas.map((empresa) => empresa.nome).join("\n")
     if (!projeto) return null;
     return Array.from(document.querySelectorAll("a#lkDest[title]")).find((link) => link.getAttribute("href") === projeto.href) || null;
   }
+  function abrirLinkProjetoSso(link) {
+    const gmOpen = globalThis.GM_openInTab;
+    if (typeof gmOpen === "function") {
+      gmOpen(link.href, { active: false, insert: true, setParent: true });
+      return "gm_open_in_tab";
+    }
+    link.click();
+    return "anchor_click";
+  }
   function abrirEmpresasFaltantes() {
     if (!ehPaginaSso()) return { solicitadas: 0, abertas: 0, semLink: 0 };
     const faltantes = obterStatusEmpresas().filter((empresa) => !empresa.aberta);
@@ -6268,7 +6285,7 @@ RODONAVES - PRD">${escapeHtml(empresas.map((empresa) => empresa.nome).join("\n")
         return;
       }
       aplicarPesquisaSso(empresa.codigo || empresa.nome);
-      link.click();
+      abrirLinkProjetoSso(link);
       abertas += 1;
     });
     atualizarPainelSso();

@@ -104,6 +104,15 @@ export function ehPaginaSso(): boolean {
         && /\/painel\.aspx$/i.test(location.pathname);
 }
 
+function normalizarLinhaEmpresa(valor: string): string {
+    return valor
+        .trim()
+        .replace(/^\s*(?:[-*•]\s+|\d+[.)]\s+)/, '')
+        .replace(/^(?:\*{1,3}|_{1,3})\s*/, '')
+        .replace(/\s*(?:\*{1,3}|_{1,3})$/, '')
+        .trim();
+}
+
 export function normalizarNomeMonitorado(valor: unknown): string {
     return String(valor ?? '')
         .normalize('NFD')
@@ -128,7 +137,12 @@ function chavesComparacao(valor: unknown): string[] {
 function identidadesCombinam(primeiro: unknown, segundo: unknown): boolean {
     const chavesPrimeiro = chavesComparacao(primeiro);
     const chavesSegundo = new Set(chavesComparacao(segundo));
-    return chavesPrimeiro.some((chave) => chavesSegundo.has(chave));
+    if (chavesPrimeiro.some((chave) => chavesSegundo.has(chave))) return true;
+    return chavesPrimeiro.some((chavePrimeiro) => [...chavesSegundo].some((chaveSegundo) => {
+        const menor = chavePrimeiro.length <= chaveSegundo.length ? chavePrimeiro : chaveSegundo;
+        const maior = chavePrimeiro.length <= chaveSegundo.length ? chaveSegundo : chavePrimeiro;
+        return menor.length >= 3 && maior.startsWith(menor);
+    }));
 }
 
 function deduplicarEmpresas(empresas: EmpresaMonitorada[]): EmpresaMonitorada[] {
@@ -167,7 +181,7 @@ export function analisarListaEmpresas(valor: string): string[] {
     return [...new Set(
         String(valor || '')
             .split(/\r?\n/)
-            .map((linha) => linha.trim())
+            .map((linha) => normalizarLinhaEmpresa(linha))
             .filter(Boolean),
     )];
 }
@@ -379,6 +393,17 @@ function encontrarLinkProjeto(empresa: EmpresaMonitorada): HTMLAnchorElement | n
         .find((link) => link.getAttribute('href') === projeto.href) || null;
 }
 
+export function abrirLinkProjetoSso(link: HTMLAnchorElement): 'gm_open_in_tab' | 'anchor_click' {
+    const gmOpen = (globalThis as typeof globalThis & {
+        GM_openInTab?: (url: string, options?: { active?: boolean; insert?: boolean; setParent?: boolean }) => unknown;
+    }).GM_openInTab;
+    if (typeof gmOpen === 'function') {
+        gmOpen(link.href, { active: false, insert: true, setParent: true });
+        return 'gm_open_in_tab';
+    }
+    link.click();
+    return 'anchor_click';
+}
 export function abrirEmpresasFaltantes(): ResultadoAberturaEmpresas {
     if (!ehPaginaSso()) return { solicitadas: 0, abertas: 0, semLink: 0 };
     const faltantes = obterStatusEmpresas().filter((empresa) => !empresa.aberta);
@@ -392,7 +417,7 @@ export function abrirEmpresasFaltantes(): ResultadoAberturaEmpresas {
             return;
         }
         aplicarPesquisaSso(empresa.codigo || empresa.nome);
-        link.click();
+        abrirLinkProjetoSso(link);
         abertas += 1;
     });
 
