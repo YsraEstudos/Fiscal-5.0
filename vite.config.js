@@ -8,7 +8,7 @@ export default defineConfig({
             userscript: {
                 name: 'FISCAL 5.0 (Robust Robot)',
                 namespace: 'http://tampermonkey.net/',
-                version: '5.2.1',
+                version: '5.2.2',
                 description:
                     'Automação modular FISCAL 5.0 com controle individual de ações, inspeção de elementos, perfis e seletor robusto (ID + Texto).',
                 author: 'System Admin',

@@ -598,49 +598,6 @@ export function injetarEstilosPainel(): void {
             transform: none;
         }
 
-        .km-fiscal-hint-list {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
-
-        .km-fiscal-hint-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 8px;
-            padding: 8px;
-            border-radius: 12px;
-            background: rgba(255, 255, 255, 0.68);
-            border: 1px solid rgba(90, 68, 44, 0.1);
-        }
-
-        .km-fiscal-hint-row-copy {
-            display: flex;
-            flex-direction: column;
-            gap: 3px;
-            min-width: 0;
-            font-size: 10px;
-        }
-
-        .km-fiscal-hint-row-copy strong,
-        .km-fiscal-hint-row-copy span {
-            overflow-wrap: anywhere;
-        }
-
-        .km-fiscal-hint-row-copy em {
-            color: var(--km-muted);
-            font-size: 9px;
-            font-style: normal;
-        }
-
-        .km-fiscal-hint-row-actions {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: flex-end;
-            gap: 4px;
-        }
-
         .km-field-help {
             color: var(--km-muted);
             font-size: 9px;

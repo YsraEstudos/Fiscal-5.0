@@ -184,53 +184,9 @@ function setFiscalHintsStatus(mensagem: string, tipo: 'info' | 'error' = 'info')
 }
 
 function atualizarListaDicasFiscais(estado: EstadoApp): void {
-    const container = document.getElementById('fiscalHintsLista');
     const dicas = Object.entries(((estado as any).fiscalHints || {}) as Record<string, FiscalHints.FiscalHint>);
     const contador = document.querySelector('[data-km-fiscal-hints-count]');
     if (contador) contador.textContent = String(dicas.length);
-    if (!container) return;
-
-    container.className = dicas.length ? 'km-fiscal-hint-list' : 'km-helper-text';
-    container.replaceChildren();
-
-    if (!dicas.length) {
-        container.textContent = 'Nenhuma dica cadastrada.';
-        return;
-    }
-
-    dicas.forEach(([id, dica]) => {
-        const row = document.createElement('div');
-        row.className = 'km-fiscal-hint-row';
-        row.dataset.kmFiscalId = id;
-
-        const copy = document.createElement('div');
-        copy.className = 'km-fiscal-hint-row-copy';
-        const termo = document.createElement('strong');
-        termo.textContent = dica.termo || '';
-        const codigos = document.createElement('span');
-        codigos.textContent = [dica.ncm ? `NCM ${dica.ncm}` : '', dica.unspsc ? `UNSPSC ${dica.unspsc}` : '']
-            .filter(Boolean)
-            .join(' / ') || 'Sem código informado';
-        const empresa = document.createElement('em');
-        empresa.textContent = dica.empresa ? `Somente ${dica.empresa}` : 'Todas as empresas';
-        copy.append(termo, codigos, empresa);
-
-        const acoes = document.createElement('div');
-        acoes.className = 'km-fiscal-hint-row-actions';
-        const editar = document.createElement('button');
-        editar.className = 'km-inline-button';
-        editar.type = 'button';
-        editar.dataset.kmFiscalEdit = id;
-        editar.textContent = 'Editar';
-        const remover = document.createElement('button');
-        remover.className = 'km-inline-button km-inline-button--danger';
-        remover.type = 'button';
-        remover.dataset.kmFiscalRemove = id;
-        remover.textContent = 'Remover';
-        acoes.append(editar, remover);
-        row.append(copy, acoes);
-        container.appendChild(row);
-    });
 }
 
 function abrirGerenciadorDicas(editarId?: string): void {
@@ -517,22 +473,6 @@ export function wireEvents(toggleMinimizar: () => void): void {
         setFiscalHintsStatus('JSON atualizado.');
     });
 
-    document.getElementById('fiscalHintsLista')?.addEventListener('click', (e: Event) => {
-        const target = e.target as HTMLElement;
-        const editar = target.closest('[data-km-fiscal-edit]') as HTMLElement | null;
-        if (editar) {
-            abrirGerenciadorDicas(editar.dataset.kmFiscalEdit || '');
-            return;
-        }
-
-        const btn = target.closest('[data-km-fiscal-remove]') as HTMLElement | null;
-        if (!btn) return;
-        const id = btn.dataset.kmFiscalRemove || '';
-        const dicas = { ...(((EstadoManager.get() as any).fiscalHints || {}) as Record<string, FiscalHints.FiscalHint>) };
-        delete dicas[id];
-        persistirDicasFiscais(dicas);
-        setFiscalHintsStatus('Dica removida.');
-    });
     // ---- Sliders de delay
     const deb = (fn: any) => debounce(fn, 80);
 

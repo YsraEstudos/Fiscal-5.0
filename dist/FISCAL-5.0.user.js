@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         FISCAL 5.0 (Robust Robot)
 // @namespace    http://tampermonkey.net/
-// @version      5.2.1
+// @version      5.2.2
 // @author       System Admin
 // @description  Automação modular FISCAL 5.0 com controle individual de ações, inspeção de elementos, perfis e seletor robusto (ID + Texto).
 // @downloadURL  https://raw.githubusercontent.com/YsraEstudos/Fiscal-5.0/main/dist/FISCAL-5.0.user.js
@@ -5751,30 +5751,6 @@
         </section>
     `;
   }
-  function renderFiscalHintRows(estado) {
-    const dicas = Object.entries(estado.fiscalHints || {});
-    if (!dicas.length) return '<div id="fiscalHintsLista" class="km-helper-text">Nenhuma dica cadastrada.</div>';
-    return `
-        <div id="fiscalHintsLista" class="km-fiscal-hint-list">
-            ${dicas.map(([id, dica]) => {
-    const codigos = [dica.ncm ? `NCM ${dica.ncm}` : "", dica.unspsc ? `UNSPSC ${dica.unspsc}` : ""].filter(Boolean).join(" / ") || "Sem código informado";
-    const empresa = dica.empresa ? `Somente ${dica.empresa}` : "Todas as empresas";
-    return `
-                    <div class="km-fiscal-hint-row" data-km-fiscal-id="${escapeHtml(id)}">
-                        <div class="km-fiscal-hint-row-copy">
-                            <strong>${escapeHtml(dica.termo || "")}</strong>
-                            <span>${escapeHtml(`${codigos} · ${empresa}`)}</span>
-                        </div>
-                        <div class="km-fiscal-hint-row-actions">
-                            <button class="km-inline-button" type="button" data-km-fiscal-edit="${escapeHtml(id)}">Editar</button>
-                            <button class="km-inline-button km-inline-button--danger" type="button" data-km-fiscal-remove="${escapeHtml(id)}">Remover</button>
-                        </div>
-                    </div>
-                `;
-  }).join("")}
-        </div>
-    `;
-  }
   function renderFiscalHintsSection(estado) {
     const dicas = estado.fiscalHints || {};
     const json = estado.fiscalHintsJson || exportarDicasFiscaisJson(dicas);
@@ -5806,7 +5782,6 @@
                 </div>
             </div>
             <button id="btnFiscalHintAdicionar" class="km-secondary-button" type="button">Adicionar dica</button>
-            ${renderFiscalHintRows(estado)}
             <textarea id="fiscalHintsJson" class="km-textarea" placeholder='[{ "termo": "APLICACAO: CAMINHAO", "ncm": "8708.93.00", "unspsc": "25101929" }]'>${escapeHtml(json)}</textarea>
             <div class="km-button-row">
                 <button id="btnFiscalHintsImportar" class="km-secondary-button" type="button">Aplicar JSON</button>
@@ -6514,49 +6489,6 @@
             opacity: 0.5;
             cursor: default;
             transform: none;
-        }
-
-        .km-fiscal-hint-list {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
-
-        .km-fiscal-hint-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 8px;
-            padding: 8px;
-            border-radius: 12px;
-            background: rgba(255, 255, 255, 0.68);
-            border: 1px solid rgba(90, 68, 44, 0.1);
-        }
-
-        .km-fiscal-hint-row-copy {
-            display: flex;
-            flex-direction: column;
-            gap: 3px;
-            min-width: 0;
-            font-size: 10px;
-        }
-
-        .km-fiscal-hint-row-copy strong,
-        .km-fiscal-hint-row-copy span {
-            overflow-wrap: anywhere;
-        }
-
-        .km-fiscal-hint-row-copy em {
-            color: var(--km-muted);
-            font-size: 9px;
-            font-style: normal;
-        }
-
-        .km-fiscal-hint-row-actions {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: flex-end;
-            gap: 4px;
         }
 
         .km-field-help {
@@ -7368,8 +7300,7 @@
     modal.hidden = false;
     renderLista(modal);
     limparFormulario(modal);
-    if (editarId) carregarDicaNoFormulario(modal, editarId);
-    const foco = editarId ? modal.querySelector("#kmFiscalHintsManagerTermo") : modal.querySelector("#kmFiscalHintsManagerSearch");
+    const foco = modal.querySelector("#kmFiscalHintsManagerSearch");
     foco == null ? void 0 : foco.focus();
   }
   function fecharGerenciadorDicasFiscais() {
@@ -7506,46 +7437,9 @@
     el.style.color = tipo === "error" ? "#b42318" : "#6c5947";
   }
   function atualizarListaDicasFiscais(estado) {
-    const container = document.getElementById("fiscalHintsLista");
     const dicas = Object.entries(estado.fiscalHints || {});
     const contador = document.querySelector("[data-km-fiscal-hints-count]");
     if (contador) contador.textContent = String(dicas.length);
-    if (!container) return;
-    container.className = dicas.length ? "km-fiscal-hint-list" : "km-helper-text";
-    container.replaceChildren();
-    if (!dicas.length) {
-      container.textContent = "Nenhuma dica cadastrada.";
-      return;
-    }
-    dicas.forEach(([id, dica]) => {
-      const row = document.createElement("div");
-      row.className = "km-fiscal-hint-row";
-      row.dataset.kmFiscalId = id;
-      const copy = document.createElement("div");
-      copy.className = "km-fiscal-hint-row-copy";
-      const termo = document.createElement("strong");
-      termo.textContent = dica.termo || "";
-      const codigos = document.createElement("span");
-      codigos.textContent = [dica.ncm ? `NCM ${dica.ncm}` : "", dica.unspsc ? `UNSPSC ${dica.unspsc}` : ""].filter(Boolean).join(" / ") || "Sem código informado";
-      const empresa = document.createElement("em");
-      empresa.textContent = dica.empresa ? `Somente ${dica.empresa}` : "Todas as empresas";
-      copy.append(termo, codigos, empresa);
-      const acoes = document.createElement("div");
-      acoes.className = "km-fiscal-hint-row-actions";
-      const editar = document.createElement("button");
-      editar.className = "km-inline-button";
-      editar.type = "button";
-      editar.dataset.kmFiscalEdit = id;
-      editar.textContent = "Editar";
-      const remover = document.createElement("button");
-      remover.className = "km-inline-button km-inline-button--danger";
-      remover.type = "button";
-      remover.dataset.kmFiscalRemove = id;
-      remover.textContent = "Remover";
-      acoes.append(editar, remover);
-      row.append(copy, acoes);
-      container.appendChild(row);
-    });
   }
   function abrirGerenciadorDicas(editarId) {
     abrirGerenciadorDicasFiscais({
@@ -7555,7 +7449,7 @@
       },
       setStatus: setFiscalHintsStatus,
       log: (mensagem) => log(mensagem, "info")
-    }, editarId);
+    });
   }
   function persistirDicasFiscais(dicas, json) {
     const estado = update((st) => {
@@ -7569,7 +7463,7 @@
     return estado;
   }
   function wireEvents(toggleMinimizar2) {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p;
     const estado = get();
     const fmtS = (ms) => `${(Number(ms || 0) / 1e3).toFixed(1)}s`;
     const painelConteudo = document.getElementById("painelConteudo");
@@ -7791,23 +7685,8 @@
       if (fiscalHintsTextarea) fiscalHintsTextarea.value = json;
       setFiscalHintsStatus("JSON atualizado.");
     });
-    (_n = document.getElementById("fiscalHintsLista")) == null ? void 0 : _n.addEventListener("click", (e) => {
-      const target = e.target;
-      const editar = target.closest("[data-km-fiscal-edit]");
-      if (editar) {
-        abrirGerenciadorDicas(editar.dataset.kmFiscalEdit || "");
-        return;
-      }
-      const btn = target.closest("[data-km-fiscal-remove]");
-      if (!btn) return;
-      const id = btn.dataset.kmFiscalRemove || "";
-      const dicas = { ...get().fiscalHints || {} };
-      delete dicas[id];
-      persistirDicasFiscais(dicas);
-      setFiscalHintsStatus("Dica removida.");
-    });
     const deb = (fn) => debounce(fn, 80);
-    (_o = document.getElementById("globalActionDelaySlider")) == null ? void 0 : _o.addEventListener("input", deb((e) => {
+    (_n = document.getElementById("globalActionDelaySlider")) == null ? void 0 : _n.addEventListener("input", deb((e) => {
       const valor = parseInt(e.target.value, 10);
       const label = document.getElementById("globalActionDelayLabel");
       if (label) label.textContent = fmtS(valor);
@@ -7815,7 +7694,7 @@
         st.globalActionDelayMs = valor;
       });
     }));
-    (_p = document.getElementById("clickCooldownSlider")) == null ? void 0 : _p.addEventListener("input", deb((e) => {
+    (_o = document.getElementById("clickCooldownSlider")) == null ? void 0 : _o.addEventListener("input", deb((e) => {
       const valor = parseInt(e.target.value, 10);
       const label = document.getElementById("clickCooldownLabel");
       if (label) label.textContent = fmtS(valor);
@@ -7823,7 +7702,7 @@
         st.clickCooldownMs = valor;
       });
     }));
-    (_q = document.getElementById("btnToggle")) == null ? void 0 : _q.addEventListener("click", () => {
+    (_p = document.getElementById("btnToggle")) == null ? void 0 : _p.addEventListener("click", () => {
       const est = get();
       if (est.pausado) togglePausar();
       else if (est.ativo) parar();

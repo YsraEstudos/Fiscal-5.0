@@ -117,34 +117,6 @@ export function renderOpcoesSection(estado: EstadoApp): string {
     `;
 }
 
-function renderFiscalHintRows(estado: EstadoApp): string {
-    const dicas = Object.entries((estado as any).fiscalHints || {});
-    if (!dicas.length) return '<div id="fiscalHintsLista" class="km-helper-text">Nenhuma dica cadastrada.</div>';
-
-    return `
-        <div id="fiscalHintsLista" class="km-fiscal-hint-list">
-            ${dicas.map(([id, dica]: [string, any]) => {
-                const codigos = [dica.ncm ? `NCM ${dica.ncm}` : '', dica.unspsc ? `UNSPSC ${dica.unspsc}` : '']
-                    .filter(Boolean)
-                    .join(' / ') || 'Sem código informado';
-                const empresa = dica.empresa ? `Somente ${dica.empresa}` : 'Todas as empresas';
-                return `
-                    <div class="km-fiscal-hint-row" data-km-fiscal-id="${escapeHtml(id)}">
-                        <div class="km-fiscal-hint-row-copy">
-                            <strong>${escapeHtml(dica.termo || '')}</strong>
-                            <span>${escapeHtml(`${codigos} · ${empresa}`)}</span>
-                        </div>
-                        <div class="km-fiscal-hint-row-actions">
-                            <button class="km-inline-button" type="button" data-km-fiscal-edit="${escapeHtml(id)}">Editar</button>
-                            <button class="km-inline-button km-inline-button--danger" type="button" data-km-fiscal-remove="${escapeHtml(id)}">Remover</button>
-                        </div>
-                    </div>
-                `;
-            }).join('')}
-        </div>
-    `;
-}
-
 export function renderFiscalHintsSection(estado: EstadoApp): string {
     const dicas = ((estado as any).fiscalHints || {}) as Record<string, any>;
     const json = (estado as any).fiscalHintsJson || exportarDicasFiscaisJson(dicas);
@@ -176,7 +148,6 @@ export function renderFiscalHintsSection(estado: EstadoApp): string {
                 </div>
             </div>
             <button id="btnFiscalHintAdicionar" class="km-secondary-button" type="button">Adicionar dica</button>
-            ${renderFiscalHintRows(estado)}
             <textarea id="fiscalHintsJson" class="km-textarea" placeholder='[{ "termo": "APLICACAO: CAMINHAO", "ncm": "8708.93.00", "unspsc": "25101929" }]'>${escapeHtml(json)}</textarea>
             <div class="km-button-row">
                 <button id="btnFiscalHintsImportar" class="km-secondary-button" type="button">Aplicar JSON</button>
