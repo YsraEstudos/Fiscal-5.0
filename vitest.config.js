@@ -13,9 +13,6 @@ export default defineConfig({
       exclude: [
         "src/ui/**",
         "src/main.ts",
-        "src/reporting/coletor-acompanhamento.ts",
-        "src/reporting/coletor-midia.ts",
-        "src/reporting/envio-relatorio.ts",
         "**/*.d.ts"
       ],
       thresholds: {

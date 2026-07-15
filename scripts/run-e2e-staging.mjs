@@ -8,7 +8,6 @@ const requiredEnv = [
   "STAGING_PASSWORD",
   "STAGING_ITEM_HAPPY",
   "STAGING_ITEM_REINCIDENCIA",
-  "STAGING_ITEM_SEM_MIDIA",
 ];
 
 const missing = requiredEnv.filter((name) => !String(process.env[name] || "").trim());

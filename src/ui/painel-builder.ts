@@ -2,9 +2,7 @@
  * Construção do HTML do drawer lateral de controle.
  */
 
-import { REPORTING_DEFAULTS } from '../config/constants.ts';
 import * as EstadoManager from '../core/estado-manager.ts';
-import { normalizarReportingConfig } from '../core/estado-manager.ts';
 import type { EstadoApp } from '../core/estado-manager.ts';
 import { construirListaAcoes as construirListaAcoesPainel } from './painel/painel-actions-renderer.ts';
 import { PANEL_ID } from './painel/painel-constants.ts';
@@ -21,7 +19,6 @@ export function injetarEstilos(): void {
 
 export function construirPainel(painelMinimizado: boolean): HTMLElement {
     const estado = EstadoManager.get() as EstadoApp;
-    estado.reporting = normalizarReportingConfig(estado.reporting || REPORTING_DEFAULTS);
 
     const div = document.createElement('div');
     div.id = PANEL_ID;

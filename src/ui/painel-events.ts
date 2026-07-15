@@ -3,10 +3,9 @@
  * Extraído do monólito — criarPainel() event wiring (linhas 4912–5176).
  */
 
-import { CONFIG, REPORTING_DEFAULTS } from '../config/constants.ts';
+import { CONFIG } from '../config/constants.ts';
 import { ACOES_WORKFLOW } from '../config/workflow-actions.ts';
 import * as EstadoManager from '../core/estado-manager.ts';
-import { normalizarReportingConfig } from '../core/estado-manager.ts';
 import { log } from '../core/log-manager.ts';
 import * as LogManager from '../core/log-manager.ts';
 import * as AudioManager from '../interaction/audio-manager.ts';
@@ -16,7 +15,6 @@ import * as Validador from '../validation/validador.ts';
 import { debounce, clone } from '../utils/misc.ts';
 import * as PerfilManager from './perfil-manager.js';
 import * as InspecaoManager from './inspecao-manager.ts';
-import * as RelatorioErros from './relatorio-erros.ts';
 import { obterEmpresaAtual } from '../validation/empresa-json-requirements.ts';
 import * as FiscalHints from './fiscal-hints.ts';
 import { construirListaAcoes } from './painel-builder.ts';
@@ -377,10 +375,6 @@ export function wireEvents(toggleMinimizar: () => void): void {
     // ---- Perfil padrão
     if (estado.perfis && !estado.perfis.default) {
         estado.perfis.default = clone(estado.acoes);
-        estado.perfilConfigs = estado.perfilConfigs || {};
-        estado.perfilConfigs.default = estado.perfilConfigs.default || {
-            reporting: normalizarReportingConfig(estado.reporting || REPORTING_DEFAULTS),
-        };
         EstadoManager.set(estado);
     }
     PerfilManager.renderizarSeletor();
@@ -392,7 +386,6 @@ export function wireEvents(toggleMinimizar: () => void): void {
 
     // ---- Botões e sliders
     document.getElementById('drawerToggle')?.addEventListener('click', toggleMinimizar);
-    document.getElementById('btnCopiarRelatorio')?.addEventListener('click', () => RelatorioErros.copiar());
     document.getElementById('btnCopiarLogs')?.addEventListener('click', async () => {
         const texto = LogManager.formatarTodos?.() || '';
         if (!texto.trim()) {
@@ -526,77 +519,6 @@ export function wireEvents(toggleMinimizar: () => void): void {
         EstadoManager.update((st: any) => { st.clickCooldownMs = valor; });
     }));
 
-    // ---- Reporting
-    const persistReporting = (mutator: (cfg: Record<string, any>) => void) => {
-        EstadoManager.update((st: any) => {
-            st.reporting = normalizarReportingConfig(st.reporting || REPORTING_DEFAULTS);
-            mutator(st.reporting);
-            EstadoManager.persistirAcoes(st);
-        });
-    };
-
-    document.getElementById('chkReportingMedia')?.addEventListener('change', (e: Event) => {
-        persistReporting((cfg) => { cfg.enabledMedia = !!(e.target as HTMLInputElement).checked; });
-        log(`🖼️ Coleta de mídia ${(e.target as HTMLInputElement).checked ? 'ativada' : 'desativada'}`, 'info');
-    });
-
-    document.getElementById('chkReportingEnabled')?.addEventListener('change', (e: Event) => {
-        persistReporting((cfg) => { cfg.enabledReport = !!(e.target as HTMLInputElement).checked; });
-        log(`📝 Geração de relatório PDF/MD ${(e.target as HTMLInputElement).checked ? 'ativada' : 'desativada'}`, 'info');
-    });
-
-    document.getElementById('chkReportingClickMediaTab')?.addEventListener('change', (e: Event) => {
-        persistReporting((cfg) => { cfg.clickMediaTabBeforeCollect = !!(e.target as HTMLInputElement).checked; });
-        log(`🖱️ Clique na aba Mídias antes da coleta ${(e.target as HTMLInputElement).checked ? 'ativado' : 'desativado'}`, 'info');
-    });
-
-    document.getElementById('chkReportingAcompanhamento')?.addEventListener('change', (e: Event) => {
-        persistReporting((cfg) => { cfg.enabledAcompanhamento = !!(e.target as HTMLInputElement).checked; });
-        log(`📜 Coleta de acompanhamento ${(e.target as HTMLInputElement).checked ? 'ativada' : 'desativada'}`, 'info');
-    });
-
-    document.getElementById('chkReportingBlock')?.addEventListener('change', (e: Event) => {
-        persistReporting((cfg) => { cfg.blockOnReportError = !!(e.target as HTMLInputElement).checked; });
-        log(`🧱 Bloqueio em erro de relatório ${(e.target as HTMLInputElement).checked ? 'ativado' : 'desativado'}`, 'info');
-    });
-
-    document.getElementById('txtReportingServiceUrl')?.addEventListener('change', (e: Event) => {
-        const input = (e.target as HTMLInputElement);
-        const novo = String(input.value || '').trim() || CONFIG.REPORTING.SERVICE_DEFAULT;
-        persistReporting((cfg) => { cfg.serviceUrl = novo; });
-        input.value = novo;
-        log(`🔗 Serviço de relatório: ${novo}`, 'info');
-    });
-
-    document.getElementById('txtReportingApiToken')?.addEventListener('change', (e: Event) => {
-        const input = (e.target as HTMLInputElement);
-        const token = String(input.value || '').trim();
-        persistReporting((cfg) => { cfg.apiToken = token || null; });
-        input.value = token;
-        log(`🔐 Token de API ${token ? 'configurado' : 'removido'}`, 'info');
-    });
-
-    document.getElementById('selReportingTransport')?.addEventListener('change', (e: Event) => {
-        const transport = String((e.target as HTMLSelectElement).value || 'auto').trim() as any;
-        persistReporting((cfg) => { cfg.transport = transport; });
-        log(`🚚 Transporte de relatório: ${transport}`, 'info');
-    });
-
-    document.getElementById('numReportingMaxFileMb')?.addEventListener('change', (e: Event) => {
-        const input = (e.target as HTMLInputElement);
-        const val = Math.max(1, Math.min(200, Number(input.value || CONFIG.REPORTING.MAX_FILE_SIZE_MB)));
-        persistReporting((cfg) => { cfg.maxFileSizeMb = val; });
-        input.value = String(val);
-        log(`📦 Limite por arquivo: ${val}MB`, 'info');
-    });
-
-    document.getElementById('numReportingMaxFiles')?.addEventListener('change', (e: Event) => {
-        const input = (e.target as HTMLInputElement);
-        const val = Math.max(1, Math.min(200, Number(input.value || CONFIG.REPORTING.MAX_FILES_PER_ITEM)));
-        persistReporting((cfg) => { cfg.maxFilesPerItem = val; });
-        input.value = String(val);
-        log(`📚 Limite de arquivos por item: ${val}`, 'info');
-    });
 
     // ---- Botão toggle principal
     document.getElementById('btnToggle')?.addEventListener('click', () => {

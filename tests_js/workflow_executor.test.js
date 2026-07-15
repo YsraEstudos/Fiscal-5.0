@@ -32,8 +32,6 @@ const mockUnspscDescricaoDefinida = vi.fn(() => false);
 const mockInteragir = vi.fn(async () => true);
 const mockLog = vi.fn();
 const mockTocar = vi.fn();
-const mockTouchSessionNoServico = vi.fn(async () => ({ ok: true }));
-const mockResolverOuCriarSessionRunId = vi.fn(() => "session_trace");
 const mockIsAtivo = vi.fn(() => false);
 const mockTempoRestante = vi.fn(() => 0);
 const mockCooldownSet = vi.fn();
@@ -73,9 +71,6 @@ const mockLupaUnspsc = vi.fn(async () => false);
 const mockPesquisar = vi.fn(async () => false);
 const mockResultado = vi.fn(async () => false);
 const mockSelecionar = vi.fn(async () => false);
-const mockColetarMidia = vi.fn(async () => false);
-const mockColetarAcompanhamento = vi.fn(async () => false);
-const mockGerarRelatorioItem = vi.fn(async () => false);
 
 vi.resetModules();
 
@@ -84,7 +79,6 @@ vi.mock("../src/core/estado-manager.ts", () => ({
   set: mockEstadoSet,
   update: mockEstadoUpdate,
   persistirAcoes: mockPersistirAcoes,
-  normalizarReportingConfig: (cfg) => cfg,
 }));
 vi.mock("../src/core/log-manager.ts", () => ({ log: mockLog }));
 vi.mock("../src/core/cooldown-manager.ts", () => ({
@@ -153,13 +147,6 @@ vi.mock("../src/workflow/handlers/unspsc.ts", () => ({
   resultado: mockResultado,
   selecionar: mockSelecionar,
 }));
-vi.mock("../src/workflow/handlers/coleta.ts", () => ({
-  coletarMidia: mockColetarMidia,
-  coletarAcompanhamento: mockColetarAcompanhamento,
-}));
-vi.mock("../src/workflow/handlers/report.ts", () => ({
-  gerarRelatorioItem: mockGerarRelatorioItem,
-}));
 vi.mock("../src/utils/misc.ts", () => ({
   isTestMode: vi.fn(() => true),
   sleep: vi.fn(async () => { }),
@@ -170,11 +157,6 @@ vi.mock("../src/utils/text.ts", () => ({
 }));
 vi.mock("../src/utils/selectors.ts", () => ({
   buscarElementoDeep: vi.fn(() => null),
-}));
-vi.mock("../src/reporting/session.ts", () => ({
-  resolverOuCriarSessionRunId: mockResolverOuCriarSessionRunId,
-  getReportingConfig: vi.fn(() => ({ serviceUrl: "" })),
-  touchSessionNoServico: mockTouchSessionNoServico,
 }));
 
 const mod = await import("../src/workflow/executor.ts");
@@ -189,14 +171,12 @@ function buildState(overrides = {}) {
     clickCooldownMs: 0,
     perfilAtivo: "default",
     perfis: { default: {} },
-    perfilConfigs: { default: { reporting: { sessionRunId: null } } },
     progresso: { atual: 0, total: 0, ultimoProcessado: null, concluidosIds: [] },
     logs: [],
     estatisticas: { processados: 0, erros: 0, ultimoErro: null },
     painelPosicao: null,
     itemAtualKey: null,
     itemAtualTelaId: null,
-    reportingSessionMap: {},
     estimativa: {
       totalPlanejado: 0,
       fonteTotal: null,
@@ -226,7 +206,6 @@ function buildState(overrides = {}) {
     },
     itemMapJson: "",
     itemMapUltimoAplicadoId: null,
-    reporting: { sessionRunId: null, serviceUrl: "" },
     acoes: {},
     ...overrides,
   };
@@ -267,7 +246,6 @@ describe("workflow/executor", () => {
     mockInteragir.mockResolvedValue(true);
     mockIsAtivo.mockReturnValue(false);
     mockTempoRestante.mockReturnValue(0);
-    mockResolverOuCriarSessionRunId.mockReturnValue("session_trace");
     mod.setUICallbacks({
       atualizarBotaoToggle: vi.fn(),
       atualizarIndicadorProgresso: vi.fn(),
@@ -300,7 +278,7 @@ describe("workflow/executor", () => {
 
     mod.iniciar();
 
-    expect(state.trilhaExecucao.runId).toBe("session_trace");
+    expect(state.trilhaExecucao.runId).toMatch(/^run_/);
     expect(state.trilhaExecucao.startedAtTs).not.toBeNull();
     expect(state.trilhaExecucao.lastEventSeq).toBe(0);
   });
@@ -565,11 +543,6 @@ describe("workflow/executor", () => {
         unspscFeito: false,
         ncmValidacaoPendenteAte: 0,
         ncmValidacaoAvisada: false,
-        reporting: expect.objectContaining({
-          mediaDone: false,
-          acompanhamentoDone: false,
-          reportDone: false,
-        }),
       }),
     );
     expect(mockInteragir).toHaveBeenCalledWith(link, null, "selecionarItemNormal");

@@ -1,4 +1,3 @@
-import type { ReportingDefaults } from '../../config/constants.ts';
 import type { LogEntry } from '../log-manager.ts';
 
 export interface AcaoEstado {
@@ -55,9 +54,6 @@ export interface UltimoErro {
     [key: string]: unknown;
 }
 
-export interface PerfilConfig {
-    reporting: ReportingDefaults;
-}
 
 export interface EstadoApp {
     schemaVersion: number;
@@ -71,7 +67,6 @@ export interface EstadoApp {
     clickCooldownMs: number;
     perfilAtivo: string;
     perfis: Record<string, Record<string, AcaoEstado>>;
-    perfilConfigs: Record<string, PerfilConfig>;
     progresso: ProgressoEstado;
     logs: LogEntry[];
     estatisticas: { processados: number; erros: number; ultimoErro: UltimoErro | null };
@@ -83,7 +78,6 @@ export interface EstadoApp {
     itemAtualKey: string | null;
     /** @contract — usado por item-map-manager.ts, executor.ts, item-flow.ts */
     itemAtualTelaId: string | null;
-    reportingSessionMap: Record<string, unknown>;
     estimativa: EstimativaEstado;
     trilhaExecucao: unknown;
     /** @contract — usado por item-map-manager.ts, item-flow.ts, executor.ts */
@@ -99,6 +93,5 @@ export interface EstadoApp {
     fiscalHintsAtivo: boolean;
     fiscalHintsJson: string;
     fiscalHints: Record<string, unknown>;
-    reporting: ReportingDefaults;
     acoes: Record<string, AcaoEstado>;
 }

@@ -143,7 +143,6 @@ export function inicializarFlagsItemAtual(estado: EstadoApp, key: string): void 
         eUpd['itemFlags'] = eUpd['itemFlags'] || {};
         const itemFlags = eUpd['itemFlags'] as Record<string, Record<string, unknown>>;
         const atual = itemFlags[key] || {};
-        const repAtual = (atual['reporting'] as Record<string, unknown>) || {};
         itemFlags[key] = {
             ...atual,
             unspscFeito: false,
@@ -153,18 +152,6 @@ export function inicializarFlagsItemAtual(estado: EstadoApp, key: string): void 
             unspscInlineValorTentado: null,
             ncmValidacaoPendenteAte: 0,
             ncmValidacaoAvisada: false,
-            reporting: {
-                ...repAtual,
-                mediaDone: false,
-                acompanhamentoDone: false,
-                reportDone: false,
-                mediaError: null,
-                mediaErrorCode: null,
-                acompanhamentoError: null,
-                acompanhamentoErrorCode: null,
-                reportError: null,
-                reportErrorCode: null
-            }
         };
     });
 }

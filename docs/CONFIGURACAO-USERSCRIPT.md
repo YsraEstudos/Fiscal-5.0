@@ -39,7 +39,7 @@ Além das validações de NCM/NBS, o robô agora pausa automaticamente quando o 
 
 - Origem: `#lblExecucoes`
 - Regra: contagem `>= 2`
-- Efeito: pausa imediata do ciclo, sem continuar para coleta, relatório ou `Prosseguir`
+- Efeito: pausa imediata do ciclo, sem continuar para `Prosseguir`
 - Exibição: o cartão superior do drawer muda para estado crítico
 
 ## UNSPSC
@@ -57,7 +57,7 @@ Regras práticas:
 
 ## Ações de workflow
 
-Ordem padrão (15 ações):
+Ordem padrão (13 ações):
 
 | # | ID | Nome | Tipo |
 |---|---|---|---|
@@ -71,70 +71,11 @@ Ordem padrão (15 ações):
 | 8 | `pesquisar` | Pesquisar | click |
 | 9 | `resultado` | Resultado | click |
 | 10 | `selecionar` | Selecionar | click |
-| 11 | `coletarMidia` | Coletar Mídia | custom |
-| 12 | `coletarAcompanhamento` | Coletar Acompanhamento | custom |
-| 13 | `gerarRelatorioItem` | Gerar Relatório Item | custom |
-| 14 | `prosseguir` | Prosseguir | click |
-| 15 | `confirmar` | Confirmar (Sim) | click |
+| 11 | `prosseguir` | Prosseguir | click |
+| 12 | `confirmar` | Confirmar (Sim) | click |
 
 Todas as ações podem ser habilitadas/desabilitadas individualmente e reordenadas via drag-and-drop no painel.
 
-## Bloco Reporting (por perfil)
-
-| Parâmetro | Tipo | Default | Descrição |
-|---|---|---|---|
-| `enabledMedia` | boolean | `false` | Habilita coleta de mídia |
-| `clickMediaTabBeforeCollect` | boolean | `false` | Clica na aba Mídias antes da coleta |
-| `enabledAcompanhamento` | boolean | `false` | Habilita coleta de histórico |
-| `enabledReport` | boolean | `false` | Habilita geração de relatório PDF/MD |
-| `blockOnReportError` | boolean | `false` | Pausa o ciclo em erro crítico |
-| `serviceUrl` | string | `http://127.0.0.1:8765` | URL da API local |
-| `apiToken` | string | `""` | Enviado no header `X-KM-Token` |
-| `transport` | string | `auto` | `auto` / `gm_xhr` / `fetch` |
-| `maxFileSizeMb` | number | `25` | Limite local para anexos (MB) |
-| `maxFilesPerItem` | number | `20` | Quantidade máxima de anexos por item |
-| `sessionRunId` | string | (gerado) | Gerado automaticamente ao iniciar ciclo |
-
-## Defaults e limites (cliente × servidor)
-
-| Parâmetro | UserScript (cliente) | Serviço local (servidor) | Observação |
-|---|---|---|---|
-| `serviceUrl` | `http://127.0.0.1:8765` | n/a | Base da API local |
-| `transport` | `auto` | n/a | `auto` tenta `gm_xhr`, depois `fetch` |
-| `SERVICE_TIMEOUT_MS` | `120000` ms | n/a | Timeout do POST `/reports/item` |
-| `FETCH_TIMEOUT_MS` | `30000` ms | n/a | Timeout por download HTML/binário |
-| `RETRY_ATTEMPTS` | `3` | n/a | Retry em transporte e coletas |
-| `maxFileSizeMb` | `25` | `KM_MAX_FILE_SIZE_MB` (default `25`) | Vale o mais restritivo |
-| `maxFilesPerItem` | `20` | `KM_MAX_FILES_PER_ITEM` (default `20`) | Vale o mais restritivo |
-
-## Fluxo de transporte (`transport`)
-
-- **`auto`**: ordem `gm_xhr` → `fetch` com retry exponencial + jitter.
-- **`gm_xhr`**: prioriza `GM_xmlhttpRequest`; se indisponível, cai para `fetch`.
-- **`fetch`**: usa apenas `fetch` (`mode: cors`), sem fallback.
-
-Sinais comuns:
-
-- Erro imediato de conexão: serviço fora do ar (`SERVICE_UNAVAILABLE`)
-- `401/token`: token ausente ou inválido (`SERVICE_AUTH_MISSING`)
-- `413/limit`: excedeu limite de arquivo/quantidade (`UPLOAD_LIMIT_EXCEEDED`)
-
-## Regras de bloqueio
-
-Com `blockOnReportError=true`, o fluxo bloqueia em:
-
-- Falha crítica de coleta (`MEDIA_PARSE_ERROR`, `HISTORICO_PARSE_ERROR`)
-- Falha de envio/serviço (`SERVICE_*`, `UPLOAD_LIMIT_EXCEEDED`)
-
-## Matriz rápida de erros
-
-| Código | Causa comum | Comportamento | Ação recomendada |
-|---|---|---|---|
-| `MEDIA_PARSE_ERROR` | HTML de Mídia inesperado, links inválidos ou download falhou | Pausa (se `blockOnReportError=true`) | Validar aba Mídias, fixture e links reais |
-| `HISTORICO_PARSE_ERROR` | Link/HTML de Histórico não parseado | Pausa (se `blockOnReportError=true`) | Validar `#hlkObs`/`#hButAcompanhamentoSIN`, estrutura de fieldsets e timeline |
-| `SERVICE_UNAVAILABLE` | API local indisponível, timeout ou falha de rede | Pausa (se `blockOnReportError=true`) | Subir serviço e testar `GET /health` |
-| `SERVICE_AUTH_MISSING` | Token faltando ou divergente | Pausa (se `blockOnReportError=true`) | Alinhar `KM_REPORT_TOKEN` e `Token API` do painel |
-| `UPLOAD_LIMIT_EXCEEDED` | Arquivo maior que limite ou quantidade excedida | Pausa (se `blockOnReportError=true`) | Ajustar limites cliente/servidor ou reduzir coleta |
 
 ## Seletor robusto
 
@@ -176,41 +117,6 @@ Observação:
 - `lei116` é opcional e ativa o modo serviço para o item (preenchimento Cat90/Cat91).
 - Formato aceito de `lei116`: `d.dd` ou `dd.dd` (ex.: `7.02`, `12.15`).
 
-## Exemplos de perfil
-
-**Perfil conservador (produção):**
-
-```json
-{
-  "enabledReport": false,
-  "enabledMedia": true,
-  "clickMediaTabBeforeCollect": false,
-  "enabledAcompanhamento": true,
-  "blockOnReportError": true,
-  "serviceUrl": "http://127.0.0.1:8765",
-  "apiToken": "seu-token",
-  "transport": "auto",
-  "maxFileSizeMb": 25,
-  "maxFilesPerItem": 20
-}
-```
-
-**Perfil diagnóstico (coleta sem travar lote):**
-
-```json
-{
-  "enabledReport": false,
-  "enabledMedia": true,
-  "clickMediaTabBeforeCollect": false,
-  "enabledAcompanhamento": true,
-  "blockOnReportError": false,
-  "serviceUrl": "http://127.0.0.1:8765",
-  "apiToken": "seu-token",
-  "transport": "gm_xhr",
-  "maxFileSizeMb": 15,
-  "maxFilesPerItem": 10
-}
-```
 
 ## Para Desenvolvedores (Alterar Defaults)
 
@@ -219,7 +125,6 @@ Como o projeto agora é modular, as configurações padrão não ficam mais no t
 | Configuração | Arquivo Fonte |
 |---|---|
 | Ações (`atuar`, `ncm`, etc) | `src/config/workflow-actions.js` |
-| Reporting (liga/desliga, limites, URL) | `src/config/constants.js` (objeto `REPORTING_DEFAULTS`) |
 | Variáveis globais/Timeout | `src/config/constants.js` (objeto `CONFIG`) |
 
 Apos alterar qualquer valor, lembre-se de rodar:

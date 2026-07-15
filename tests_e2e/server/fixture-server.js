@@ -55,14 +55,6 @@ const server = http.createServer(async (req, res) => {
     return sendFile(res, f);
   }
 
-  if (pathname === "/reports/item") {
-    return send(
-      res,
-      200,
-      JSON.stringify({ ok: true, itemId: "E2E", pdfPath: "/tmp/e2e.pdf", mdPath: "/tmp/e2e.md" }),
-      "application/json; charset=utf-8",
-    );
-  }
 
   if (pathname === "/") {
     return send(
@@ -74,8 +66,6 @@ const server = http.createServer(async (req, res) => {
         <li><a href="/scenario/happy">happy</a></li>
         <li><a href="/scenario/em_atuacao">em_atuacao</a></li>
         <li><a href="/scenario/ncm_erro">ncm_erro</a></li>
-        <li><a href="/scenario/sem_midia">sem_midia</a></li>
-        <li><a href="/scenario/service_error_optional">service_error_optional</a></li>
         <li><a href="/scenario/confirmar_butSimContinuar">confirmar_butSimContinuar</a></li>
       </ul>
       </body></html>`,

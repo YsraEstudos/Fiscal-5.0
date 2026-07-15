@@ -7,7 +7,6 @@ import {
   obterResumoTrilhaUI,
   registrarEventoItem,
   resetarTrilhaExecucao,
-  serializarTrilhaParaRelatorio,
 } from "../src/workflow/item-trace.ts";
 
 function buildState(overrides = {}) {
@@ -84,8 +83,8 @@ describe("workflow/item-trace", () => {
       resumo: "Item aberto para processamento",
       now: 1010,
     });
-    registrarEventoItem(estado, "320780", "relatorio_enviado", {
-      resumo: "Relatório enviado com sucesso",
+    registrarEventoItem(estado, "320780", "item_concluido", {
+      resumo: "Item concluído",
       now: 1050,
     });
 
@@ -93,8 +92,8 @@ describe("workflow/item-trace", () => {
     expect(resumo.empty).toBe(false);
     expect(resumo.currentLabel).toBe("Item 320780");
     expect(resumo.events).toHaveLength(2);
-    expect(resumo.events[0].tipo).toBe("relatorio_enviado");
-    expect(formatarEventoTrilha(resumo.events[0]).texto).toContain("Relatório enviado com sucesso");
+    expect(resumo.events[0].tipo).toBe("item_concluido");
+    expect(formatarEventoTrilha(resumo.events[0]).texto).toContain("Item concluído");
   });
 
   it("usa label amigável para evento de Lei 116", () => {
@@ -115,31 +114,4 @@ describe("workflow/item-trace", () => {
     expect(evento.titulo).toBe("CEST preenchido");
   });
 
-  it("serializa trilha para relatório priorizando item atual e limitando eventos", () => {
-    const estado = buildState({
-      itemAtualKey: "320780",
-      itemAtualTelaId: "320780",
-      progresso: { atual: 2, total: 3, ultimoProcessado: "320779" },
-    });
-    resetarTrilhaExecucao(estado, { runId: "run_4", now: 1000 });
-
-    for (let itemIndex = 0; itemIndex < 7; itemIndex += 1) {
-      const itemKey = `32078${itemIndex}`;
-      for (let eventIndex = 0; eventIndex < 15; eventIndex += 1) {
-        registrarEventoItem(estado, itemKey, `evento_${eventIndex}`, {
-          itemTelaId: itemKey,
-          resumo: `Evento ${eventIndex}`,
-          now: 1000 + itemIndex * 100 + eventIndex,
-        });
-      }
-    }
-
-    const serializado = serializarTrilhaParaRelatorio(estado);
-    expect(serializado.runId).toBe("run_4");
-    expect(serializado.itemAtualKey).toBe("320780");
-    expect(serializado.ultimoProcessado).toBe("320779");
-    expect(serializado.itensRecentes).toHaveLength(5);
-    expect(serializado.itensRecentes[0].itemKey).toBe("320780");
-    expect(serializado.itensRecentes[0].events).toHaveLength(12);
-  });
 });

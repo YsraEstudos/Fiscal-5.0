@@ -1,6 +1,6 @@
-import { CONFIG, REPORTING_DEFAULTS } from '../../config/constants.ts';
+import { CONFIG } from '../../config/constants.ts';
 import { normalizarTrilhaExecucao, TRILHA_EXECUCAO_PADRAO } from '../../workflow/item-trace.ts';
-import { normalizarEstimativa, normalizarPainelSecoes, normalizarProgresso, normalizarReportingConfig } from './normalizers.ts';
+import { normalizarEstimativa, normalizarPainelSecoes, normalizarProgresso } from './normalizers.ts';
 import type { EstadoApp, EstimativaEstado } from './types.ts';
 
 export const ESTIMATIVA_PADRAO: Readonly<EstimativaEstado> = Object.freeze({
@@ -33,7 +33,6 @@ export const ESTADO_PADRAO: EstadoApp = {
     clickCooldownMs: 3000,
     perfilAtivo: 'default',
     perfis: {},
-    perfilConfigs: {},
     progresso: normalizarProgresso(null),
     logs: [],
     estatisticas: { processados: 0, erros: 0, ultimoErro: null },
@@ -43,7 +42,6 @@ export const ESTADO_PADRAO: EstadoApp = {
     logAreaHeight: 110,
     itemAtualKey: null,
     itemAtualTelaId: null,
-    reportingSessionMap: {},
     estimativa: normalizarEstimativa(ESTIMATIVA_PADRAO),
     trilhaExecucao: normalizarTrilhaExecucao(TRILHA_EXECUCAO_PADRAO),
     itemFlags: {},
@@ -54,6 +52,5 @@ export const ESTADO_PADRAO: EstadoApp = {
     fiscalHintsAtivo: true,
     fiscalHintsJson: '',
     fiscalHints: {},
-    reporting: normalizarReportingConfig(REPORTING_DEFAULTS),
     acoes: {},
 };

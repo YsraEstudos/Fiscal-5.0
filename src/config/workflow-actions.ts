@@ -27,9 +27,6 @@ export const ACOES_WORKFLOW: readonly AcaoWorkflow[] = Object.freeze([
     { id: 'pesquisar', nome: 'Pesquisar', seletor: 'input[name*="butPesquisar"]', tipo: 'click', ordem: 9 },
     { id: 'resultado', nome: 'Clique Resultado', seletor: 'a[id="txtDescricao"]', tipo: 'click', ordem: 10 },
     { id: 'selecionar', nome: 'Selecionar UNSPSC', seletor: '#butFechar', tipo: 'click', ordem: 11 },
-    { id: 'coletarMidia', nome: 'Coletar Mídia', seletor: 'text=Mídias', tipo: 'click', ordem: 12 },
-    { id: 'coletarAcompanhamento', nome: 'Coletar Acompanhamento', seletor: '#hButAcompanhamentoSIN, #hlkObs', tipo: 'custom', ordem: 13 },
-    { id: 'gerarRelatorioItem', nome: 'Gerar Relatório Item', seletor: '', tipo: 'custom', ordem: 14 },
-    { id: 'prosseguir', nome: 'Prosseguir', seletor: '#butAcao2, #butAcao1, input[value="Prosseguir"]', tipo: 'click', ordem: 15 },
-    { id: 'confirmar', nome: 'Confirmar (Sim)', seletor: '#butSim', tipo: 'click', ordem: 16 },
+    { id: 'prosseguir', nome: 'Prosseguir', seletor: '#butAcao2, #butAcao1, input[value="Prosseguir"]', tipo: 'click', ordem: 12 },
+    { id: 'confirmar', nome: 'Confirmar (Sim)', seletor: '#butSim', tipo: 'click', ordem: 13 },
 ]);

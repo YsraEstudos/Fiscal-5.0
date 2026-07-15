@@ -3,8 +3,6 @@ import { confirmar, prosseguir } from './handlers/flow-control.js';
 import { atuar } from './handlers/atuar.js';
 import { ncm, lei116Servico, abaFiscal, abaClassificacao } from './handlers/ncm.js';
 import { unspsc, lupaUnspsc, pesquisar, resultado, selecionar } from './handlers/unspsc.js';
-import { coletarMidia, coletarAcompanhamento } from './handlers/coleta.js';
-import { gerarRelatorioItem } from './handlers/report.js';
 
 export function createHandlerMap(ctx: WorkflowContext): HandlerMap {
     return {
@@ -19,9 +17,6 @@ export function createHandlerMap(ctx: WorkflowContext): HandlerMap {
         ncm: (e, s) => ncm(e, s, ctx),
         lei116Servico: (e, s) => lei116Servico(e, s, ctx),
         abaFiscal: (e, s) => abaFiscal(e, s, ctx),
-        coletarMidia: (e, s) => coletarMidia(e, s, ctx),
-        coletarAcompanhamento: (e, s) => coletarAcompanhamento(e, s, ctx),
-        gerarRelatorioItem: (e, s) => gerarRelatorioItem(e, s, ctx),
         prosseguir: (e, s) => prosseguir(e, s, ctx),
     };
 }

@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { ESTADO_PADRAO, get, invalidar, normalizarReportingConfig, set } from "../src/core/estado-manager.ts";
-import { REPORTING_DEFAULTS } from "../src/config/constants.ts";
+import { ESTADO_PADRAO, get, invalidar, set } from "../src/core/estado-manager.ts";
 import { construirPainel, injetarEstilos } from "../src/ui/painel-builder.ts";
 import { wireEvents } from "../src/ui/painel-events.ts";
 import { atualizarIndicadorProgresso, inicializar, toggleMinimizar } from "../src/ui/ui-manager.ts";
@@ -12,8 +11,6 @@ function buildState(overrides = {}) {
     ...ESTADO_PADRAO,
     perfilAtivo: "default",
     perfis: { default: {} },
-    perfilConfigs: { default: { reporting: normalizarReportingConfig(REPORTING_DEFAULTS) } },
-    reporting: normalizarReportingConfig(REPORTING_DEFAULTS),
     ...overrides,
   };
 }
@@ -87,8 +84,8 @@ describe("ui/drawer", () => {
       resumo: "Item aberto para processamento",
       now: Date.now() - 3000,
     });
-    registrarEventoItem(estado, "1001", "relatorio_enviado", {
-      resumo: "Relatório enviado com sucesso",
+    registrarEventoItem(estado, "1001", "item_concluido", {
+      resumo: "Item concluído",
       now: Date.now() - 1000,
     });
     set(estado);
@@ -104,7 +101,7 @@ describe("ui/drawer", () => {
     expect(document.getElementById("etaRestante")?.textContent).not.toBe("Aguardando base");
     expect(document.getElementById("progressText")?.textContent).toContain("Concluídos 1 de 4");
     expect(document.getElementById("itemTraceCurrent")?.textContent).toContain("Item 1001");
-    expect(document.getElementById("itemTraceList")?.textContent).toContain("Relatório enviado com sucesso");
+    expect(document.getElementById("itemTraceList")?.textContent).toContain("Item concluído");
   });
 
   it("marca o card da trilha como crítico para pausa por reincidência", () => {

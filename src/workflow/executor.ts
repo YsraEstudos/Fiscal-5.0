@@ -10,7 +10,6 @@
 import { CONFIG } from '../config/constants.ts';
 import { ACOES_WORKFLOW } from '../config/workflow-actions.ts';
 import * as EstadoManager from '../core/estado-manager.ts';
-import { normalizarReportingConfig } from '../core/estado-manager.ts';
 import type { EstadoApp } from '../core/estado-manager.ts';
 import type { AcaoWorkflow } from '../config/workflow-actions.ts';
 import { log } from '../core/log-manager.ts';
@@ -26,8 +25,6 @@ import * as ItemTrace from './item-trace.ts';
 import { isTestMode, sleep, valoresSaoIguais } from '../utils/misc.ts';
 import { normalizarEspacos } from '../utils/text.ts';
 import { buscarElementoDeep } from '../utils/selectors.ts';
-import { resolverOuCriarSessionRunId, getReportingConfig } from '../reporting/session.ts';
-import { touchSessionNoServico } from '../reporting/session.ts';
 import { confirmar, setAtualizarBotaoToggle } from './handlers/flow-control.js';
 import { workflowState } from './workflow-state.ts';
 import { atualizarTotaisLote, getTotalPlanejadoJson } from './progress-totals.ts';
@@ -791,11 +788,9 @@ export function iniciar(): void {
     });
 
     EstadoManager.persistirAcoes(estado);
-    const estadoAny = estado as unknown as Record<string, unknown>;
-    estadoAny['reporting'] = normalizarReportingConfig(estadoAny['reporting']);
-    (estadoAny['reporting'] as Record<string, unknown>)['sessionRunId'] = resolverOuCriarSessionRunId(estado);
     estado.ativo = true;
     estado.pausado = false;
+    const estadoAny = estado as unknown as Record<string, unknown>;
     estadoAny['progresso'] = { atual: 0, total: totalPlanejadoJson, ultimoProcessado: null, concluidosIds: [] };
     estadoAny['itemFlags'] = {};
     estadoAny['itemAtualKey'] = null;
@@ -810,14 +805,14 @@ export function iniciar(): void {
     estadoAny['trilhaExecucao'] = ItemTrace.resetarTrilhaExecucao(
         estado as Parameters<typeof ItemTrace.resetarTrilhaExecucao>[0],
         {
-            runId: (estadoAny['reporting'] as Record<string, unknown>)['sessionRunId'] as string,
+            runId: null,
             now: Date.now(),
         }
     );
     workflowState.reset();
     EstadoManager.set(estado);
 
-    log(`▶️ Ciclo iniciado (session: ${(estadoAny['reporting'] as Record<string, unknown>)['sessionRunId']})`, 'info');
+    log('▶️ Ciclo iniciado', 'info');
     AudioManager.tocar('success');
     _atualizarBotaoToggle();
 
@@ -833,20 +828,6 @@ export function parar(): void {
     retornoItemBloqueadoEmAndamento = false;
     EstadoManager.update((e: EstadoApp) => { e.ativo = false; });
     log('🛑 Ciclo parado', 'info');
-
-    const estado = EstadoManager.get();
-    const reporting = getReportingConfig(estado);
-    if ((reporting as Record<string, unknown>)['serviceUrl']) {
-        touchSessionNoServico(estado, 'manual-stop')
-            .then((data: Record<string, unknown>) => {
-                const dir = data?.['sessionDir'] as string || '-';
-                log(`📁 Sessão de relatório atualizada: ${dir}`, 'info');
-            })
-            .catch((err: unknown) => {
-                const e = err as Error;
-                log(`⚠️ Não foi possível criar/atualizar pasta da sessão ao parar: ${e?.message || err}`, 'warn');
-            });
-    }
 
     _atualizarBotaoToggle();
     _atualizarIndicadorProgresso();

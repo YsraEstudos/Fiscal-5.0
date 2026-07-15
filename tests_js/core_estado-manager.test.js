@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { CONFIG, REPORTING_DEFAULTS } from "../src/config/constants.ts";
+import { CONFIG } from "../src/config/constants.ts";
 import {
   ESTADO_PADRAO,
   get,
@@ -8,7 +8,6 @@ import {
   normalizarLogAreaHeight,
   normalizarPainelScrollTop,
   normalizarPainelSecoes,
-  normalizarReportingConfig,
   persistirAcoes,
   set,
   update,
@@ -20,57 +19,6 @@ describe("core/estado-manager", () => {
     invalidar();
   });
 
-  it("normaliza reporting config com clamp e defaults", () => {
-    const cfg = normalizarReportingConfig({
-      serviceUrl: "  http://localhost:9999  ",
-      transport: "INVALID",
-      apiToken: "  ",
-      maxFileSizeMb: 999,
-      maxFilesPerItem: 0,
-      ocrEnabled: false,
-      ocrEngine: "INVALID",
-    });
-    expect(cfg.serviceUrl).toBe("http://localhost:9999");
-    expect(cfg.transport).toBe(REPORTING_DEFAULTS.transport);
-    expect(cfg.apiToken).toBe(REPORTING_DEFAULTS.apiToken);
-    expect(cfg.maxFileSizeMb).toBe(200);
-    expect(cfg.maxFilesPerItem).toBe(1);
-    expect(cfg.enabledReport).toBe(REPORTING_DEFAULTS.enabledReport);
-    expect(cfg.ocrEnabled).toBe(false);
-    expect(cfg.ocrEngine).toBe(REPORTING_DEFAULTS.ocrEngine);
-  });
-
-  it("normaliza reporting config com valores válidos e URL em branco", () => {
-    const cfg = normalizarReportingConfig({
-      serviceUrl: "   ",
-      transport: "FETCH",
-      apiToken: "  token-x  ",
-      maxFileSizeMb: 25,
-      maxFilesPerItem: 12,
-      enabledReport: true,
-      enabledMedia: true,
-      clickMediaTabBeforeCollect: true,
-      enabledAcompanhamento: true,
-      blockOnReportError: true,
-      sessionRunId: 123,
-      ocrEnabled: true,
-      ocrEngine: "PADDLEOCR",
-    });
-
-    expect(cfg.serviceUrl).toBe(REPORTING_DEFAULTS.serviceUrl);
-    expect(cfg.transport).toBe("fetch");
-    expect(cfg.apiToken).toBe("token-x");
-    expect(cfg.maxFileSizeMb).toBe(25);
-    expect(cfg.maxFilesPerItem).toBe(12);
-    expect(cfg.enabledReport).toBe(true);
-    expect(cfg.enabledMedia).toBe(true);
-    expect(cfg.clickMediaTabBeforeCollect).toBe(true);
-    expect(cfg.enabledAcompanhamento).toBe(true);
-    expect(cfg.blockOnReportError).toBe(true);
-    expect(cfg.sessionRunId).toBe("123");
-    expect(cfg.ocrEnabled).toBe(true);
-    expect(cfg.ocrEngine).toBe("paddleocr");
-  });
 
   it("normaliza configurações de seções do painel e scroll interno", () => {
     const secoes = normalizarPainelSecoes({ resumo: false, logs: true, inexistente: true });
@@ -134,10 +82,6 @@ describe("core/estado-manager", () => {
         unspsc: { ativo: true, valor: "12345678" },
         finalizar: { ativo: true },
       },
-      reporting: {
-        serviceUrl: "http://127.0.0.1:9000",
-        ocrEngine: "none",
-      },
     };
     localStorage.setItem(CONFIG.STORAGE_KEY, JSON.stringify(legado));
     const estado = get();
@@ -147,7 +91,6 @@ describe("core/estado-manager", () => {
     expect(estado.acoes.unspsc.valor).toBe("12345678");
     expect(estado.acoes.unspsc.seletor).toContain("#txtCodigoUnspsc");
     expect(estado.perfis.default).toBeDefined();
-    expect(estado.perfilConfigs.default.reporting.serviceUrl).toBe("http://127.0.0.1:9000");
     expect(estado.minimizado).toBe(false);
     expect(estado.painelPosicao).toEqual({ top: "120px" });
     expect(estado.estimativa.totalPlanejado).toBe(0);
@@ -177,7 +120,6 @@ describe("core/estado-manager", () => {
       itemMap: { "item-1": { ncm: "1111.11.11" } },
       itemMapUltimoAplicadoId: 42,
       itemAtualTelaId: 777,
-      reportingSessionMap: { "item-1": "run-1" },
       fiscalHintsAtivo: true,
       fiscalHintsJson: `[{"termo":"APLICACAO: CAMINHAO","unspsc":"25101929"}]`,
       fiscalHints: { "aplicacao-caminhao": { termo: "APLICACAO: CAMINHAO", unspsc: "25101929" } },
@@ -196,7 +138,6 @@ describe("core/estado-manager", () => {
     expect(estado.itemMap["item-1"].ncm).toBe("1111.11.11");
     expect(estado.itemMapUltimoAplicadoId).toBe("42");
     expect(estado.itemAtualTelaId).toBe("777");
-    expect(estado.reportingSessionMap["item-1"]).toBe("run-1");
     expect(estado.fiscalHintsAtivo).toBe(true);
     expect(estado.fiscalHintsJson).toContain("APLICACAO");
     expect(estado.fiscalHints["aplicacao-caminhao"].unspsc).toBe("25101929");
@@ -227,7 +168,6 @@ describe("core/estado-manager", () => {
       acoes: { ...ESTADO_PADRAO.acoes },
       perfilAtivo: "default",
       perfis: { default: {} },
-      perfilConfigs: { default: { reporting: normalizarReportingConfig(REPORTING_DEFAULTS) } },
     });
     update((st) => {
       st.ativo = true;
@@ -246,7 +186,6 @@ describe("core/estado-manager", () => {
       acoes: { ...ESTADO_PADRAO.acoes },
       perfilAtivo: "default",
       perfis: { default: {} },
-      perfilConfigs: { default: { reporting: normalizarReportingConfig(REPORTING_DEFAULTS) } },
     });
 
     const estado = update({ ativo: true, clickCooldownMs: 5555 });
@@ -261,7 +200,6 @@ describe("core/estado-manager", () => {
       acoes: { ...ESTADO_PADRAO.acoes },
       perfilAtivo: "default",
       perfis: { default: {} },
-      perfilConfigs: { default: { reporting: normalizarReportingConfig(REPORTING_DEFAULTS) } },
       clickCooldownMs: 1111,
     });
 
@@ -276,7 +214,7 @@ describe("core/estado-manager", () => {
     expect(get().clickCooldownMs).toBe(2222);
   });
 
-  it("persistirAcoes salva ações e reporting no perfil ativo", () => {
+  it("persistirAcoes salva ações no perfil ativo", () => {
     const estado = {
       ...ESTADO_PADRAO,
       perfilAtivo: "perfil_x",
@@ -284,36 +222,11 @@ describe("core/estado-manager", () => {
         ncm: { ativo: true, seletor: "#x", valor: "8471.30.12", ordem: 1 },
       },
       perfis: {},
-      perfilConfigs: {},
-      reporting: normalizarReportingConfig({ serviceUrl: "http://localhost:7777" }),
     };
     persistirAcoes(estado);
     expect(estado.perfis.perfil_x.ncm.valor).toBe("8471.30.12");
-    expect(estado.perfilConfigs.perfil_x.reporting.serviceUrl).toBe("http://localhost:7777");
   });
 
-  it("persistirAcoes usa default quando perfil ativo está vazio e preserva config existente", () => {
-    const estado = {
-      ...ESTADO_PADRAO,
-      perfilAtivo: "",
-      acoes: {
-        ncm: { ativo: true, seletor: "#x", valor: "8471.30.12", ordem: 1 },
-      },
-      perfis: {},
-      perfilConfigs: {
-        default: {
-          reporting: normalizarReportingConfig({ serviceUrl: "http://antigo" }),
-          extra: "mantem",
-        },
-      },
-      reporting: normalizarReportingConfig({ serviceUrl: "http://novo" }),
-    };
-
-    persistirAcoes(estado);
-    expect(estado.perfis.default.ncm.valor).toBe("8471.30.12");
-    expect(estado.perfilConfigs.default.reporting.serviceUrl).toBe("http://novo");
-    expect(estado.perfilConfigs.default.extra).toBe("mantem");
-  });
 
   it("retorna estado padrão quando localStorage está corrompido", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});

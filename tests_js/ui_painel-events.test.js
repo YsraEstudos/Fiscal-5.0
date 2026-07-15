@@ -11,10 +11,8 @@ const mockAplicarVisual = vi.fn();
 
 vi.mock("../src/config/constants.ts", () => ({
   CONFIG: {
-    REPORTING: { SERVICE_DEFAULT: "http://localhost", MAX_FILE_SIZE_MB: 10, MAX_FILES_PER_ITEM: 5 },
     VALIDADORES: { "acao1": true }
   },
-  REPORTING_DEFAULTS: { transport: "auto" }
 }));
 
 vi.mock("../src/config/workflow-actions.ts", () => ({
@@ -29,7 +27,6 @@ vi.mock("../src/core/estado-manager.ts", () => ({
   set: mockSetEstado,
   update: mockUpdateEstado,
   persistirAcoes: mockPersistirAcoes,
-  normalizarReportingConfig: (config) => config || {},
 }));
 
 vi.mock("../src/core/log-manager.ts", () => ({
@@ -65,9 +62,6 @@ vi.mock("../src/ui/inspecao-manager.ts", () => ({
   ativar: vi.fn(),
 }));
 
-vi.mock("../src/ui/relatorio-erros.ts", () => ({
-  copiar: vi.fn(),
-}));
 
 vi.mock("../src/ui/painel-builder.ts", () => ({
   construirListaAcoes: vi.fn(),
@@ -110,15 +104,12 @@ describe("ui/painel-events", () => {
         </div>
       </div>
       <input type="checkbox" id="chkSimulacao">
-      <input type="checkbox" id="chkReportingEnabled">
-      <input type="text" id="txtReportingServiceUrl">
       <button id="drawerToggle"></button>
     `;
 
     mockGetEstado.mockReturnValue({
         acoes: { "acao1": { ativo: true, valor: "antigo" } },
         perfis: {},
-        reporting: {}
     });
 
     mockUpdateEstado.mockImplementation((fn) => {
@@ -165,17 +156,4 @@ describe("ui/painel-events", () => {
     expect(mockPersistirAcoes).toHaveBeenCalledWith(st);
   });
 
-  it("checkbox de relatório persiste enabledReport no estado", () => {
-    mod.wireEvents(vi.fn());
-    const chk = document.getElementById("chkReportingEnabled");
-    chk.checked = true;
-
-    chk.dispatchEvent(new Event("change"));
-
-    expect(mockUpdateEstado).toHaveBeenCalled();
-    const st = { reporting: {} };
-    mockUpdateFn(st);
-    expect(st.reporting.enabledReport).toBe(true);
-    expect(mockPersistirAcoes).toHaveBeenCalledWith(st);
-  });
 });

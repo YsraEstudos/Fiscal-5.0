@@ -7,7 +7,6 @@ const mockObterResumoTrilhaUI = vi.fn();
 
 vi.mock("../src/core/estado-manager.ts", () => ({
   get: mockGetEstado,
-  normalizarReportingConfig: (config) => config || {},
 }));
 
 vi.mock("../src/workflow/executor.ts", () => ({
@@ -42,7 +41,6 @@ describe("ui/painel-builder", () => {
         ativo: false,
         pausado: false,
         modoSimulacao: false,
-        reporting: {},
         fiscalHintsAtivo: true,
         fiscalHintsJson: "",
         fiscalHints: {},

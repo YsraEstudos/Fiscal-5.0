@@ -1,7 +1,7 @@
 /**
  * Fachada pública do estado persistido.
  * A implementação fica em módulos menores em ./estado para manter este
- * contrato estável para UI, workflow, reporting e testes.
+ * contrato estável para UI, workflow e testes.
  */
 
 export type {
@@ -10,7 +10,6 @@ export type {
     EstimativaEstado,
     PainelPosicao,
     PainelSecoes,
-    PerfilConfig,
     ProgressoEstado,
     UltimoErro,
 } from './estado/types.ts';
@@ -27,7 +26,6 @@ export {
     normalizarPainelPosicao,
     normalizarPainelScrollTop,
     normalizarPainelSecoes,
-    normalizarReportingConfig,
 } from './estado/normalizers.ts';
 
 export {

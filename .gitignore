@@ -12,7 +12,6 @@ venv/
 # Local artifacts
 /reports/
 test-results/
-/reporting/
 .benchmarks/
 *.log
 build_output*.txt

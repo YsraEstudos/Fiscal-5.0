@@ -10,7 +10,6 @@ import {
     normalizarPainelScrollTop,
     normalizarPainelSecoes,
     normalizarProgresso,
-    normalizarReportingConfig,
 } from './normalizers.ts';
 import type { AcaoEstado, EstadoApp } from './types.ts';
 
@@ -50,17 +49,14 @@ function aplicarTarefasLegadas(novo: EstadoApp, tarefasRaw: unknown): void {
         };
     }
     if (tarefas['finalizar']) {
-        novo.acoes['prosseguir'] = { ativo: tarefas['finalizar'].ativo ?? true, seletor: '#butAcao1', valor: null, ordem: 14 };
-        novo.acoes['confirmar'] = { ativo: tarefas['finalizar'].ativo ?? true, seletor: '#butSim', valor: null, ordem: 15 };
+        novo.acoes['prosseguir'] = { ativo: tarefas['finalizar'].ativo ?? true, seletor: '#butAcao1', valor: null, ordem: 12 };
+        novo.acoes['confirmar'] = { ativo: tarefas['finalizar'].ativo ?? true, seletor: '#butSim', valor: null, ordem: 13 };
     }
 }
 
 export function garantirDefaultsEstado(estado: EstadoApp): EstadoApp {
     if (!estado.perfis?.['default']) {
         estado.perfis = { ...(estado.perfis || {}), default: clone(estado.acoes) as Record<string, AcaoEstado> };
-    }
-    if (!estado.perfilConfigs?.['default']) {
-        estado.perfilConfigs = { ...(estado.perfilConfigs || {}), default: { reporting: normalizarReportingConfig(estado.reporting) } };
     }
 
     estado.painelPosicao = normalizarPainelPosicao(estado.painelPosicao);
@@ -70,7 +66,6 @@ export function garantirDefaultsEstado(estado: EstadoApp): EstadoApp {
     estado.logAreaHeight = normalizarLogAreaHeight(estado.logAreaHeight);
     estado.estimativa = normalizarEstimativa(estado.estimativa);
     estado.trilhaExecucao = normalizarTrilhaExecucao(estado.trilhaExecucao);
-    estado.reporting = normalizarReportingConfig(estado.reporting);
 
     return estado;
 }
@@ -79,7 +74,6 @@ export function migrarEstadoSalvo(antigo: EstadoSalvoRaw, salvar: (estado: Estad
     const novo = clone(ESTADO_PADRAO) as EstadoApp;
 
     if (isRecord(antigo['perfis'])) novo.perfis = antigo['perfis'] as typeof novo.perfis;
-    if (isRecord(antigo['perfilConfigs'])) novo.perfilConfigs = antigo['perfilConfigs'] as typeof novo.perfilConfigs;
     if (antigo['ativo'] !== undefined) novo.ativo = !!antigo['ativo'];
     if (antigo['pausado'] !== undefined) novo.pausado = !!antigo['pausado'];
     if (antigo['pausarEmReincidencia'] !== undefined) novo.pausarEmReincidencia = !!antigo['pausarEmReincidencia'];
@@ -103,21 +97,16 @@ export function migrarEstadoSalvo(antigo: EstadoSalvoRaw, salvar: (estado: Estad
     if (isRecord(antigo['itemMap'])) novo.itemMap = antigo['itemMap'];
     if (antigo['itemMapUltimoAplicadoId']) novo.itemMapUltimoAplicadoId = String(antigo['itemMapUltimoAplicadoId']);
     if (antigo['itemAtualTelaId']) novo.itemAtualTelaId = String(antigo['itemAtualTelaId']);
-    if (isRecord(antigo['reportingSessionMap'])) novo.reportingSessionMap = antigo['reportingSessionMap'];
     if (antigo['fiscalHintsAtivo'] !== undefined) novo.fiscalHintsAtivo = !!antigo['fiscalHintsAtivo'];
     if (antigo['fiscalHintsJson'] !== undefined) novo.fiscalHintsJson = String(antigo['fiscalHintsJson']);
     if (isRecord(antigo['fiscalHints'])) novo.fiscalHints = antigo['fiscalHints'] as Record<string, unknown>;
 
     novo.estimativa = normalizarEstimativa(antigo['estimativa']);
     novo.trilhaExecucao = normalizarTrilhaExecucao(antigo['trilhaExecucao']);
-    novo.reporting = normalizarReportingConfig(antigo['reporting']);
 
     aplicarTarefasLegadas(novo, antigo['tarefas']);
     inicializarAcoes(novo);
     novo.perfis['default'] = clone(novo.acoes) as Record<string, AcaoEstado>;
-    novo.perfilConfigs['default'] = {
-        reporting: normalizarReportingConfig(novo.reporting),
-    };
     salvar(novo);
     return novo;
 }

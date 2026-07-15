@@ -7,7 +7,7 @@
 
 // --- Fase 1: Módulos folha ---
 import { enableTrustedTypesBypass } from './security/trusted-types.ts';
-import { CONFIG, REPORTING_DEFAULTS, REPORTING_ERROR_CODES } from './config/constants.ts';
+import { CONFIG } from './config/constants.ts';
 import { ACOES_WORKFLOW } from './config/workflow-actions.ts';
 import * as misc from './utils/misc.ts';
 import * as text from './utils/text.ts';
@@ -26,22 +26,12 @@ import * as Validador from './validation/validador.ts';
 import * as ItemMapManager from './data/item-map-manager.ts';
 import * as Interacao from './interaction/interacao.ts';
 import * as PaginaVerificador from './workflow/pagina-verificador.ts';
-import * as ReportTransport from './reporting/transport.ts';
-import * as midiaParser from './reporting/parsers/midia-parser.ts';
-import * as historicoParser from './reporting/parsers/historico-parser.ts';
-import * as reportSession from './reporting/session.ts';
-import * as reportMetadata from './reporting/metadata.ts';
-import { coletarMidia } from './reporting/coletor-midia.ts';
-import { coletarAcompanhamento } from './reporting/coletor-acompanhamento.ts';
-import { enviarRelatorioItem } from './reporting/envio-relatorio.ts';
 
 // --- Fase 4: Motor de Workflow ---
 import * as flowControl from './workflow/handlers/flow-control.ts';
 import * as atuarHandler from './workflow/handlers/atuar.ts';
 import * as ncmHandlers from './workflow/handlers/ncm.ts';
 import * as unspscHandlers from './workflow/handlers/unspsc.ts';
-import * as coletaHandlers from './workflow/handlers/coleta.ts';
-import * as reportHandler from './workflow/handlers/report.ts';
 import * as WorkflowExecutor from './workflow/executor.ts';
 
 // --- Fase 5: UI ---

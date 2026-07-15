@@ -97,9 +97,6 @@
 
       appendLog(`UNSPSC selecionado para item ${item.dataset.itemId}`);
 
-      if (document.body.dataset.noMedia === "true") {
-        appendLog("Mídias (0) - sem mídia para coletar");
-      }
 
       if (document.body.dataset.confirmButton === "butSimContinuar") {
         const btn = document.getElementById("butSimContinuar");
@@ -109,24 +106,6 @@
         }
       }
 
-      try {
-        const resp = await fetch("/reports/item", {
-          method: "POST",
-          body: JSON.stringify({ itemId: item.dataset.itemId || "x" }),
-          headers: { "content-type": "application/json" },
-        });
-        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-        appendLog(`Relatório enviado para item ${item.dataset.itemId}`);
-      } catch (err) {
-        appendLog(`Erro de serviço: ${err.message || err}`);
-        if (document.body.dataset.optionalServiceError === "true") {
-          appendLog("Modo opcional ativo: fluxo segue");
-        } else {
-          setCounts(processed, ignored);
-          setStatus("error");
-          return;
-        }
-      }
 
       processed += 1;
     }

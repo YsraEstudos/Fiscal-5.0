@@ -11,12 +11,8 @@ if (!fs.existsSync(coveragePath)) {
 const coverage = JSON.parse(fs.readFileSync(coveragePath, "utf-8"));
 
 const criticalFiles = [
-  "src/reporting/parsers/midia-parser.js",
-  "src/reporting/parsers/historico-parser.js",
-  "src/workflow/pagina-verificador.js",
-  "src/data/item-map-manager.js",
-  "src/reporting/transport.js",
-  "src/reporting/metadata.js",
+  "src/workflow/pagina-verificador.ts",
+  "src/data/item-map-manager.ts",
 ];
 
 const minPct = 80;

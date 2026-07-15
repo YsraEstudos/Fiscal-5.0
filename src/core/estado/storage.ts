@@ -11,7 +11,6 @@ import {
     normalizarPainelScrollTop,
     normalizarPainelSecoes,
     normalizarProgresso,
-    normalizarReportingConfig,
 } from './normalizers.ts';
 import type { AcaoEstado, EstadoApp } from './types.ts';
 
@@ -25,7 +24,10 @@ function carregarEstadoAtual(salvo: EstadoSalvoRaw): EstadoApp {
         ...salvo,
         acoes: { ...(salvo['acoes'] as Record<string, AcaoEstado> || {}) },
     };
-    estado.perfilConfigs = { ...(salvo['perfilConfigs'] as typeof estado.perfilConfigs || {}) };
+    const estadoLegado = estado as unknown as Record<string, unknown>;
+    delete estadoLegado['reporting'];
+    delete estadoLegado['reportingSessionMap'];
+    delete estadoLegado['perfilConfigs'];
     estado.progresso = normalizarProgresso(salvo['progresso']);
     estado.painelPosicao = normalizarPainelPosicao(salvo['painelPosicao']);
     estado.painelSecoes = normalizarPainelSecoes(salvo['painelSecoes']);
@@ -33,7 +35,6 @@ function carregarEstadoAtual(salvo: EstadoSalvoRaw): EstadoApp {
     estado.logAreaHeight = normalizarLogAreaHeight(salvo['logAreaHeight']);
     estado.estimativa = normalizarEstimativa(salvo['estimativa']);
     estado.trilhaExecucao = normalizarTrilhaExecucao(salvo['trilhaExecucao']);
-    estado.reporting = normalizarReportingConfig(salvo['reporting']);
     estado.pausarEmReincidencia = salvo['pausarEmReincidencia'] !== undefined
         ? !!salvo['pausarEmReincidencia']
         : true;
@@ -84,12 +85,6 @@ export function persistirAcoes(estado: EstadoApp): void {
     const nome = estado.perfilAtivo || 'default';
     estado.perfis = estado.perfis || {};
     estado.perfis[nome] = clone(estado.acoes) as Record<string, AcaoEstado>;
-    estado.perfilConfigs = estado.perfilConfigs || {};
-    const atual = estado.perfilConfigs[nome] || {};
-    estado.perfilConfigs[nome] = {
-        ...atual,
-        reporting: normalizarReportingConfig(estado.reporting),
-    };
 }
 
 export function invalidar(): void {

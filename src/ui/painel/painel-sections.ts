@@ -1,5 +1,4 @@
-import { CONFIG, REPORTING_DEFAULTS } from '../../config/constants.ts';
-import { normalizarReportingConfig } from '../../core/estado-manager.ts';
+import { CONFIG } from '../../config/constants.ts';
 import { escapeHtml } from '../../utils/misc.ts';
 import { obterResumoUI } from '../../workflow/estimativa.ts';
 import { obterResumoTrilhaUI } from '../../workflow/item-trace.ts';
@@ -90,7 +89,6 @@ export function renderWorkflowSection(): string {
 }
 
 export function renderOpcoesSection(estado: EstadoApp): string {
-    const reporting = estado.reporting as Record<string, any> || normalizarReportingConfig(REPORTING_DEFAULTS);
     return `
         <section class="km-card">
             <label class="km-section-label">Opções</label>
@@ -114,56 +112,6 @@ export function renderOpcoesSection(estado: EstadoApp): string {
                     <input type="range" id="clickCooldownSlider" min="0" max="20000" step="500" value="${Number(estado.clickCooldownMs || 3000)}">
                 </div>
 
-                <div class="km-divider"></div>
-
-                <label class="km-checkline">
-                    <input type="checkbox" id="chkReportingEnabled" ${reporting.enabledReport ? 'checked' : ''}>
-                    <span>Gerar relatório PDF/MD</span>
-                </label>
-                <label class="km-checkline">
-                    <input type="checkbox" id="chkReportingMedia" ${reporting.enabledMedia ? 'checked' : ''}>
-                    <span>Coletar mídia</span>
-                </label>
-                <label class="km-checkline">
-                    <input type="checkbox" id="chkReportingClickMediaTab" ${reporting.clickMediaTabBeforeCollect ? 'checked' : ''}>
-                    <span>Clicar na aba Mídias antes da coleta</span>
-                </label>
-                <label class="km-checkline">
-                    <input type="checkbox" id="chkReportingAcompanhamento" ${reporting.enabledAcompanhamento ? 'checked' : ''}>
-                    <span>Coletar acompanhamento</span>
-                </label>
-                <label class="km-checkline">
-                    <input type="checkbox" id="chkReportingBlock" ${reporting.blockOnReportError ? 'checked' : ''}>
-                    <span>Bloquear em erro de relatório</span>
-                </label>
-
-                <div class="km-field">
-                    <label for="txtReportingServiceUrl">Serviço local</label>
-                    <input type="text" id="txtReportingServiceUrl" value="${escapeHtml(reporting.serviceUrl || CONFIG.REPORTING.SERVICE_DEFAULT)}">
-                </div>
-                <div class="km-field">
-                    <label for="txtReportingApiToken">Token API</label>
-                    <input type="text" id="txtReportingApiToken" value="${escapeHtml(reporting.apiToken || '')}" placeholder="X-KM-Token">
-                </div>
-                <div class="km-field">
-                    <label for="selReportingTransport">Transporte</label>
-                    <select id="selReportingTransport">
-                        <option value="auto" ${reporting.transport === 'auto' ? 'selected' : ''}>auto</option>
-                        <option value="gm_xhr" ${reporting.transport === 'gm_xhr' ? 'selected' : ''}>gm_xhr</option>
-                        <option value="fetch" ${reporting.transport === 'fetch' ? 'selected' : ''}>fetch</option>
-                    </select>
-                </div>
-
-                <div class="km-field-grid">
-                    <div class="km-field">
-                        <label for="numReportingMaxFileMb">Max MB/arquivo</label>
-                        <input type="number" id="numReportingMaxFileMb" min="1" max="200" value="${Number(reporting.maxFileSizeMb || CONFIG.REPORTING.MAX_FILE_SIZE_MB)}">
-                    </div>
-                    <div class="km-field">
-                        <label for="numReportingMaxFiles">Max arquivos/item</label>
-                        <input type="number" id="numReportingMaxFiles" min="1" max="200" value="${Number(reporting.maxFilesPerItem || CONFIG.REPORTING.MAX_FILES_PER_ITEM)}">
-                    </div>
-                </div>
             </div>
         </section>
     `;
@@ -286,7 +234,6 @@ export function renderLogsSection(): string {
                 <div class="km-log-actions">
                     <button id="btnCopiarLogs" class="km-inline-button" type="button">Copiar tudo</button>
                     <button id="btnLimparLogs" class="km-inline-button km-inline-button--danger" type="button">Apagar</button>
-                    <button id="btnCopiarRelatorio" class="km-inline-button" type="button">Copiar erro</button>
                 </div>
             </div>
             <div class="km-log-resizer">

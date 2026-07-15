@@ -22,9 +22,6 @@ export const EVENT_LABELS: Readonly<Record<string, string>> = Object.freeze({
     unspsc_preenchido: 'UNSPSC digitado',
     unspsc_pesquisado: 'Pesquisa de UNSPSC executada',
     unspsc_selecionado: 'UNSPSC selecionado',
-    midia_coletada: 'Coleta de mídia',
-    acompanhamento_coletado: 'Acompanhamento coletado',
-    relatorio_enviado: 'Relatório enviado com sucesso',
     item_concluido: 'Item concluído',
     item_pulado_na_rodada: 'Item pulado nesta rodada',
     pausado_por_reincidencia: 'Pausado por reincidência da etapa',
@@ -86,20 +83,6 @@ export interface ResumoTrilhaUI {
     runId?: string | null;
 }
 
-export interface SerializacaoTrilha {
-    runId: string | null;
-    startedAtTs: number | null;
-    itemAtualKey: string | null;
-    ultimoProcessado: string | null;
-    itensRecentes: Array<{
-        itemKey: string;
-        itemTelaId: string;
-        status: ItemStatus;
-        lastEventTipo: string | null;
-        resumoCurto: string | null;
-        events: TraceEvent[];
-    }>;
-}
 
 // Minimal estado interface needed for this module
 interface EstadoComTrilha {
@@ -460,49 +443,5 @@ export function obterResumoTrilhaUI(estado: EstadoComTrilha, { limit = 8 }: { li
         resumoCurto: item.resumoCurto,
         cardClassName: critical ? 'km-card km-trace-card is-critical' : 'km-card km-trace-card',
         runId: trilha.runId,
-    };
-}
-
-export function serializarTrilhaParaRelatorio(
-    estado: EstadoComTrilha,
-    { maxItems = 5, maxEventsPerItem = 12 }: { maxItems?: number; maxEventsPerItem?: number } = {}
-): SerializacaoTrilha {
-    const trilha = normalizarTrilhaExecucao(estado?.trilhaExecucao);
-    const limiteItens = Math.max(1, maxItems);
-    const limiteEventos = Math.max(1, maxEventsPerItem);
-    const prioridades: string[] = [];
-
-    const addPrioridade = (itemKey: string | null | undefined): void => {
-        const key = normalizarItemKey(itemKey);
-        if (!key || prioridades.includes(key) || !trilha.items[key]) return;
-        prioridades.push(key);
-    };
-
-    addPrioridade(resolverItemAtualKey(estado, trilha));
-    addPrioridade(estado?.progresso?.ultimoProcessado);
-
-    const recentes = Object.values(trilha.items)
-        .sort((a, b) => Number(b.lastEventTs ?? 0) - Number(a.lastEventTs ?? 0))
-        .map((item) => item.itemKey);
-    recentes.forEach(addPrioridade);
-
-    const itensRecentes = prioridades.slice(0, limiteItens).map((itemKey) => {
-        const item = trilha.items[itemKey];
-        return {
-            itemKey: item.itemKey,
-            itemTelaId: item.itemTelaId,
-            status: item.status,
-            lastEventTipo: item.lastEventTipo,
-            resumoCurto: item.resumoCurto,
-            events: item.events.slice(-limiteEventos),
-        };
-    });
-
-    return {
-        runId: trilha.runId,
-        startedAtTs: trilha.startedAtTs,
-        itemAtualKey: resolverItemAtualKey(estado, trilha),
-        ultimoProcessado: normalizarItemKey(estado?.progresso?.ultimoProcessado),
-        itensRecentes,
     };
 }

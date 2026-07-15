@@ -4,11 +4,10 @@
  */
 
 import * as EstadoManager from '../core/estado-manager.ts';
-import { normalizarReportingConfig } from '../core/estado-manager.ts';
 import { log } from '../core/log-manager.ts';
 import * as AudioManager from '../interaction/audio-manager.ts';
 import { ACOES_WORKFLOW } from '../config/workflow-actions.ts';
-import { REPORTING_DEFAULTS, CONFIG } from '../config/constants.ts';
+import { CONFIG } from '../config/constants.ts';
 import { clone, escapeHtml } from '../utils/misc.ts';
 import type { EstadoApp } from '../core/estado-manager.ts';
 
@@ -17,10 +16,6 @@ export function criar(nome: string): void {
     const estado = EstadoManager.get() as EstadoApp;
     if (!estado.perfis) estado.perfis = {};
     estado.perfis[nome] = clone(estado.acoes || {});
-    estado.perfilConfigs = estado.perfilConfigs || {};
-    estado.perfilConfigs[nome] = {
-        reporting: normalizarReportingConfig(estado.reporting),
-    };
     EstadoManager.set(estado);
     log(`📁 Perfil "${nome}" criado`, 'info');
     renderizarSeletor();
@@ -34,8 +29,6 @@ export function carregar(nome: string): void {
     }
     estado.acoes = clone(estado.perfis[nome]);
     estado.perfilAtivo = nome;
-    const cfgPerfil = estado.perfilConfigs?.[nome]?.reporting;
-    estado.reporting = normalizarReportingConfig(cfgPerfil || REPORTING_DEFAULTS);
     EstadoManager.set(estado);
     log(`📂 Perfil "${nome}" carregado`, 'info');
     
@@ -52,13 +45,10 @@ export function excluir(nome: string): void {
     }
     const estado = EstadoManager.get() as EstadoApp;
     if (estado.perfis) delete estado.perfis[nome];
-    if (estado.perfilConfigs) delete estado.perfilConfigs[nome];
     
     if (estado.perfilAtivo === nome) {
         estado.perfilAtivo = 'default';
         estado.acoes = (estado.perfis && estado.perfis.default) ? estado.perfis.default : {};
-        const defaultCfg = estado.perfilConfigs?.default?.reporting;
-        estado.reporting = normalizarReportingConfig(defaultCfg || REPORTING_DEFAULTS);
     }
     EstadoManager.set(estado);
     renderizarSeletor();
@@ -73,7 +63,6 @@ export function exportar(): void {
         schema: CONFIG.SCHEMA_VERSION,
         nome: estado.perfilAtivo || 'default',
         acoes: perfilAtual,
-        reporting: normalizarReportingConfig(estado.reporting),
         exportadoEm: new Date().toISOString(),
     };
 
@@ -136,11 +125,6 @@ export function importar(): void {
                 });
 
                 estado.perfis[nomePerfil] = acoesValidadas;
-                estado.perfilConfigs = estado.perfilConfigs || {};
-                estado.perfilConfigs[nomePerfil] = {
-                    reporting: normalizarReportingConfig(dados.reporting || REPORTING_DEFAULTS),
-                };
-                estado.reporting = normalizarReportingConfig(dados.reporting || estado.reporting || REPORTING_DEFAULTS);
                 EstadoManager.set(estado);
 
                 log(`📥 Perfil "${nomePerfil}" importado com sucesso`, 'info');

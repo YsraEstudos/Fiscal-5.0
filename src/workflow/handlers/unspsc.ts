@@ -76,7 +76,7 @@ export async function selecionar(estado: EstadoApp, status: HTMLElement | null, 
         registrarUnspscSelecionado(estado, getValorAcao);
 
         CooldownManager.set('posSelecionar', CONFIG.DELAYS.POS_SELECIONAR_COOLDOWN);
-        log('✅ UNSPSC selecionado - avançando para coleta de mídia/acompanhamento', 'info');
+        log('✅ UNSPSC selecionado', 'info');
         return true;
     }
 

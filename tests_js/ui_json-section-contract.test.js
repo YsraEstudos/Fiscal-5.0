@@ -16,27 +16,10 @@ import { describe, expect, it, vi } from "vitest";
 // -----------------------------------------------------------------------
 vi.mock("../src/config/constants.ts", () => ({
   CONFIG: {
-    REPORTING: { SERVICE_DEFAULT: "http://localhost:5000", MAX_FILE_SIZE_MB: 50, MAX_FILES_PER_ITEM: 20 },
     VALIDADORES: {},
-  },
-  REPORTING_DEFAULTS: {
-    enabledMedia: false,
-    enabledReport: false,
-    enabledAcompanhamento: false,
-    clickMediaTabBeforeCollect: false,
-    blockOnReportError: false,
-    serviceUrl: "http://localhost:5000",
-    apiToken: null,
-    transport: "auto",
-    maxFileSizeMb: 50,
-    maxFilesPerItem: 20,
-    sessionRunId: null,
   },
 }));
 
-vi.mock("../src/core/estado-manager.ts", () => ({
-  normalizarReportingConfig: (v) => v || {},
-}));
 
 vi.mock("../src/workflow/estimativa.ts", () => ({
   obterResumoUI: () => ({
@@ -71,18 +54,6 @@ function criarEstadoMinimo(overrides = {}) {
     pausarEmReincidencia: true,
     globalActionDelayMs: 1200,
     clickCooldownMs: 3000,
-    reporting: {
-      enabledMedia: false,
-      enabledReport: false,
-      enabledAcompanhamento: false,
-      clickMediaTabBeforeCollect: false,
-      blockOnReportError: false,
-      serviceUrl: "http://localhost:5000",
-      apiToken: null,
-      transport: "auto",
-      maxFileSizeMb: 50,
-      maxFilesPerItem: 20,
-    },
     ...overrides,
   };
 }

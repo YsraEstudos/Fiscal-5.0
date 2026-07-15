@@ -1,4 +1,3 @@
-import { REPORTING_DEFAULTS, type ReportingDefaults } from '../../config/constants.ts';
 import type { EstimativaEstado, PainelPosicao, PainelSecoes, ProgressoEstado } from './types.ts';
 
 type RawObject = Record<string, unknown>;
@@ -18,37 +17,6 @@ export const PAINEL_SECOES_PADRAO: Readonly<PainelSecoes> = Object.freeze({
 
 function asObject(valor: unknown): RawObject {
     return valor && typeof valor === 'object' ? valor as RawObject : {};
-}
-
-export function normalizarReportingConfig(config: unknown): ReportingDefaults {
-    const src = asObject(config);
-    const url = String(src['serviceUrl'] ?? REPORTING_DEFAULTS.serviceUrl).trim() || REPORTING_DEFAULTS.serviceUrl;
-    const transportRaw = String(src['transport'] ?? REPORTING_DEFAULTS.transport).trim().toLowerCase();
-    const transport = ['auto', 'fetch', 'gm_xhr'].includes(transportRaw) ? transportRaw : REPORTING_DEFAULTS.transport;
-    const apiToken = src['apiToken'] != null ? String(src['apiToken']).trim() : '';
-    const maxFileSizeMb = Number.isFinite(Number(src['maxFileSizeMb']))
-        ? Math.max(1, Math.min(200, Number(src['maxFileSizeMb'])))
-        : REPORTING_DEFAULTS.maxFileSizeMb;
-    const maxFilesPerItem = Number.isFinite(Number(src['maxFilesPerItem']))
-        ? Math.max(1, Math.min(200, Number(src['maxFilesPerItem'])))
-        : REPORTING_DEFAULTS.maxFilesPerItem;
-    const ocrEngineRaw = String(src['ocrEngine'] ?? REPORTING_DEFAULTS.ocrEngine).trim().toLowerCase();
-    const ocrEngine = ['tesseract', 'paddleocr', 'none'].includes(ocrEngineRaw) ? ocrEngineRaw : REPORTING_DEFAULTS.ocrEngine;
-    return {
-        enabledReport: src['enabledReport'] !== undefined ? !!src['enabledReport'] : REPORTING_DEFAULTS.enabledReport,
-        enabledMedia: src['enabledMedia'] !== undefined ? !!src['enabledMedia'] : REPORTING_DEFAULTS.enabledMedia,
-        clickMediaTabBeforeCollect: src['clickMediaTabBeforeCollect'] !== undefined ? !!src['clickMediaTabBeforeCollect'] : REPORTING_DEFAULTS.clickMediaTabBeforeCollect,
-        enabledAcompanhamento: src['enabledAcompanhamento'] !== undefined ? !!src['enabledAcompanhamento'] : REPORTING_DEFAULTS.enabledAcompanhamento,
-        blockOnReportError: src['blockOnReportError'] !== undefined ? !!src['blockOnReportError'] : REPORTING_DEFAULTS.blockOnReportError,
-        serviceUrl: url,
-        apiToken: apiToken || REPORTING_DEFAULTS.apiToken,
-        transport,
-        maxFileSizeMb,
-        maxFilesPerItem,
-        sessionRunId: src['sessionRunId'] ? String(src['sessionRunId']) : null,
-        ocrEnabled: src['ocrEnabled'] !== undefined ? !!src['ocrEnabled'] : REPORTING_DEFAULTS.ocrEnabled,
-        ocrEngine,
-    };
 }
 
 export function normalizarPainelPosicao(posicao: unknown): PainelPosicao | null {

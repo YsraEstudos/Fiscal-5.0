@@ -8,20 +8,6 @@ interface ValidadorConfig {
     readonly mensagem: string;
 }
 
-interface ReportingConfig {
-    readonly SERVICE_DEFAULT: string;
-    readonly SERVICE_TIMEOUT_MS: number;
-    readonly FETCH_TIMEOUT_MS: number;
-    readonly RETRY_ATTEMPTS: number;
-    readonly RETRY_BASE_DELAY_MS: number;
-    readonly RETRY_JITTER_MS: number;
-    readonly MAX_MEDIA_DOWNLOADS: number;
-    readonly MAX_FILE_SIZE_MB: number;
-    readonly MAX_FILES_PER_ITEM: number;
-    readonly IMPORTANT_YELLOW_KEYWORDS: readonly string[];
-    readonly ALTERACAO_CAMPOS_CHAVE: readonly string[];
-}
-
 interface AppConfig {
     readonly SCHEMA_VERSION: number;
     readonly LOG_MAX_ENTRIES: number;
@@ -56,11 +42,10 @@ interface AppConfig {
         warning: readonly number[];
         complete: readonly number[];
     }>;
-    readonly REPORTING: Readonly<ReportingConfig>;
 }
 
 export const CONFIG: AppConfig = Object.freeze({
-    SCHEMA_VERSION: 11,
+    SCHEMA_VERSION: 12,
     LOG_MAX_ENTRIES: 100,
     STORAGE_KEY: 'km_robo_state',
 
@@ -105,83 +90,4 @@ export const CONFIG: AppConfig = Object.freeze({
         complete: [523.25, 659.25, 783.99, 1046.5],
     }),
 
-    REPORTING: Object.freeze({
-        SERVICE_DEFAULT: 'http://127.0.0.1:8765',
-        SERVICE_TIMEOUT_MS: 120000,
-        FETCH_TIMEOUT_MS: 30000,
-        RETRY_ATTEMPTS: 3,
-        RETRY_BASE_DELAY_MS: 600,
-        RETRY_JITTER_MS: 300,
-        MAX_MEDIA_DOWNLOADS: 20,
-        MAX_FILE_SIZE_MB: 25,
-        MAX_FILES_PER_ITEM: 20,
-        IMPORTANT_YELLOW_KEYWORDS: Object.freeze([
-            'usar',
-            'urgente',
-            'criar codigo',
-            'atributo',
-            'pdm',
-            'corrigir',
-            'ajustar',
-            'fiscal',
-            'integra',
-            'klassmatt',
-        ]),
-        ALTERACAO_CAMPOS_CHAVE: Object.freeze([
-            'NCM',
-            'NBS',
-            'UNSPSC',
-            'TIPO BRINDE',
-            'GRUPO DE MATERIAIS',
-            'LINHA PRODUTO',
-            'TIPO DE MATERIAL',
-            'MATERIAL',
-            'COR',
-            'DADOS COMPLEMENTARES',
-            'DESCRICAO',
-            'DESCRIÇÃO',
-        ]),
-    }),
 });
-
-export interface ReportingDefaults {
-    enabledReport: boolean;
-    enabledMedia: boolean;
-    clickMediaTabBeforeCollect: boolean;
-    enabledAcompanhamento: boolean;
-    blockOnReportError: boolean;
-    serviceUrl: string;
-    apiToken: string;
-    transport: string;
-    maxFileSizeMb: number;
-    maxFilesPerItem: number;
-    sessionRunId: string | null;
-    ocrEnabled: boolean;
-    ocrEngine: string;
-}
-
-export const REPORTING_DEFAULTS: Readonly<ReportingDefaults> = Object.freeze({
-    enabledReport: false,
-    enabledMedia: false,
-    clickMediaTabBeforeCollect: false,
-    enabledAcompanhamento: false,
-    blockOnReportError: false,
-    serviceUrl: CONFIG.REPORTING.SERVICE_DEFAULT,
-    apiToken: 'km-local-token',
-    transport: 'auto',
-    maxFileSizeMb: CONFIG.REPORTING.MAX_FILE_SIZE_MB,
-    maxFilesPerItem: CONFIG.REPORTING.MAX_FILES_PER_ITEM,
-    sessionRunId: null,
-    ocrEnabled: true,
-    ocrEngine: 'tesseract',
-});
-
-export const REPORTING_ERROR_CODES = Object.freeze({
-    MEDIA_PARSE_ERROR: 'MEDIA_PARSE_ERROR',
-    HISTORICO_PARSE_ERROR: 'HISTORICO_PARSE_ERROR',
-    SERVICE_UNAVAILABLE: 'SERVICE_UNAVAILABLE',
-    UPLOAD_LIMIT_EXCEEDED: 'UPLOAD_LIMIT_EXCEEDED',
-    SERVICE_AUTH_MISSING: 'SERVICE_AUTH_MISSING',
-} as const);
-
-export type ReportingErrorCode = typeof REPORTING_ERROR_CODES[keyof typeof REPORTING_ERROR_CODES];

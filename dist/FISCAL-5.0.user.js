@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         FISCAL 5.0 (Robust Robot)
 // @namespace    http://tampermonkey.net/
-// @version      5.1.0
+// @version      5.2.0
 // @author       System Admin
 // @description  Automação modular FISCAL 5.0 com controle individual de ações, inspeção de elementos, perfis e seletor robusto (ID + Texto).
 // @downloadURL  https://raw.githubusercontent.com/YsraEstudos/Fiscal-5.0/main/dist/FISCAL-5.0.user.js
@@ -31,7 +31,7 @@
     }
   }
   const CONFIG = Object.freeze({
-    SCHEMA_VERSION: 11,
+    SCHEMA_VERSION: 12,
     LOG_MAX_ENTRIES: 100,
     STORAGE_KEY: "km_robo_state",
     RETRY: Object.freeze({
@@ -69,66 +69,7 @@
       error: [349.23, 293.66],
       warning: [440],
       complete: [523.25, 659.25, 783.99, 1046.5]
-    }),
-    REPORTING: Object.freeze({
-      SERVICE_DEFAULT: "http://127.0.0.1:8765",
-      SERVICE_TIMEOUT_MS: 12e4,
-      FETCH_TIMEOUT_MS: 3e4,
-      RETRY_ATTEMPTS: 3,
-      RETRY_BASE_DELAY_MS: 600,
-      RETRY_JITTER_MS: 300,
-      MAX_MEDIA_DOWNLOADS: 20,
-      MAX_FILE_SIZE_MB: 25,
-      MAX_FILES_PER_ITEM: 20,
-      IMPORTANT_YELLOW_KEYWORDS: Object.freeze([
-        "usar",
-        "urgente",
-        "criar codigo",
-        "atributo",
-        "pdm",
-        "corrigir",
-        "ajustar",
-        "fiscal",
-        "integra",
-        "klassmatt"
-      ]),
-      ALTERACAO_CAMPOS_CHAVE: Object.freeze([
-        "NCM",
-        "NBS",
-        "UNSPSC",
-        "TIPO BRINDE",
-        "GRUPO DE MATERIAIS",
-        "LINHA PRODUTO",
-        "TIPO DE MATERIAL",
-        "MATERIAL",
-        "COR",
-        "DADOS COMPLEMENTARES",
-        "DESCRICAO",
-        "DESCRIÇÃO"
-      ])
     })
-  });
-  const REPORTING_DEFAULTS = Object.freeze({
-    enabledReport: false,
-    enabledMedia: false,
-    clickMediaTabBeforeCollect: false,
-    enabledAcompanhamento: false,
-    blockOnReportError: false,
-    serviceUrl: CONFIG.REPORTING.SERVICE_DEFAULT,
-    apiToken: "km-local-token",
-    transport: "auto",
-    maxFileSizeMb: CONFIG.REPORTING.MAX_FILE_SIZE_MB,
-    maxFilesPerItem: CONFIG.REPORTING.MAX_FILES_PER_ITEM,
-    sessionRunId: null,
-    ocrEnabled: true,
-    ocrEngine: "tesseract"
-  });
-  const REPORTING_ERROR_CODES = Object.freeze({
-    MEDIA_PARSE_ERROR: "MEDIA_PARSE_ERROR",
-    HISTORICO_PARSE_ERROR: "HISTORICO_PARSE_ERROR",
-    SERVICE_UNAVAILABLE: "SERVICE_UNAVAILABLE",
-    UPLOAD_LIMIT_EXCEEDED: "UPLOAD_LIMIT_EXCEEDED",
-    SERVICE_AUTH_MISSING: "SERVICE_AUTH_MISSING"
   });
   function cssEscape(s) {
     var _a;
@@ -162,39 +103,6 @@
       clearTimeout(timeoutId);
       timeoutId = setTimeout(() => fn.apply(this, args), delay);
     };
-  }
-  function absolutizarUrl(url) {
-    try {
-      return new URL(String(url ?? ""), window.location.href).toString();
-    } catch {
-      return null;
-    }
-  }
-  function extrairUrlDaFuncaoJs(href, nomesFuncoes = []) {
-    const raw = String(href ?? "");
-    if (!raw) return null;
-    const nomes = Array.isArray(nomesFuncoes) ? nomesFuncoes : [nomesFuncoes];
-    for (const nome of nomes) {
-      if (!nome) continue;
-      const rx = new RegExp(`${nome}\\s*\\(\\s*['"]([^'"]+)['"]`, "i");
-      const m = raw.match(rx);
-      if (m == null ? void 0 : m[1]) return absolutizarUrl(m[1]);
-    }
-    return null;
-  }
-  function slugifyArquivo(nome, fallback = "arquivo") {
-    const base = String(nome ?? "").trim() || fallback;
-    const limpo = base.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9._-]+/g, "_").replace(/_+/g, "_").replace(/^_+|_+$/g, "");
-    return limpo || fallback;
-  }
-  function hashTexto(texto) {
-    const raw = String(texto ?? "");
-    let h = 2166136261;
-    for (let i = 0; i < raw.length; i++) {
-      h ^= raw.charCodeAt(i);
-      h = Math.imul(h, 16777619);
-    }
-    return (h >>> 0).toString(36);
   }
   function valoresSaoIguais(valorCampo, valorAlvo) {
     if (!valorCampo || !valorAlvo) return valorCampo == valorAlvo;
@@ -260,9 +168,6 @@
     unspsc_preenchido: "UNSPSC digitado",
     unspsc_pesquisado: "Pesquisa de UNSPSC executada",
     unspsc_selecionado: "UNSPSC selecionado",
-    midia_coletada: "Coleta de mídia",
-    acompanhamento_coletado: "Acompanhamento coletado",
-    relatorio_enviado: "Relatório enviado com sucesso",
     item_concluido: "Item concluído",
     item_pulado_na_rodada: "Item pulado nesta rodada",
     pausado_por_reincidencia: "Pausado por reincidência da etapa",
@@ -535,40 +440,6 @@
       runId: trilha.runId
     };
   }
-  function serializarTrilhaParaRelatorio(estado, { maxItems = 5, maxEventsPerItem = 12 } = {}) {
-    var _a, _b;
-    const trilha = normalizarTrilhaExecucao(estado == null ? void 0 : estado.trilhaExecucao);
-    const limiteItens = Math.max(1, maxItems);
-    const limiteEventos = Math.max(1, maxEventsPerItem);
-    const prioridades = [];
-    const addPrioridade = (itemKey) => {
-      const key = normalizarItemKey$1(itemKey);
-      if (!key || prioridades.includes(key) || !trilha.items[key]) return;
-      prioridades.push(key);
-    };
-    addPrioridade(resolverItemAtualKey(estado, trilha));
-    addPrioridade((_a = estado == null ? void 0 : estado.progresso) == null ? void 0 : _a.ultimoProcessado);
-    const recentes = Object.values(trilha.items).sort((a, b) => Number(b.lastEventTs ?? 0) - Number(a.lastEventTs ?? 0)).map((item) => item.itemKey);
-    recentes.forEach(addPrioridade);
-    const itensRecentes = prioridades.slice(0, limiteItens).map((itemKey) => {
-      const item = trilha.items[itemKey];
-      return {
-        itemKey: item.itemKey,
-        itemTelaId: item.itemTelaId,
-        status: item.status,
-        lastEventTipo: item.lastEventTipo,
-        resumoCurto: item.resumoCurto,
-        events: item.events.slice(-limiteEventos)
-      };
-    });
-    return {
-      runId: trilha.runId,
-      startedAtTs: trilha.startedAtTs,
-      itemAtualKey: resolverItemAtualKey(estado, trilha),
-      ultimoProcessado: normalizarItemKey$1((_b = estado == null ? void 0 : estado.progresso) == null ? void 0 : _b.ultimoProcessado),
-      itensRecentes
-    };
-  }
   const PAINEL_SECOES_PADRAO = Object.freeze({
     resumo: true,
     trilha: true,
@@ -583,32 +454,6 @@
   });
   function asObject(valor) {
     return valor && typeof valor === "object" ? valor : {};
-  }
-  function normalizarReportingConfig(config) {
-    const src = asObject(config);
-    const url = String(src["serviceUrl"] ?? REPORTING_DEFAULTS.serviceUrl).trim() || REPORTING_DEFAULTS.serviceUrl;
-    const transportRaw = String(src["transport"] ?? REPORTING_DEFAULTS.transport).trim().toLowerCase();
-    const transport = ["auto", "fetch", "gm_xhr"].includes(transportRaw) ? transportRaw : REPORTING_DEFAULTS.transport;
-    const apiToken = src["apiToken"] != null ? String(src["apiToken"]).trim() : "";
-    const maxFileSizeMb = Number.isFinite(Number(src["maxFileSizeMb"])) ? Math.max(1, Math.min(200, Number(src["maxFileSizeMb"]))) : REPORTING_DEFAULTS.maxFileSizeMb;
-    const maxFilesPerItem = Number.isFinite(Number(src["maxFilesPerItem"])) ? Math.max(1, Math.min(200, Number(src["maxFilesPerItem"]))) : REPORTING_DEFAULTS.maxFilesPerItem;
-    const ocrEngineRaw = String(src["ocrEngine"] ?? REPORTING_DEFAULTS.ocrEngine).trim().toLowerCase();
-    const ocrEngine = ["tesseract", "paddleocr", "none"].includes(ocrEngineRaw) ? ocrEngineRaw : REPORTING_DEFAULTS.ocrEngine;
-    return {
-      enabledReport: src["enabledReport"] !== void 0 ? !!src["enabledReport"] : REPORTING_DEFAULTS.enabledReport,
-      enabledMedia: src["enabledMedia"] !== void 0 ? !!src["enabledMedia"] : REPORTING_DEFAULTS.enabledMedia,
-      clickMediaTabBeforeCollect: src["clickMediaTabBeforeCollect"] !== void 0 ? !!src["clickMediaTabBeforeCollect"] : REPORTING_DEFAULTS.clickMediaTabBeforeCollect,
-      enabledAcompanhamento: src["enabledAcompanhamento"] !== void 0 ? !!src["enabledAcompanhamento"] : REPORTING_DEFAULTS.enabledAcompanhamento,
-      blockOnReportError: src["blockOnReportError"] !== void 0 ? !!src["blockOnReportError"] : REPORTING_DEFAULTS.blockOnReportError,
-      serviceUrl: url,
-      apiToken: apiToken || REPORTING_DEFAULTS.apiToken,
-      transport,
-      maxFileSizeMb,
-      maxFilesPerItem,
-      sessionRunId: src["sessionRunId"] ? String(src["sessionRunId"]) : null,
-      ocrEnabled: src["ocrEnabled"] !== void 0 ? !!src["ocrEnabled"] : REPORTING_DEFAULTS.ocrEnabled,
-      ocrEngine
-    };
   }
   function normalizarPainelPosicao(posicao) {
     if (!posicao || typeof posicao !== "object") return null;
@@ -718,7 +563,6 @@
     clickCooldownMs: 3e3,
     perfilAtivo: "default",
     perfis: {},
-    perfilConfigs: {},
     progresso: normalizarProgresso(null),
     logs: [],
     estatisticas: { processados: 0, erros: 0, ultimoErro: null },
@@ -728,7 +572,6 @@
     logAreaHeight: 110,
     itemAtualKey: null,
     itemAtualTelaId: null,
-    reportingSessionMap: {},
     estimativa: normalizarEstimativa(ESTIMATIVA_PADRAO),
     trilhaExecucao: normalizarTrilhaExecucao(TRILHA_EXECUCAO_PADRAO),
     itemFlags: {},
@@ -739,7 +582,6 @@
     fiscalHintsAtivo: true,
     fiscalHintsJson: "",
     fiscalHints: {},
-    reporting: normalizarReportingConfig(REPORTING_DEFAULTS),
     acoes: {}
   };
   const ACOES_WORKFLOW = Object.freeze([
@@ -754,11 +596,8 @@
     { id: "pesquisar", nome: "Pesquisar", seletor: 'input[name*="butPesquisar"]', tipo: "click", ordem: 9 },
     { id: "resultado", nome: "Clique Resultado", seletor: 'a[id="txtDescricao"]', tipo: "click", ordem: 10 },
     { id: "selecionar", nome: "Selecionar UNSPSC", seletor: "#butFechar", tipo: "click", ordem: 11 },
-    { id: "coletarMidia", nome: "Coletar Mídia", seletor: "text=Mídias", tipo: "click", ordem: 12 },
-    { id: "coletarAcompanhamento", nome: "Coletar Acompanhamento", seletor: "#hButAcompanhamentoSIN, #hlkObs", tipo: "custom", ordem: 13 },
-    { id: "gerarRelatorioItem", nome: "Gerar Relatório Item", seletor: "", tipo: "custom", ordem: 14 },
-    { id: "prosseguir", nome: "Prosseguir", seletor: '#butAcao2, #butAcao1, input[value="Prosseguir"]', tipo: "click", ordem: 15 },
-    { id: "confirmar", nome: "Confirmar (Sim)", seletor: "#butSim", tipo: "click", ordem: 16 }
+    { id: "prosseguir", nome: "Prosseguir", seletor: '#butAcao2, #butAcao1, input[value="Prosseguir"]', tipo: "click", ordem: 12 },
+    { id: "confirmar", nome: "Confirmar (Sim)", seletor: "#butSim", tipo: "click", ordem: 13 }
   ]);
   function corrigirSeletorLegado(acaoId, seletor) {
     const acao = ACOES_WORKFLOW.find((item) => item.id === acaoId);
@@ -810,17 +649,14 @@
       };
     }
     if (tarefas["finalizar"]) {
-      novo.acoes["prosseguir"] = { ativo: tarefas["finalizar"].ativo ?? true, seletor: "#butAcao1", valor: null, ordem: 14 };
-      novo.acoes["confirmar"] = { ativo: tarefas["finalizar"].ativo ?? true, seletor: "#butSim", valor: null, ordem: 15 };
+      novo.acoes["prosseguir"] = { ativo: tarefas["finalizar"].ativo ?? true, seletor: "#butAcao1", valor: null, ordem: 12 };
+      novo.acoes["confirmar"] = { ativo: tarefas["finalizar"].ativo ?? true, seletor: "#butSim", valor: null, ordem: 13 };
     }
   }
   function garantirDefaultsEstado(estado) {
-    var _a, _b;
+    var _a;
     if (!((_a = estado.perfis) == null ? void 0 : _a["default"])) {
       estado.perfis = { ...estado.perfis || {}, default: clone(estado.acoes) };
-    }
-    if (!((_b = estado.perfilConfigs) == null ? void 0 : _b["default"])) {
-      estado.perfilConfigs = { ...estado.perfilConfigs || {}, default: { reporting: normalizarReportingConfig(estado.reporting) } };
     }
     estado.painelPosicao = normalizarPainelPosicao(estado.painelPosicao);
     estado.progresso = normalizarProgresso(estado.progresso);
@@ -829,13 +665,11 @@
     estado.logAreaHeight = normalizarLogAreaHeight$1(estado.logAreaHeight);
     estado.estimativa = normalizarEstimativa(estado.estimativa);
     estado.trilhaExecucao = normalizarTrilhaExecucao(estado.trilhaExecucao);
-    estado.reporting = normalizarReportingConfig(estado.reporting);
     return estado;
   }
   function migrarEstadoSalvo(antigo, salvar) {
     const novo = clone(ESTADO_PADRAO);
     if (isRecord(antigo["perfis"])) novo.perfis = antigo["perfis"];
-    if (isRecord(antigo["perfilConfigs"])) novo.perfilConfigs = antigo["perfilConfigs"];
     if (antigo["ativo"] !== void 0) novo.ativo = !!antigo["ativo"];
     if (antigo["pausado"] !== void 0) novo.pausado = !!antigo["pausado"];
     if (antigo["pausarEmReincidencia"] !== void 0) novo.pausarEmReincidencia = !!antigo["pausarEmReincidencia"];
@@ -857,19 +691,14 @@
     if (isRecord(antigo["itemMap"])) novo.itemMap = antigo["itemMap"];
     if (antigo["itemMapUltimoAplicadoId"]) novo.itemMapUltimoAplicadoId = String(antigo["itemMapUltimoAplicadoId"]);
     if (antigo["itemAtualTelaId"]) novo.itemAtualTelaId = String(antigo["itemAtualTelaId"]);
-    if (isRecord(antigo["reportingSessionMap"])) novo.reportingSessionMap = antigo["reportingSessionMap"];
     if (antigo["fiscalHintsAtivo"] !== void 0) novo.fiscalHintsAtivo = !!antigo["fiscalHintsAtivo"];
     if (antigo["fiscalHintsJson"] !== void 0) novo.fiscalHintsJson = String(antigo["fiscalHintsJson"]);
     if (isRecord(antigo["fiscalHints"])) novo.fiscalHints = antigo["fiscalHints"];
     novo.estimativa = normalizarEstimativa(antigo["estimativa"]);
     novo.trilhaExecucao = normalizarTrilhaExecucao(antigo["trilhaExecucao"]);
-    novo.reporting = normalizarReportingConfig(antigo["reporting"]);
     aplicarTarefasLegadas(novo, antigo["tarefas"]);
     inicializarAcoes(novo);
     novo.perfis["default"] = clone(novo.acoes);
-    novo.perfilConfigs["default"] = {
-      reporting: normalizarReportingConfig(novo.reporting)
-    };
     salvar(novo);
     return novo;
   }
@@ -882,7 +711,10 @@
       ...salvo,
       acoes: { ...salvo["acoes"] || {} }
     };
-    estado.perfilConfigs = { ...salvo["perfilConfigs"] || {} };
+    const estadoLegado = estado;
+    delete estadoLegado["reporting"];
+    delete estadoLegado["reportingSessionMap"];
+    delete estadoLegado["perfilConfigs"];
     estado.progresso = normalizarProgresso(salvo["progresso"]);
     estado.painelPosicao = normalizarPainelPosicao(salvo["painelPosicao"]);
     estado.painelSecoes = normalizarPainelSecoes(salvo["painelSecoes"]);
@@ -890,7 +722,6 @@
     estado.logAreaHeight = normalizarLogAreaHeight$1(salvo["logAreaHeight"]);
     estado.estimativa = normalizarEstimativa(salvo["estimativa"]);
     estado.trilhaExecucao = normalizarTrilhaExecucao(salvo["trilhaExecucao"]);
-    estado.reporting = normalizarReportingConfig(salvo["reporting"]);
     estado.pausarEmReincidencia = salvo["pausarEmReincidencia"] !== void 0 ? !!salvo["pausarEmReincidencia"] : true;
     estado = inicializarAcoes(estado);
     return garantirDefaultsEstado(estado);
@@ -929,12 +760,6 @@
     const nome = estado.perfilAtivo || "default";
     estado.perfis = estado.perfis || {};
     estado.perfis[nome] = clone(estado.acoes);
-    estado.perfilConfigs = estado.perfilConfigs || {};
-    const atual = estado.perfilConfigs[nome] || {};
-    estado.perfilConfigs[nome] = {
-      ...atual,
-      reporting: normalizarReportingConfig(estado.reporting)
-    };
   }
   let memLogs = null;
   const flushDebounced = debounce(() => {
@@ -3108,85 +2933,6 @@
       primeiroItemTexto: estimativa.primeiroItemDuracaoMs != null ? formatarDuracao(estimativa.primeiroItemDuracaoMs) : "—"
     };
   }
-  function getReportingConfig(estado) {
-    const estadoAny = estado;
-    return normalizarReportingConfig(estadoAny.reporting || REPORTING_DEFAULTS);
-  }
-  function obterProjetoLabelAtual() {
-    const el = buscarElementoDeep("#lblUsuario") || document.querySelector("#lblUsuario");
-    const raw = normalizarEspacos((el == null ? void 0 : el.textContent) || "");
-    if (!raw) return "projeto_sem_nome";
-    const parts = raw.split("//").map((p) => normalizarEspacos(p)).filter(Boolean);
-    const candidato = parts.length >= 2 ? parts[1] : raw;
-    return slugifyArquivo(candidato.toLowerCase(), "projeto_sem_nome");
-  }
-  function resolverChaveVinculoSessao(estado) {
-    const projeto = obterProjetoLabelAtual();
-    const estadoAny = estado;
-    const jsonAtivo = !!((estadoAny == null ? void 0 : estadoAny.itemMapAtivo) && String((estadoAny == null ? void 0 : estadoAny.itemMapJson) || "").trim());
-    if (jsonAtivo) {
-      const hashJson = hashTexto(String(estadoAny.itemMapJson || "").trim());
-      return `proj:${projeto}|json:${hashJson}`;
-    }
-    const itemRef = String(
-      (estadoAny == null ? void 0 : estadoAny.itemAtualKey) || (estadoAny == null ? void 0 : estadoAny.itemAtualTelaId) || obterItemIdAtual() || "sem_item"
-    ).trim();
-    const itemSlug = slugifyArquivo(itemRef.toLowerCase(), "sem_item");
-    return `proj:${projeto}|item:${itemSlug}`;
-  }
-  function resolverOuCriarSessionRunId(estado) {
-    const key = resolverChaveVinculoSessao(estado);
-    const projeto = obterProjetoLabelAtual();
-    const estadoAny = estado;
-    const mapa = (estadoAny == null ? void 0 : estadoAny.reportingSessionMap) && typeof estadoAny.reportingSessionMap === "object" ? estadoAny.reportingSessionMap : {};
-    if (mapa[key]) return mapa[key];
-    const horario = /* @__PURE__ */ new Date();
-    const pad2 = (n) => String(n).padStart(2, "0");
-    const stamp = `${horario.getFullYear()}${pad2(horario.getMonth() + 1)}${pad2(horario.getDate())}_${pad2(horario.getHours())}${pad2(horario.getMinutes())}${pad2(horario.getSeconds())}`;
-    const curto = hashTexto(key).slice(0, 6);
-    const sessionRunId = slugifyArquivo(`session_${projeto}_${stamp}_${curto}`, `session_${stamp}_${curto}`);
-    update((e) => {
-      const eAny = e;
-      eAny.reportingSessionMap = eAny.reportingSessionMap && typeof eAny.reportingSessionMap === "object" ? eAny.reportingSessionMap : {};
-      eAny.reportingSessionMap[key] = sessionRunId;
-    });
-    return sessionRunId;
-  }
-  async function touchSessionNoServico(estado, reason = "manual-stop") {
-    var _a;
-    const reporting = getReportingConfig(estado);
-    const baseUrl = (reporting.serviceUrl || CONFIG.REPORTING.SERVICE_DEFAULT).replace(/\/+$/, "");
-    const endpoint = `${baseUrl}/reports/session/touch`;
-    const sessionRunId = reporting.sessionRunId || resolverOuCriarSessionRunId(estado);
-    if (!sessionRunId) return { ok: false, skipped: true, reason: "session-id-empty" };
-    const estadoAny = estado;
-    const payload = {
-      sessionRunId,
-      projectName: obterProjetoLabelAtual(),
-      reason,
-      itemRef: String((estadoAny == null ? void 0 : estadoAny.itemAtualKey) || (estadoAny == null ? void 0 : estadoAny.itemAtualTelaId) || obterItemIdAtual() || "sem_item")
-    };
-    const headers = { "Content-Type": "application/json" };
-    if (reporting.apiToken) headers["X-KM-Token"] = reporting.apiToken;
-    const resp = await fetch(endpoint, {
-      method: "POST",
-      credentials: "omit",
-      headers,
-      body: JSON.stringify(payload)
-    });
-    const txt = await resp.text();
-    let data = {};
-    try {
-      data = txt ? JSON.parse(txt) : {};
-    } catch {
-      data = { raw: txt };
-    }
-    if (!resp.ok || (data == null ? void 0 : data.ok) === false) {
-      const msg = ((_a = data == null ? void 0 : data.errors) == null ? void 0 : _a.join(" | ")) || (data == null ? void 0 : data.detail) || `HTTP ${resp.status}`;
-      throw new Error(msg);
-    }
-    return data;
-  }
   function validar(key, valor) {
     const validador = CONFIG.VALIDADORES[key];
     if (!validador) return { valido: true, mensagem: "" };
@@ -3592,7 +3338,6 @@
       eUpd["itemFlags"] = eUpd["itemFlags"] || {};
       const itemFlags = eUpd["itemFlags"];
       const atual = itemFlags[key] || {};
-      const repAtual = atual["reporting"] || {};
       itemFlags[key] = {
         ...atual,
         unspscFeito: false,
@@ -3601,19 +3346,7 @@
         unspscInlineFallbackTentado: false,
         unspscInlineValorTentado: null,
         ncmValidacaoPendenteAte: 0,
-        ncmValidacaoAvisada: false,
-        reporting: {
-          ...repAtual,
-          mediaDone: false,
-          acompanhamentoDone: false,
-          reportDone: false,
-          mediaError: null,
-          mediaErrorCode: null,
-          acompanhamentoError: null,
-          acompanhamentoErrorCode: null,
-          reportError: null,
-          reportErrorCode: null
-        }
+        ncmValidacaoAvisada: false
       };
     });
   }
@@ -4572,7 +4305,7 @@
       workflowState2.unspscSelecionado = false;
       registrarUnspscSelecionado(estado, getValorAcao2);
       set("posSelecionar", CONFIG.DELAYS.POS_SELECIONAR_COOLDOWN);
-      log("✅ UNSPSC selecionado - avançando para coleta de mídia/acompanhamento", "info");
+      log("✅ UNSPSC selecionado", "info");
       return true;
     }
     return false;
@@ -4769,1428 +4502,6 @@
     }
     return false;
   }
-  const cachePorItem = /* @__PURE__ */ new Map();
-  function getCacheItem(itemKey) {
-    const key = String(itemKey ?? "").trim();
-    if (!key) return null;
-    if (!cachePorItem.has(key)) {
-      cachePorItem.set(key, { media: null, acompanhamento: null, files: [] });
-    }
-    return cachePorItem.get(key) || null;
-  }
-  function getItemReportingState(estado, itemKey) {
-    var _a, _b;
-    const estadoAny = estado;
-    return ((_b = (_a = estadoAny == null ? void 0 : estadoAny.itemFlags) == null ? void 0 : _a[itemKey]) == null ? void 0 : _b.reporting) || {};
-  }
-  function updateItemReportingState(itemKey, patch) {
-    if (!itemKey || !patch || typeof patch !== "object") return;
-    update((e) => {
-      const eAny = e;
-      eAny.itemFlags = eAny.itemFlags || {};
-      const atualItem = eAny.itemFlags[itemKey] || {};
-      const atualReporting = atualItem.reporting || {};
-      eAny.itemFlags[itemKey] = {
-        ...atualItem,
-        reporting: {
-          ...atualReporting,
-          ...patch
-        }
-      };
-    });
-  }
-  function obterCampoValor(seletores = []) {
-    for (const s of seletores) {
-      const el = buscarElementoDeep(s);
-      if (!el) continue;
-      const val = (el.value ?? el.textContent ?? "").toString().trim();
-      if (val) return val;
-    }
-    return null;
-  }
-  function extrairSinIdDaUrl() {
-    try {
-      const u = new URL(window.location.href);
-      return u.searchParams.get("IdSIN") || u.searchParams.get("Id") || null;
-    } catch {
-      return null;
-    }
-  }
-  function obterMetadadosBasicos(estado, itemKey) {
-    const itemId = obterItemIdAtual() || obterCampoValor(["#txtCodigo", 'input[name$="txtCodigo"]']) || itemKey || null;
-    const sinId = obterCampoValor(["#txtNumero", 'input[name$="txtNumero"]']) || extrairSinIdDaUrl() || itemKey || null;
-    const statusAtual = obterCampoValor(["#txtStatus", 'input[name$="txtStatus"]']) || null;
-    const solicitante = obterCampoValor(["#txtSolicitante", 'input[name$="txtSolicitante"]']) || null;
-    const empresa = obterCampoValor(["#txtEmpresa", 'input[name$="txtEmpresa"]']) || null;
-    const estadoAny = estado;
-    return {
-      itemId,
-      sinId,
-      statusAtual,
-      solicitante,
-      empresa,
-      timestamp: (/* @__PURE__ */ new Date()).toISOString(),
-      itemKey: itemKey || null,
-      perfil: (estadoAny == null ? void 0 : estadoAny.perfilAtivo) || "default"
-    };
-  }
-  function criarErroRelatorio(code, message, cause = null) {
-    const err = new Error(`${code}: ${message}`);
-    err.code = code;
-    err.cause = cause || null;
-    return err;
-  }
-  function classificarErroServico(message = "") {
-    const msg = String(message || "");
-    if (/401|token|unauthorized/i.test(msg)) return REPORTING_ERROR_CODES.SERVICE_AUTH_MISSING;
-    if (/413|file_size|file_count|limit|UPLOAD_LIMIT_EXCEEDED/i.test(msg)) return REPORTING_ERROR_CODES.UPLOAD_LIMIT_EXCEEDED;
-    return REPORTING_ERROR_CODES.SERVICE_UNAVAILABLE;
-  }
-  function extrairCharsetContentType(contentType = "") {
-    const m = String(contentType || "").match(/charset\s*=\s*["']?([^;"'\s]+)/i);
-    return (m == null ? void 0 : m[1]) ? m[1].trim().toLowerCase() : "";
-  }
-  function extrairCharsetMeta(bytes) {
-    try {
-      const head = bytes.slice(0, 8192);
-      const ascii = new TextDecoder("ascii").decode(head);
-      const mCharset = ascii.match(/<meta[^>]*charset=["']?\s*([a-z0-9._-]+)/i);
-      if (mCharset == null ? void 0 : mCharset[1]) return mCharset[1].trim().toLowerCase();
-      const mHttpEquiv = ascii.match(/<meta[^>]*http-equiv=["']content-type["'][^>]*content=["'][^"']*charset=([a-z0-9._-]+)/i);
-      if (mHttpEquiv == null ? void 0 : mHttpEquiv[1]) return mHttpEquiv[1].trim().toLowerCase();
-    } catch {
-    }
-    return "";
-  }
-  function normalizarLabelCharset(charset = "") {
-    const c = String(charset || "").toLowerCase();
-    if (!c) return "";
-    if (c === "latin1") return "iso-8859-1";
-    if (c === "cp1252" || c === "windows1252") return "windows-1252";
-    return c;
-  }
-  function scoreTextoDecodificado(texto = "") {
-    const invalid = (texto.match(/\uFFFD/g) || []).length;
-    const mojibake = (texto.match(/Ã.|Â.|â€|â€œ|â€/g) || []).length;
-    return invalid * 10 + mojibake;
-  }
-  function decodificarTextoHttp(buffer, contentType = "") {
-    const bytes = new Uint8Array(buffer || []);
-    const candidatos = [];
-    const headerCharset = normalizarLabelCharset(extrairCharsetContentType(contentType));
-    const metaCharset = normalizarLabelCharset(extrairCharsetMeta(bytes));
-    if (headerCharset) candidatos.push(headerCharset);
-    if (metaCharset && metaCharset !== headerCharset) candidatos.push(metaCharset);
-    candidatos.push("utf-8", "windows-1252", "iso-8859-1");
-    let melhorTexto = "";
-    let melhorScore = Number.POSITIVE_INFINITY;
-    for (const charset of candidatos) {
-      try {
-        const texto = new TextDecoder(charset, { fatal: false }).decode(bytes);
-        const score = scoreTextoDecodificado(texto);
-        if (score < melhorScore) {
-          melhorScore = score;
-          melhorTexto = texto;
-        }
-        if (score === 0) break;
-      } catch {
-      }
-    }
-    if (melhorTexto) return melhorTexto;
-    return new TextDecoder("utf-8", { fatal: false }).decode(bytes);
-  }
-  async function fetchWithRetry(url, { method = "GET", body = null, headers = {}, responseType = "text", timeoutMs = CONFIG.REPORTING.FETCH_TIMEOUT_MS, attempts = CONFIG.REPORTING.RETRY_ATTEMPTS } = {}) {
-    var _a;
-    let lastErr = null;
-    for (let i = 1; i <= Math.max(1, attempts); i++) {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), timeoutMs);
-      try {
-        const opts = {
-          method,
-          credentials: "include",
-          signal: controller.signal,
-          headers: { ...headers }
-        };
-        if (body) opts.body = body;
-        const resp = await fetch(url, opts);
-        if (!resp.ok) throw new Error(`Falha HTTP ${resp.status}`);
-        if (responseType === "blob") return await resp.blob();
-        const buffer = await resp.arrayBuffer();
-        return decodificarTextoHttp(buffer, ((_a = resp.headers) == null ? void 0 : _a.get("content-type")) || "");
-      } catch (err) {
-        lastErr = err;
-        if (i < attempts) {
-          const jitter = Math.floor(Math.random() * CONFIG.REPORTING.RETRY_JITTER_MS);
-          const delay = CONFIG.REPORTING.RETRY_BASE_DELAY_MS * Math.pow(2, i - 1) + jitter;
-          await sleep(delay);
-        }
-      } finally {
-        clearTimeout(timer);
-      }
-    }
-    throw lastErr || new Error("Falha de rede sem detalhe");
-  }
-  async function fetchHtml(url) {
-    return await fetchWithRetry(url, { responseType: "text" });
-  }
-  async function fetchPostHtml(url, formData) {
-    return await fetchWithRetry(url, {
-      method: "POST",
-      body: formData,
-      responseType: "text"
-    });
-  }
-  async function fetchBlob(url) {
-    return await fetchWithRetry(url, { responseType: "blob" });
-  }
-  const IMG_EXT = /* @__PURE__ */ new Set(["jpg", "jpeg", "png", "gif", "bmp", "webp"]);
-  const PDF_EXT = /* @__PURE__ */ new Set(["pdf"]);
-  function absolutizarComBase(href, baseUrl) {
-    try {
-      return new URL(String(href ?? ""), baseUrl || window.location.href).toString();
-    } catch {
-      return null;
-    }
-  }
-  function classificarMidia(url, title = "") {
-    const cleanTitle = normalizarEspacos(title);
-    let ext = "";
-    let fileExt = "";
-    try {
-      const parsedUrl = new URL(url, window.location.href);
-      const pathname = parsedUrl.pathname || "";
-      const mPath = pathname.toLowerCase().match(/\.([a-z0-9]+)$/);
-      ext = (mPath == null ? void 0 : mPath[1]) || "";
-      const fileParam = parsedUrl.searchParams.get("file") || "";
-      const mFile = fileParam.toLowerCase().match(/\.([a-z0-9]+)$/);
-      fileExt = (mFile == null ? void 0 : mFile[1]) || "";
-    } catch {
-      ext = "";
-      fileExt = "";
-    }
-    if (fileExt) ext = fileExt;
-    if (IMG_EXT.has(ext)) return { tipo: "imagem", ext };
-    if (PDF_EXT.has(ext)) return { tipo: "pdf", ext };
-    if (/\bpdf\b/i.test(cleanTitle)) return { tipo: "pdf", ext: ext || "pdf" };
-    if (/xlsx?|docx?|pptx?|txt|csv|zip|rar|7z/i.test(ext)) {
-      return { tipo: "file", ext };
-    }
-    if (/\bfoto|\bimagem|\banexo|\barquivo/i.test(cleanTitle)) return { tipo: "unsupported", ext };
-    if (ext && ext.length <= 5) return { tipo: "file", ext };
-    return { tipo: "unsupported", ext };
-  }
-  function isLinkAcaoInvalida(href, title = "", text = "") {
-    const rawHref = String(href || "");
-    const rawMeta = `${title || ""} ${text || ""}`.toLowerCase();
-    if (!rawHref || rawHref.startsWith("#")) return true;
-    if (/^javascript:/i.test(rawHref) && !/open[\w]*\s*\(/i.test(rawHref)) return true;
-    if (/__doPostBack/i.test(rawHref) && !/dlMidias|Foto|PDF|Midia/i.test(rawHref + " " + rawMeta)) return true;
-    if (/excluir|adicionar|remover|editar/i.test(rawMeta)) return true;
-    return false;
-  }
-  function extrairUrlOpenGenerica(href, nomesFuncoes = []) {
-    const fromKnown = extrairUrlDaFuncaoJs(href, nomesFuncoes);
-    if (fromKnown) return fromKnown;
-    const raw = String(href ?? "");
-    if (!raw) return null;
-    const m = raw.match(/open[\w]*\s*\(\s*['"]([^'"]+)['"]/i);
-    if (m == null ? void 0 : m[1]) return absolutizarUrl(m[1]);
-    const mAbre = raw.match(/abre(?:PDF)?\s*\(\s*['"]([^'"]+)['"]/i);
-    if (mAbre == null ? void 0 : mAbre[1]) return absolutizarUrl(mAbre[1]);
-    return null;
-  }
-  function encontrarAbaMidia(itemKey = null) {
-    const tabRoot = document.querySelector("#dlTab");
-    const links = tabRoot ? [...tabRoot.querySelectorAll("a")] : [...document.querySelectorAll('a[href*="Midia.aspx"], a#lbutMenu')];
-    const linksMidia = links.filter((a) => {
-      const txt = normalizarTextoSemAcento(a.textContent || "");
-      return txt.includes("midias (") || txt.includes("midia (") || txt.startsWith("midias");
-    });
-    if (linksMidia.length === 0) return null;
-    const candidatoHref = linksMidia.find((a) => {
-      const href = String(a.getAttribute("href") || "");
-      const midiaUrl = extrairUrlOpenGenerica(href, ["OpenNewTab", "opennewtab", "OpenWindowsWHR", "OpenWindowsWHRNS"]);
-      if (!midiaUrl) return false;
-      try {
-        const u = new URL(midiaUrl, window.location.href);
-        const id = u.searchParams.get("id");
-        if (itemKey && id && String(id) !== String(itemKey)) return false;
-        return /Midia\.aspx/i.test(u.pathname || "");
-      } catch {
-        return false;
-      }
-    });
-    return candidatoHref || linksMidia[0] || null;
-  }
-  function extrairQtdMidiaDoTexto(texto) {
-    const raw = normalizarEspacos(texto || "");
-    const m = raw.match(/Mídias?\s*\((\d+)\)/i);
-    if (!m) return null;
-    const n = Number.parseInt(m[1], 10);
-    return Number.isFinite(n) ? n : null;
-  }
-  function montarUrlsMidiaCandidatas(midiaUrl, _itemKey) {
-    const url = String(midiaUrl || "").trim();
-    return url ? [url] : [];
-  }
-  function detectarErroHtmlMidia(doc, html, requestUrl = "") {
-    var _a, _b;
-    const titulo = normalizarTextoSemAcento(((_a = doc == null ? void 0 : doc.querySelector("title")) == null ? void 0 : _a.textContent) || "");
-    const texto = normalizarTextoSemAcento(((_b = doc == null ? void 0 : doc.body) == null ? void 0 : _b.textContent) || html || "");
-    const url = normalizarTextoSemAcento(requestUrl || "");
-    const ehErroAspx = titulo.includes("erro") || url.includes("/erro.aspx");
-    const acessoNegado = texto.includes("acesso nao autorizado") || texto.includes("nao edite a url");
-    const excecao = texto.includes("ocorreu uma excecao") || texto.includes("object reference not set to an instance of an object");
-    if (ehErroAspx || acessoNegado || excecao) {
-      if (acessoNegado) return "Acesso não autorizado na Midia.aspx (URL protegida do Klassmatt)";
-      if (excecao) return "Midia.aspx retornou página de exceção do Klassmatt";
-      return "Midia.aspx retornou página de erro do Klassmatt";
-    }
-    return null;
-  }
-  function extrairCategoriasMidia(doc, baseUrl) {
-    const categorias = [];
-    if (!doc) return categorias;
-    const sidebars = doc.querySelectorAll('#dlMidias, [id*="dlMidias"]');
-    if (sidebars.length === 0) return categorias;
-    const vistos = /* @__PURE__ */ new Set();
-    for (const sidebar of sidebars) {
-      const links = sidebar.querySelectorAll("a[href]");
-      for (const a of links) {
-        const href = a.getAttribute("href") || "";
-        const text = normalizarEspacos(a.textContent || "");
-        if (/adicionar|excluir|remover|editar/i.test(text)) continue;
-        let cat = null;
-        if (/javascript:/i.test(href) && /__doPostBack/i.test(href)) {
-          const m = href.match(/__doPostBack\s*\(\s*['"]([^'"]+)['"]\s*,\s*['"]([^'"]*)['"]\s*\)/);
-          if (m == null ? void 0 : m[1]) {
-            cat = {
-              label: text,
-              type: "postback",
-              target: m[1],
-              argument: m[2] || "",
-              url: null
-            };
-          }
-        } else if (/Midia\.aspx/i.test(href)) {
-          const url = absolutizarComBase(href, baseUrl || window.location.href);
-          if (url) {
-            cat = {
-              label: text,
-              type: "link",
-              url,
-              target: null,
-              argument: null
-            };
-          }
-        }
-        if (cat) {
-          const key = cat.type === "postback" ? `pb:${cat.target}` : `lnk:${cat.url}`;
-          if (!vistos.has(key)) {
-            vistos.add(key);
-            categorias.push(cat);
-          }
-        }
-      }
-    }
-    return categorias;
-  }
-  function extrairViewState(doc) {
-    if (!doc) return {};
-    const getVal = (id) => {
-      const el = doc.querySelector(`#${id}`) || doc.querySelector(`input[name="${id}"]`);
-      return (el == null ? void 0 : el.value) || "";
-    };
-    return {
-      __VIEWSTATE: getVal("__VIEWSTATE"),
-      __VIEWSTATEGENERATOR: getVal("__VIEWSTATEGENERATOR"),
-      __EVENTVALIDATION: getVal("__EVENTVALIDATION")
-    };
-  }
-  function extrairItensMidiaDoDocumento(doc, baseUrl) {
-    const containers = [
-      ...doc.querySelectorAll('.slide, .carrousel, #dlMidias, [id*="dlMidias"], [class*="midia"], [class*="galeria"], .wme-galeria, .wme-galeria-g, .wme-galeria-lista, #divFotos')
-    ];
-    const roots = containers.length > 0 ? containers : [doc.body];
-    const vistos = /* @__PURE__ */ new Set();
-    const itens = [];
-    const pushItem = (url, meta = {}) => {
-      if (!url || vistos.has(url)) return;
-      vistos.add(url);
-      const title = String(meta.title || "");
-      const cls = classificarMidia(url, title);
-      if (cls.tipo === "unsupported" && !title && !/GetTempFile|Banco_Imagens/i.test(url)) return;
-      itens.push({
-        url,
-        tipo: cls.tipo,
-        ext: cls.ext || null,
-        title: normalizarEspacos(title) || null,
-        filename: slugifyArquivo(meta.filename || url.split("/").pop() || `midia_${itens.length + 1}`),
-        source: meta.source || "Midia.aspx"
-      });
-    };
-    for (const root of roots) {
-      const anchors = [...root.querySelectorAll("a[href]")];
-      for (const a of anchors) {
-        const href = a.getAttribute("href") || "";
-        const title = a.getAttribute("title") || "";
-        const text = a.textContent || "";
-        const onmouse = a.getAttribute("onmouseover") || "";
-        const mMouse = onmouse.match(/abre(?:PDF)?\s*\(\s*this\s*,\s*["'](.+?)["']\s*\)/);
-        const enrichedTitle = title || ((mMouse == null ? void 0 : mMouse[1]) ? normalizarEspacos(mMouse[1]) : "") || text;
-        if (isLinkAcaoInvalida(href, title, text)) continue;
-        const url = absolutizarComBase(href, baseUrl);
-        if (!url) continue;
-        pushItem(url, {
-          title: enrichedTitle,
-          filename: a.getAttribute("download") || null,
-          source: "Midia.aspx"
-        });
-      }
-      const dataImgAnchors = [...root.querySelectorAll("a[data-image], a[data-zoom-image]")];
-      for (const a of dataImgAnchors) {
-        const dataUrl = a.getAttribute("data-image") || a.getAttribute("data-zoom-image") || "";
-        const url = absolutizarComBase(dataUrl, baseUrl);
-        if (!url) continue;
-        pushItem(url, {
-          title: a.getAttribute("title") || "",
-          filename: a.getAttribute("download") || null,
-          source: "Midia.aspx/data-attr"
-        });
-      }
-      const imgs = [...root.querySelectorAll("img[src]")];
-      for (const img of imgs) {
-        const src = img.getAttribute("src") || "";
-        if (/^imagens\//i.test(src) || /\/imagens\//i.test(src)) continue;
-        if (!src || src === "#") continue;
-        const url = absolutizarComBase(src, baseUrl);
-        if (!url) continue;
-        pushItem(url, {
-          title: img.getAttribute("alt") || img.getAttribute("title") || "Imagem",
-          source: "Midia.aspx/img"
-        });
-      }
-    }
-    if (itens.length === 0 && doc.body) {
-      const allAnchors = [...doc.body.querySelectorAll("a[href]")];
-      for (const a of allAnchors) {
-        const href = a.getAttribute("href") || "";
-        const title = a.getAttribute("title") || "";
-        const text = a.textContent || "";
-        if (isLinkAcaoInvalida(href, title, text)) continue;
-        const url = absolutizarComBase(href, baseUrl);
-        if (!url) continue;
-        pushItem(url, { title, filename: a.getAttribute("download") || null, source: "Midia.aspx/fallback" });
-      }
-      const allDataImgs = [...doc.body.querySelectorAll("a[data-image], a[data-zoom-image]")];
-      for (const a of allDataImgs) {
-        const dataUrl = a.getAttribute("data-image") || a.getAttribute("data-zoom-image") || "";
-        const url = absolutizarComBase(dataUrl, baseUrl);
-        if (!url) continue;
-        pushItem(url, {
-          title: a.getAttribute("title") || "",
-          filename: a.getAttribute("download") || null,
-          source: "Midia.aspx/fallback-data"
-        });
-      }
-      const allImgs = [...doc.body.querySelectorAll("img[src]")];
-      for (const img of allImgs) {
-        const src = img.getAttribute("src") || "";
-        if (/^imagens\//i.test(src) || /\/imagens\//i.test(src)) continue;
-        if (!src || src === "#") continue;
-        const url = absolutizarComBase(src, baseUrl);
-        if (!url) continue;
-        pushItem(url, {
-          title: img.getAttribute("alt") || img.getAttribute("title") || "Imagem",
-          source: "Midia.aspx/fallback-img"
-        });
-      }
-    }
-    return itens;
-  }
-  function finalizarColetaMidiaSemArquivos(itemKey, summary) {
-    const cache2 = getCacheItem(itemKey);
-    if (cache2) {
-      cache2.media = summary;
-      cache2.files = cache2.files || [];
-    }
-    updateItemReportingState(itemKey, {
-      mediaDone: true,
-      mediaSummary: summary,
-      mediaCollectedAt: (/* @__PURE__ */ new Date()).toISOString()
-    });
-    return { ok: true, summary, files: [] };
-  }
-  function extrairSessionToken() {
-    try {
-      const params = new URLSearchParams(window.location.search);
-      return params.get("k") || null;
-    } catch {
-      return null;
-    }
-  }
-  function anexarSessionToken(url, sessionKey) {
-    if (!sessionKey || !url) return url;
-    try {
-      const u = new URL(url, window.location.href);
-      if (!u.searchParams.has("k")) {
-        u.searchParams.set("k", sessionKey);
-      }
-      return u.toString();
-    } catch {
-      if (!url.includes("k=")) {
-        return url + (url.includes("?") ? "&" : "?") + `k=${sessionKey}`;
-      }
-      return url;
-    }
-  }
-  function detectarContextoSin() {
-    const href = window.location.href;
-    const params = new URLSearchParams(window.location.search);
-    if (/SIN_Item|SIN_Resumo|sin_lista|SIN_Classificacao|SIN_Detalhes|SIN_Novo/i.test(href)) return true;
-    const keys = Array.from(params.keys()).map((k) => k.toLowerCase());
-    return keys.includes("idsin");
-  }
-  async function coletarMidia$1(estado, itemKey) {
-    const reporting = getReportingConfig(estado);
-    if (!reporting.enabledMedia) {
-      const summary2 = { status: "SKIPPED_DISABLED", total: 0, imagens: 0, pdfs: 0, unsupported: 0, itens: [] };
-      updateItemReportingState(itemKey, { mediaDone: true, mediaSummary: summary2, mediaSkipped: true });
-      return { ok: true, skipped: true, summary: summary2, files: [] };
-    }
-    const sessionKey = extrairSessionToken();
-    const abaMidia = encontrarAbaMidia(itemKey);
-    if (!abaMidia) {
-      const summary2 = { status: "ABA_MIDIA_NAO_ENCONTRADA", total: 0, imagens: 0, pdfs: 0, unsupported: 0, itens: [] };
-      updateItemReportingState(itemKey, { mediaDone: true, mediaSummary: summary2 });
-      return { ok: true, skipped: true, summary: summary2, files: [] };
-    }
-    const qtdMidia = extrairQtdMidiaDoTexto(abaMidia.textContent || "") ?? 0;
-    if (qtdMidia === 0) {
-      const summary2 = { status: "SEM_MIDIA_UI_ZERO", total: 0, imagens: 0, pdfs: 0, unsupported: 0, itens: [] };
-      updateItemReportingState(itemKey, { mediaDone: true, mediaSummary: summary2 });
-      const cache22 = getCacheItem(itemKey);
-      if (cache22) cache22.media = summary2;
-      return { ok: true, summary: summary2, files: [] };
-    }
-    const hrefMidia = abaMidia.getAttribute("href") || "";
-    let midiaUrl = extrairUrlOpenGenerica(hrefMidia, ["OpenNewTab", "opennewtab"]);
-    if (!midiaUrl) {
-      const itemId = itemKey || new URLSearchParams(window.location.search).get("IdItem");
-      const isSinContext = detectarContextoSin();
-      const tipo = isSinContext ? "SIN" : "Itens";
-      let targetId = itemId;
-      if (isSinContext) {
-        const params = new URLSearchParams(window.location.search);
-        const idSin = params.get("IdSIN") || params.get("idsin");
-        if (idSin) targetId = idSin;
-      }
-      if (targetId) {
-        midiaUrl = absolutizarUrl(`Midia.aspx?tipo=${tipo}&id=${targetId}&Alterar=0&Session=${tipo}`);
-      }
-      if (!midiaUrl) {
-        const summary2 = {
-          status: "SEM_MIDIA_URL",
-          total: 0,
-          imagens: 0,
-          pdfs: 0,
-          unsupported: 0,
-          requestedByUiCount: qtdMidia,
-          diagnostic: "Não foi possível extrair URL de Midia.aspx",
-          itens: []
-        };
-        return finalizarColetaMidiaSemArquivos(itemKey, summary2);
-      }
-    }
-    midiaUrl = anexarSessionToken(midiaUrl, sessionKey);
-    let itens = [];
-    let baseMidiaUsada = midiaUrl;
-    const urlsCandidatas = montarUrlsMidiaCandidatas(midiaUrl).map(
-      (u) => anexarSessionToken(u, sessionKey)
-    );
-    let lastErr = null;
-    for (const urlCandidata of urlsCandidatas) {
-      try {
-        const html = await fetchHtml(urlCandidata);
-        const doc = new DOMParser().parseFromString(html, "text/html");
-        const erroMidia = detectarErroHtmlMidia(doc, html, urlCandidata);
-        if (erroMidia) {
-          const summary2 = {
-            status: "SEM_MIDIA_ERRO_PAGINA",
-            total: 0,
-            imagens: 0,
-            pdfs: 0,
-            unsupported: 0,
-            sourceUrl: urlCandidata,
-            requestedByUiCount: qtdMidia,
-            diagnostic: erroMidia,
-            itens: []
-          };
-          return finalizarColetaMidiaSemArquivos(itemKey, summary2);
-        }
-        const candidatos = extrairItensMidiaDoDocumento(doc, urlCandidata);
-        if (candidatos.length > 0) {
-          itens = candidatos;
-          baseMidiaUsada = urlCandidata;
-        }
-        const categorias = extrairCategoriasMidia(doc, urlCandidata);
-        const categoriasVisitadas = /* @__PURE__ */ new Set([urlCandidata]);
-        const viewStateInicial = extrairViewState(doc);
-        for (const cat of categorias) {
-          let catHtml = null;
-          let catUrl = null;
-          try {
-            if (cat.type === "link" && cat.url) {
-              catUrl = anexarSessionToken(cat.url, sessionKey);
-              if (categoriasVisitadas.has(catUrl)) continue;
-              categoriasVisitadas.add(catUrl);
-              catHtml = await fetchHtml(catUrl);
-            } else if (cat.type === "postback" && cat.target) {
-              const key = `pb:${cat.target}`;
-              if (categoriasVisitadas.has(key)) continue;
-              categoriasVisitadas.add(key);
-              const formData = new FormData();
-              formData.append("__EVENTTARGET", cat.target);
-              formData.append("__EVENTARGUMENT", cat.argument || "");
-              formData.append("__VIEWSTATE", viewStateInicial.__VIEWSTATE || "");
-              formData.append("__VIEWSTATEGENERATOR", viewStateInicial.__VIEWSTATEGENERATOR || "");
-              formData.append("__EVENTVALIDATION", viewStateInicial.__EVENTVALIDATION || "");
-              const postUrl = anexarSessionToken(urlCandidata, sessionKey);
-              catHtml = await fetchPostHtml(postUrl, formData);
-              if (catHtml) {
-                console.log(`[ColetorMidia] PostBack '${cat.label}' retornou ${catHtml.length} chars. Início: ${catHtml.substring(0, 500)}...`);
-              } else {
-                console.warn(`[ColetorMidia] PostBack '${cat.label}' retornou VAZIO.`);
-              }
-              catUrl = `${urlCandidata}#cat=${cat.label}`;
-            }
-            if (!catHtml) continue;
-            const catDoc = new DOMParser().parseFromString(catHtml, "text/html");
-            const err = detectarErroHtmlMidia(catDoc, catHtml, catUrl || urlCandidata);
-            if (err) {
-              console.warn(`[ColetorMidia] Erro detectado na resposta do PostBack '${cat.label}': ${err}`);
-              continue;
-            }
-            const catItens = extrairItensMidiaDoDocumento(catDoc, catUrl || urlCandidata);
-            for (const ci of catItens) {
-              if (!itens.some((existing) => existing.url === ci.url)) {
-                ci.source = `Midia.aspx/cat:${cat.label || "extra"}`;
-                itens.push(ci);
-              }
-            }
-          } catch (_catErr) {
-            console.warn(`[ColetorMidia] Erro ao buscar categoria ${cat.label}:`, _catErr);
-          }
-        }
-        if (itens.length > 0) break;
-      } catch (err) {
-        lastErr = err;
-      }
-    }
-    if (itens.length === 0 && lastErr) {
-      const summary2 = {
-        status: "SEM_MIDIA_FETCH_ERROR",
-        total: 0,
-        imagens: 0,
-        pdfs: 0,
-        unsupported: 0,
-        sourceUrl: baseMidiaUsada,
-        requestedByUiCount: qtdMidia,
-        diagnostic: `Falha ao buscar Midia.aspx: ${(lastErr == null ? void 0 : lastErr.message) || lastErr}`,
-        itens: []
-      };
-      return finalizarColetaMidiaSemArquivos(itemKey, summary2);
-    }
-    if (itens.length === 0) {
-      const summary2 = {
-        status: "SEM_MIDIA_PARSE",
-        total: 0,
-        imagens: 0,
-        pdfs: 0,
-        unsupported: 0,
-        sourceUrl: baseMidiaUsada,
-        requestedByUiCount: qtdMidia,
-        diagnostic: null,
-        itens: []
-      };
-      return finalizarColetaMidiaSemArquivos(itemKey, summary2);
-    }
-    const files = [];
-    const limitByUi = Math.max(1, Number(reporting.maxFilesPerItem || CONFIG.REPORTING.MAX_FILES_PER_ITEM));
-    const limit = Math.min(CONFIG.REPORTING.MAX_MEDIA_DOWNLOADS, limitByUi);
-    const maxBytes = Math.max(1, Number(reporting.maxFileSizeMb || CONFIG.REPORTING.MAX_FILE_SIZE_MB)) * 1024 * 1024;
-    for (const item of itens.slice(0, limit)) {
-      if (item.tipo !== "imagem" && item.tipo !== "pdf" && item.tipo !== "file") continue;
-      try {
-        const downloadUrl = anexarSessionToken(item.url, sessionKey);
-        const blob = await fetchBlob(downloadUrl);
-        if (blob.size > maxBytes) {
-          item.downloadError = `${REPORTING_ERROR_CODES.UPLOAD_LIMIT_EXCEEDED}: arquivo excede limite de ${reporting.maxFileSizeMb}MB`;
-          continue;
-        }
-        let mime = blob.type;
-        if (!mime || mime === "application/octet-stream") {
-          if (item.tipo === "pdf") mime = "application/pdf";
-          else if (item.tipo === "imagem") mime = "image/*";
-          else mime = "application/octet-stream";
-        }
-        files.push({
-          kind: item.tipo,
-          filename: item.filename,
-          url: item.url,
-          mimeType: mime,
-          blob,
-          size: blob.size
-        });
-      } catch (err) {
-        item.downloadError = `${REPORTING_ERROR_CODES.MEDIA_PARSE_ERROR}: ${String((err == null ? void 0 : err.message) || err)}`;
-      }
-    }
-    const imagens = itens.filter((i) => i.tipo === "imagem").length;
-    const pdfs = itens.filter((i) => i.tipo === "pdf").length;
-    const filesCount = itens.filter((i) => i.tipo === "file").length;
-    const unsupported = itens.filter((i) => i.tipo === "unsupported").length;
-    const summary = {
-      status: "OK",
-      total: itens.length,
-      imagens,
-      pdfs,
-      otherFiles: filesCount,
-      unsupported,
-      sourceUrl: baseMidiaUsada,
-      requestedByUiCount: qtdMidia,
-      itens
-    };
-    const cache2 = getCacheItem(itemKey);
-    if (cache2) {
-      cache2.media = summary;
-      cache2.files = (cache2.files || []).concat(files);
-    }
-    updateItemReportingState(itemKey, {
-      mediaDone: true,
-      mediaSummary: summary,
-      mediaCollectedAt: (/* @__PURE__ */ new Date()).toISOString()
-    });
-    return { ok: true, summary, files };
-  }
-  function normalizarCodigoNcm(raw) {
-    const digits = String(raw || "").replace(/\D/g, "");
-    if (digits.length !== 8) return null;
-    return `${digits.slice(0, 4)}.${digits.slice(4, 6)}.${digits.slice(6, 8)}`;
-  }
-  function detectarMencoesNcmEvento(texto) {
-    const src = normalizarEspacos(texto || "");
-    if (!src) {
-      return { keywordMention: false, formattedCodes: [], unformattedCodes: [] };
-    }
-    const norm = normalizarTextoSemAcento(src).toLowerCase();
-    const keywordMention = /\bn\.?\s*c\.?\s*m\b|\bncm\b/i.test(norm);
-    const contextoNcm = keywordMention || /(classificac[aã]o\s*fiscal|codigo\s*ncm|cod\.?\s*ncm)/i.test(norm);
-    const formattedMatch = src.match(/\b\d{4}\.\d{2}\.\d{2}\b/g) || [];
-    const formatted = [...new Set(formattedMatch.map(normalizarCodigoNcm).filter((c) => Boolean(c)))];
-    const unformattedMatch = src.match(/\b\d{8}\b/g) || [];
-    const unformatted = contextoNcm ? [...new Set(unformattedMatch.map(normalizarCodigoNcm).filter((c) => Boolean(c)))] : [];
-    return { keywordMention, formattedCodes: formatted, unformattedCodes: unformatted };
-  }
-  function consolidarHistorico(eventos) {
-    const timeline = [];
-    const stageTransitions = [];
-    const importantes = [];
-    const ncmCodesSet = /* @__PURE__ */ new Set();
-    const evidences = [];
-    let ncmKeywordMentions = 0;
-    let formattedMatches = 0;
-    let unformattedMatchesWithContext = 0;
-    let fiscalCount = 0;
-    for (const evento of eventos) {
-      const dia = normalizarEspacos((evento == null ? void 0 : evento.dia) || "");
-      const hora = normalizarEspacos((evento == null ? void 0 : evento.hora) || "");
-      const usuarioAtual = normalizarEspacos((evento == null ? void 0 : evento.usuario) || "") || null;
-      const descricao = normalizarEspacos((evento == null ? void 0 : evento.descricao) || "");
-      if (!descricao) continue;
-      const descricaoHtml = String((evento == null ? void 0 : evento.descricaoHtml) || "").trim();
-      const yellowComments = Array.isArray(evento == null ? void 0 : evento.yellowComments) ? evento.yellowComments.map((s) => normalizarEspacos(s || "")).filter(Boolean) : [];
-      const fontesNcm = [descricao, ...yellowComments];
-      const mStage = descricao.match(/Solicita[cç][aã]o enviada para\s+(.+)$/i) || descricao.match(/Solicita.*o enviada para\s+(.+)$/i);
-      const stage = mStage ? normalizarEspacos(mStage[1]).toUpperCase() : null;
-      if (stage) {
-        stageTransitions.push({ dia, hora, usuario: usuarioAtual, stage });
-        if (stage.includes("FISCAL-INTEGRA") || stage.includes("FISCAL-KLASSMATT")) fiscalCount++;
-      }
-      if (/retorn|forçou o retorno|trazer de volta/i.test(descricao)) {
-        importantes.push({ tipo: "RETORNO_ETAPA", dia, hora, usuario: usuarioAtual, descricao });
-      }
-      if (/SOLICITACAO ALTERADA/i.test(descricao)) {
-        const keys = CONFIG.REPORTING.ALTERACAO_CAMPOS_CHAVE.filter((k) => descricao.toUpperCase().includes(k));
-        if (keys.length > 0) {
-          importantes.push({
-            tipo: "ALTERACAO_CHAVE",
-            dia,
-            hora,
-            usuario: usuarioAtual,
-            campos: keys,
-            descricao
-          });
-        }
-      }
-      for (const yc of yellowComments) {
-        const norm = normalizarTextoSemAcento(yc);
-        const score = CONFIG.REPORTING.IMPORTANT_YELLOW_KEYWORDS.reduce((acc, kw) => acc + (norm.includes(kw) ? 1 : 0), 0);
-        if (score > 0) {
-          importantes.push({
-            tipo: "COMENTARIO_AMARELO_IMPORTANTE",
-            score,
-            dia,
-            hora,
-            usuario: usuarioAtual,
-            comentario: yc
-          });
-        }
-      }
-      for (const fonte of fontesNcm) {
-        const det = detectarMencoesNcmEvento(fonte);
-        if (det.keywordMention) ncmKeywordMentions++;
-        if (det.formattedCodes.length > 0) formattedMatches += det.formattedCodes.length;
-        if (det.unformattedCodes.length > 0) unformattedMatchesWithContext += det.unformattedCodes.length;
-        const codigos = [...det.formattedCodes, ...det.unformattedCodes];
-        for (const codigo of codigos) {
-          ncmCodesSet.add(codigo);
-          if (evidences.length < 8) {
-            evidences.push({
-              dia,
-              hora,
-              usuario: usuarioAtual,
-              codigo,
-              trecho: fonte.slice(0, 220)
-            });
-          }
-        }
-      }
-      timeline.push({
-        dia,
-        hora,
-        usuario: usuarioAtual,
-        descricao,
-        descricaoHtml,
-        stage,
-        yellowComments
-      });
-    }
-    const criticalFiscalRework = fiscalCount > 2;
-    if (criticalFiscalRework) {
-      importantes.unshift({
-        tipo: "ALERTA_FISCAL_REINCIDENCIA",
-        descricao: `Etapas FISCAL-INTEGRA/FISCAL-KLASSMATT apareceram ${fiscalCount} vezes (limite > 2)`
-      });
-    }
-    return {
-      timeline,
-      summary: {
-        totalEventos: timeline.length,
-        totalTransicoes: stageTransitions.length,
-        fiscalTransitionsCount: fiscalCount,
-        criticalFiscalRework,
-        stageTransitions,
-        importantSignals: importantes,
-        ncmMentions: {
-          found: ncmKeywordMentions > 0 || ncmCodesSet.size > 0,
-          keywordMentions: ncmKeywordMentions,
-          formattedMatches,
-          unformattedMatchesWithContext,
-          codes: [...ncmCodesSet],
-          evidences
-        }
-      }
-    };
-  }
-  function parseHistoricoEstrito(doc) {
-    var _a, _b;
-    const eventos = [];
-    const fieldsets = [...doc.querySelectorAll("fieldset.hist-fieldset")];
-    for (const fs of fieldsets) {
-      const dia = normalizarEspacos(((_a = fs.querySelector("legend.hist-legend")) == null ? void 0 : _a.textContent) || "");
-      let usuarioAtual = null;
-      const rows = [...fs.querySelectorAll(".row")];
-      for (const row of rows) {
-        const isResult = row.classList.contains("result");
-        if (!isResult) {
-          const userLink = row.querySelector('a#hlinkUsuario, a[href*="USUARIO_show"]');
-          if (userLink) usuarioAtual = normalizarEspacos(userLink.textContent || "").replace(/\*+$/, "");
-          continue;
-        }
-        const hora = normalizarEspacos(((_b = row.querySelector('span[id="lblHora"]')) == null ? void 0 : _b.textContent) || "");
-        const descEl = row.querySelector('span[id="lblDescricao"]');
-        const descricao = normalizarEspacos((descEl == null ? void 0 : descEl.textContent) || "");
-        const descricaoHtml = ((descEl == null ? void 0 : descEl.innerHTML) || "").trim();
-        const yellowNodes = descEl ? [...descEl.querySelectorAll('span[style*="background-color"]')] : [];
-        const yellowComments = yellowNodes.map((n) => normalizarEspacos(n.textContent || "")).filter(Boolean);
-        eventos.push({
-          dia,
-          hora,
-          usuario: usuarioAtual,
-          descricao,
-          descricaoHtml,
-          yellowComments
-        });
-      }
-    }
-    return consolidarHistorico(eventos);
-  }
-  function parseHistoricoLoose(doc) {
-    var _a;
-    const eventos = [];
-    const fieldsets = [...doc.querySelectorAll("fieldset")];
-    for (const fs of fieldsets) {
-      const dia = normalizarEspacos(((_a = fs.querySelector("legend")) == null ? void 0 : _a.textContent) || "");
-      let usuarioAtual = null;
-      const textoBruto = String(fs.innerText || fs.textContent || "");
-      const linhas = textoBruto.split(/\r?\n+/).map((s) => normalizarEspacos(s)).filter(Boolean);
-      let eventoAtual = null;
-      for (const linha of linhas) {
-        if (dia && linha === dia) continue;
-        const candidatoUsuario = linha.replace(/\*+$/, "");
-        if (/^[a-zA-Z0-9._-]{3,}$/.test(candidatoUsuario) && !/\s/.test(candidatoUsuario) && !/solicita[cç][aã]o|retorn|aprov|catalog|revis/i.test(candidatoUsuario)) {
-          if (eventoAtual) {
-            eventos.push(eventoAtual);
-            eventoAtual = null;
-          }
-          usuarioAtual = candidatoUsuario;
-          continue;
-        }
-        const mHora = linha.match(/^(\d{1,2}:\d{2})(?:\s*[-–]\s*|\s+)(.+)$/);
-        if (mHora == null ? void 0 : mHora[2]) {
-          if (eventoAtual) eventos.push(eventoAtual);
-          eventoAtual = {
-            dia,
-            hora: mHora[1],
-            usuario: usuarioAtual,
-            descricao: normalizarEspacos(mHora[2]),
-            descricaoHtml: "",
-            yellowComments: []
-          };
-        } else if (eventoAtual) {
-          eventoAtual.descricao += " " + linha;
-        } else {
-          eventos.push({
-            dia,
-            hora: "",
-            usuario: usuarioAtual,
-            descricao: linha,
-            descricaoHtml: "",
-            yellowComments: []
-          });
-        }
-      }
-      if (eventoAtual) eventos.push(eventoAtual);
-    }
-    return consolidarHistorico(eventos);
-  }
-  function parseHistorico(doc) {
-    const parsedEstrito = parseHistoricoEstrito(doc);
-    const estritoTotal = ((parsedEstrito == null ? void 0 : parsedEstrito.timeline) || []).length;
-    if (estritoTotal > 0) return parsedEstrito;
-    return parseHistoricoLoose(doc);
-  }
-  const EMPTY_NCM$1 = { found: false, keywordMentions: 0, formattedMatches: 0, unformattedMatchesWithContext: 0, codes: [], evidences: [] };
-  function buildSkipSummary(status, extra = {}) {
-    return {
-      status,
-      totalEventos: 0,
-      totalTransicoes: 0,
-      fiscalTransitionsCount: 0,
-      criticalFiscalRework: false,
-      stageTransitions: [],
-      importantSignals: [],
-      ncmMentions: { ...EMPTY_NCM$1 },
-      ...extra
-    };
-  }
-  function encontrarLinkAcompanhamento() {
-    const direto = buscarElementoDeep("#hButAcompanhamentoSIN, #hlkObs");
-    if (direto) return direto;
-    const links = [...document.querySelectorAll("a")];
-    return links.find((a) => normalizarTextoSemAcento(a.textContent || "").includes("acompanhamento")) || null;
-  }
-  async function coletarAcompanhamento$1(estado, itemKey) {
-    const reporting = getReportingConfig(estado);
-    if (!reporting.enabledAcompanhamento) {
-      const summary = buildSkipSummary("SKIPPED_DISABLED");
-      updateItemReportingState(itemKey, { acompanhamentoDone: true, acompanhamentoSummary: summary, acompanhamentoSkipped: true });
-      return { ok: true, skipped: true, summary };
-    }
-    const link = encontrarLinkAcompanhamento();
-    let acompanhamentoUrl = null;
-    if (link) {
-      const href = link.getAttribute("href") || "";
-      acompanhamentoUrl = extrairUrlOpenGenerica(href, ["OpenWindowsWHR", "OpenWindowsWHRNS", "OpenNewTab"]);
-    }
-    if (!acompanhamentoUrl) {
-      const params = new URLSearchParams(window.location.search);
-      const idItem = itemKey || params.get("Id") || params.get("IdItem");
-      if (idItem) {
-        acompanhamentoUrl = absolutizarUrl(`Historico.aspx?source=SIN&SomenteLeitura=1&Id=${idItem}`);
-      }
-    }
-    if (!acompanhamentoUrl) {
-      const summary = buildSkipSummary("SKIPPED_LINK_NOT_FOUND");
-      updateItemReportingState(itemKey, { acompanhamentoDone: true, acompanhamentoSummary: summary });
-      return { ok: true, skipped: true, summary };
-    }
-    let html = "";
-    try {
-      html = await fetchHtml(acompanhamentoUrl);
-    } catch (err) {
-      const summary = buildSkipSummary("SKIPPED_PARSING_FAILED", {
-        diagnostic: `Falha ao buscar Historico.aspx: ${(err == null ? void 0 : err.message) || err}`
-      });
-      updateItemReportingState(itemKey, { acompanhamentoDone: true, acompanhamentoSummary: summary });
-      return { ok: true, skipped: true, summary };
-    }
-    let parsed = null;
-    try {
-      const doc = new DOMParser().parseFromString(html, "text/html");
-      parsed = parseHistorico(doc);
-    } catch (err) {
-      const summary = buildSkipSummary("SKIPPED_PARSING_FAILED", {
-        diagnostic: `Falha ao interpretar Historico.aspx: ${(err == null ? void 0 : err.message) || err}`
-      });
-      updateItemReportingState(itemKey, { acompanhamentoDone: true, acompanhamentoSummary: summary });
-      return { ok: true, skipped: true, summary };
-    }
-    if (((parsed == null ? void 0 : parsed.timeline) || []).length === 0) {
-      const summary = buildSkipSummary("SKIPPED_EMPTY_TIMELINE");
-      updateItemReportingState(itemKey, { acompanhamentoDone: true, acompanhamentoSummary: summary });
-      return { ok: true, skipped: true, summary };
-    }
-    const cache2 = getCacheItem(itemKey);
-    if (cache2) cache2.acompanhamento = parsed;
-    updateItemReportingState(itemKey, {
-      acompanhamentoDone: true,
-      acompanhamentoSummary: { status: "OK", ...parsed.summary },
-      acompanhamentoCollectedAt: (/* @__PURE__ */ new Date()).toISOString()
-    });
-    return { ok: true, summary: parsed.summary, timeline: parsed.timeline };
-  }
-  function registrarEventoMidia(itemKey, summary, itemTelaId = null) {
-    if (!itemKey || !summary) return;
-    update((e) => {
-      const payloadTotal = Number(summary.total || 0);
-      const payloadStatus = summary.status || "OK";
-      registrarEventoItem(e, itemKey, "midia_coletada", {
-        itemTelaId: itemTelaId || e["itemAtualTelaId"] || itemKey,
-        resumo: `Coleta de mídia: ${payloadStatus} (${payloadTotal} arquivos)`,
-        payload: {
-          status: payloadStatus,
-          total: payloadTotal,
-          imagens: Number(summary.imagens || 0),
-          pdfs: Number(summary.pdfs || 0),
-          unsupported: Number(summary.unsupported || 0)
-        },
-        status: "em_andamento",
-        now: Date.now()
-      });
-    });
-  }
-  function registrarEventoAcompanhamento(itemKey, summary, itemTelaId = null) {
-    if (!itemKey || !summary) return;
-    update((e) => {
-      const payloadTotalEventos = Number(summary.totalEventos || 0);
-      const payloadStatus = summary.status || "OK";
-      registrarEventoItem(e, itemKey, "acompanhamento_coletado", {
-        itemTelaId: itemTelaId || e["itemAtualTelaId"] || itemKey,
-        resumo: `Acompanhamento coletado: ${payloadTotalEventos} eventos`,
-        payload: {
-          status: payloadStatus,
-          totalEventos: payloadTotalEventos,
-          criticalFiscalRework: !!summary.criticalFiscalRework
-        },
-        status: "em_andamento",
-        now: Date.now()
-      });
-    });
-  }
-  async function coletarMidia(estado, status, { getAcao: getAcao2 }) {
-    const acao = getAcao2("coletarMidia", estado);
-    if (!acao.ativo) return false;
-    const estadoAny = estado;
-    const itemKey = estadoAny["itemAtualKey"];
-    if (!itemKey) return false;
-    const reporting = getReportingConfig(estado);
-    const repState = getItemReportingState(estado, itemKey);
-    if (repState.mediaDone) {
-      const logKey = `log:midia_done:${itemKey}`;
-      if (!isAtivo(logKey)) {
-        log(`COLETA_MIDIA | Item ${itemKey} | SKIPPED_ALREADY_DONE`, "info");
-        set(logKey, 1e4);
-      }
-      return false;
-    }
-    if (!reporting.enabledMedia) {
-      const summary = { status: "SKIPPED_DISABLED", total: 0, imagens: 0, pdfs: 0, unsupported: 0, itens: [] };
-      updateItemReportingState(itemKey, {
-        mediaDone: true,
-        mediaSummary: summary
-      });
-      registrarEventoMidia(itemKey, summary, estadoAny["itemAtualTelaId"]);
-      log(`COLETA_MIDIA | Item ${itemKey} | SKIPPED_DISABLED | desativada no perfil`, "info");
-      return true;
-    }
-    if (reporting.clickMediaTabBeforeCollect) {
-      let abaMidia = buscarElementoDeep(acao.seletor);
-      if (!abaMidia) {
-        const tabRoot = document.querySelector("#dlTab");
-        const candidatos = tabRoot ? [...tabRoot.querySelectorAll("a")] : [...document.querySelectorAll('a[href*="Midia.aspx"], a[id*="lbutMenu"], a[id*="lbutSelMenu"]')];
-        abaMidia = candidatos.find((a) => normalizarTextoSemAcento(a.textContent || "").includes("midia")) || null;
-      }
-      if (abaMidia && elementoVisivel(abaMidia)) {
-        if (status) status.textContent = "Abrindo aba Mídias...";
-        await interagir(abaMidia, null, "coletarMidiaAba");
-      } else {
-        log(`COLETA_MIDIA | Item ${itemKey} | ABA_MIDIA_NAO_ENCONTRADA_PARA_CLIQUE | seguindo com coleta por leitura`, "warn");
-      }
-    }
-    if (status) status.textContent = "Coletando mídias...";
-    try {
-      log(`COLETA_MIDIA | Item ${itemKey} | START | modo=${reporting.clickMediaTabBeforeCollect ? "click+fetch" : "headless"}`, "info");
-      const result = await coletarMidia$1(estado, itemKey);
-      const s = result.summary || {};
-      registrarEventoMidia(itemKey, s, estadoAny["itemAtualTelaId"]);
-      const diag = s.diagnostic ? ` | diag=${s.diagnostic}` : "";
-      const origem = s.sourceUrl ? ` | source=${s.sourceUrl}` : "";
-      log(`COLETA_MIDIA | Item ${itemKey} | ${s.status || "OK"} | img=${s.imagens || 0} pdf=${s.pdfs || 0} outros=${s.unsupported || 0}${origem}${diag}`, "info");
-      return true;
-    } catch (err) {
-      const msg = String((err == null ? void 0 : err.message) || err);
-      const code = (err == null ? void 0 : err.code) || REPORTING_ERROR_CODES.MEDIA_PARSE_ERROR;
-      const summary = { status: "ERRO", total: 0, imagens: 0, pdfs: 0, unsupported: 0, itens: [] };
-      updateItemReportingState(itemKey, {
-        mediaDone: true,
-        mediaSummary: summary,
-        mediaError: msg,
-        mediaErrorCode: code
-      });
-      registrarEventoMidia(itemKey, summary, estadoAny["itemAtualTelaId"]);
-      log(`COLETA_MIDIA | Item ${itemKey} | ${code}: ${msg} | modo opcional: seguindo fluxo`, "warn");
-      return true;
-    }
-  }
-  async function coletarAcompanhamento(estado, status, { getAcao: getAcao2 }) {
-    const acao = getAcao2("coletarAcompanhamento", estado);
-    if (!acao.ativo) return false;
-    const estadoAny = estado;
-    const itemKey = estadoAny["itemAtualKey"];
-    if (!itemKey) return false;
-    const reporting = getReportingConfig(estado);
-    const repState = getItemReportingState(estado, itemKey);
-    if (repState.acompanhamentoDone) {
-      const logKey = `log:hist_done:${itemKey}`;
-      if (!isAtivo(logKey)) {
-        log(`COLETA_HISTORICO | Item ${itemKey} | SKIPPED_ALREADY_DONE`, "info");
-        set(logKey, 1e4);
-      }
-      return false;
-    }
-    if (!reporting.enabledAcompanhamento) {
-      const summary = {
-        status: "SKIPPED_DISABLED",
-        totalEventos: 0,
-        totalTransicoes: 0,
-        fiscalTransitionsCount: 0,
-        criticalFiscalRework: false,
-        stageTransitions: [],
-        importantSignals: []
-      };
-      updateItemReportingState(itemKey, {
-        acompanhamentoDone: true,
-        acompanhamentoSummary: summary
-      });
-      registrarEventoAcompanhamento(itemKey, summary, estadoAny["itemAtualTelaId"]);
-      log(`COLETA_HISTORICO | Item ${itemKey} | SKIPPED_DISABLED | desativada no perfil`, "info");
-      return true;
-    }
-    if (status) status.textContent = "Coletando acompanhamento...";
-    try {
-      log(`COLETA_HISTORICO | Item ${itemKey} | START | modo=headless`, "info");
-      const result = await coletarAcompanhamento$1(estado, itemKey);
-      const s = result.summary || {};
-      registrarEventoAcompanhamento(itemKey, s, estadoAny["itemAtualTelaId"]);
-      if (s.criticalFiscalRework) {
-        log(`COLETA_HISTORICO | Item ${itemKey} | CRITICO | fiscalTransitions=${s.fiscalTransitionsCount}`, "warn");
-      } else {
-        log(`COLETA_HISTORICO | Item ${itemKey} | OK | eventos=${s.totalEventos || 0}`, "info");
-      }
-      return true;
-    } catch (err) {
-      const msg = String((err == null ? void 0 : err.message) || err);
-      const code = (err == null ? void 0 : err.code) || REPORTING_ERROR_CODES.HISTORICO_PARSE_ERROR;
-      const summary = {
-        status: "ERRO",
-        totalEventos: 0,
-        totalTransicoes: 0,
-        fiscalTransitionsCount: 0,
-        criticalFiscalRework: false,
-        stageTransitions: [],
-        importantSignals: []
-      };
-      updateItemReportingState(itemKey, {
-        acompanhamentoDone: true,
-        acompanhamentoSummary: summary,
-        acompanhamentoError: msg,
-        acompanhamentoErrorCode: code
-      });
-      registrarEventoAcompanhamento(itemKey, summary, estadoAny["itemAtualTelaId"]);
-      log(`COLETA_HISTORICO | Item ${itemKey} | ${code}: ${msg} | modo opcional: seguindo fluxo`, "warn");
-      return true;
-    }
-  }
-  function hasGmXhr() {
-    return typeof globalThis.GM_xmlhttpRequest === "function" || typeof globalThis.GM !== "undefined" && typeof globalThis.GM.xmlHttpRequest === "function";
-  }
-  function gmXhr(details) {
-    if (typeof globalThis.GM_xmlhttpRequest === "function") return globalThis.GM_xmlhttpRequest(details);
-    if (typeof globalThis.GM !== "undefined" && typeof globalThis.GM.xmlHttpRequest === "function") return globalThis.GM.xmlHttpRequest(details);
-    throw new Error("GM_xmlhttpRequest indisponível");
-  }
-  function getOrder(pref) {
-    const p = String(pref || "auto").toLowerCase();
-    if (p === "gm_xhr") return ["gm_xhr", "fetch"];
-    if (p === "fetch") return ["fetch"];
-    return ["gm_xhr", "fetch"];
-  }
-  function parseJsonSafe(raw) {
-    const txt = String(raw ?? "");
-    if (!txt) return { ok: false, errors: ["Empty response"] };
-    try {
-      return JSON.parse(txt);
-    } catch {
-      return { ok: false, errors: [`Resposta inválida do serviço: ${txt.slice(0, 300)}`] };
-    }
-  }
-  async function sendWithFetch(url, formData, headers, timeoutMs) {
-    var _a;
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
-    try {
-      const resp = await fetch(url, {
-        method: "POST",
-        body: formData,
-        mode: "cors",
-        headers,
-        signal: controller.signal
-      });
-      const raw = await resp.text();
-      const data = parseJsonSafe(raw);
-      if (!resp.ok || (data == null ? void 0 : data.ok) === false) {
-        const msg = ((_a = data == null ? void 0 : data.errors) == null ? void 0 : _a[0]) || `Falha ${resp.status} no serviço local`;
-        throw new Error(msg);
-      }
-      return data;
-    } finally {
-      clearTimeout(timer);
-    }
-  }
-  async function sendWithGmXhr(url, formData, headers, timeoutMs) {
-    if (!hasGmXhr()) throw new Error("GM_xmlhttpRequest indisponível");
-    return new Promise((resolve, reject) => {
-      gmXhr({
-        method: "POST",
-        url,
-        data: formData,
-        headers,
-        timeout: timeoutMs,
-        onload: (resp) => {
-          var _a;
-          const data = parseJsonSafe(resp.responseText || "");
-          if (resp.status < 200 || resp.status >= 300 || (data == null ? void 0 : data.ok) === false) {
-            const msg = ((_a = data == null ? void 0 : data.errors) == null ? void 0 : _a[0]) || `Falha ${resp.status} no serviço local`;
-            reject(new Error(msg));
-            return;
-          }
-          resolve(data);
-        },
-        onerror: () => reject(new Error("Falha de transporte GM_xmlhttpRequest")),
-        ontimeout: () => reject(new Error("Timeout de transporte GM_xmlhttpRequest"))
-      });
-    });
-  }
-  async function send(formData, config) {
-    const attempts = Math.max(1, Number(config.attempts || CONFIG.REPORTING.RETRY_ATTEMPTS));
-    const order = getOrder(config.transport);
-    const timeoutMs = Math.max(2e3, Number(config.timeoutMs || CONFIG.REPORTING.SERVICE_TIMEOUT_MS));
-    const headers = { ...config.headers || {} };
-    const baseDelay = Math.max(100, Number(config.baseDelayMs || CONFIG.REPORTING.RETRY_BASE_DELAY_MS));
-    const jitterMs = Math.max(0, Number(config.jitterMs || CONFIG.REPORTING.RETRY_JITTER_MS));
-    let lastError = null;
-    for (let attempt = 1; attempt <= attempts; attempt++) {
-      for (const mode of order) {
-        if (mode === "gm_xhr" && !hasGmXhr()) continue;
-        try {
-          if (mode === "gm_xhr") return await sendWithGmXhr(config.url, formData, headers, timeoutMs);
-          return await sendWithFetch(config.url, formData, headers, timeoutMs);
-        } catch (err) {
-          lastError = err;
-        }
-      }
-      if (attempt < attempts) {
-        const jitter = jitterMs ? Math.floor(Math.random() * jitterMs) : 0;
-        const delay = baseDelay * Math.pow(2, attempt - 1) + jitter;
-        await sleep(delay);
-      }
-    }
-    throw lastError || new Error("Falha de transporte sem detalhe");
-  }
-  const EMPTY_NCM = { found: false, keywordMentions: 0, formattedMatches: 0, unformattedMatchesWithContext: 0, codes: [], evidences: [] };
-  async function enviarRelatorioItem(estado, itemKey) {
-    const reporting = getReportingConfig(estado);
-    const itemState = getItemReportingState(estado, itemKey);
-    const cache2 = getCacheItem(itemKey) || {};
-    const meta = obterMetadadosBasicos(estado, itemKey);
-    const mediaSummary = cache2.media || itemState.mediaSummary || { status: "NAO_COLETADO", total: 0, imagens: 0, pdfs: 0, otherFiles: 0, unsupported: 0, itens: [] };
-    const histData = cache2.acompanhamento || {};
-    const historicoSummary = histData.summary || itemState.acompanhamentoSummary || {
-      status: "NAO_COLETADO",
-      totalEventos: 0,
-      fiscalTransitionsCount: 0,
-      criticalFiscalRework: false,
-      stageTransitions: [],
-      importantSignals: [],
-      ncmMentions: { ...EMPTY_NCM }
-    };
-    const historicoTimeline = histData.timeline || [];
-    const manifest = {
-      manifestVersion: 2,
-      ...meta,
-      timestamp: (/* @__PURE__ */ new Date()).toISOString(),
-      sessionRunId: reporting.sessionRunId || resolverOuCriarSessionRunId(estado),
-      uploadLimits: {
-        maxFileSizeMb: reporting.maxFileSizeMb,
-        maxFilesPerItem: reporting.maxFilesPerItem
-      },
-      ocrEnabled: reporting.ocrEnabled,
-      ocrEngine: reporting.ocrEngine,
-      mediaSummary,
-      historicoSummary,
-      historicoTimeline
-    };
-    const form = new FormData();
-    form.append("manifest", JSON.stringify(manifest));
-    const arquivos = Array.isArray(cache2.files) ? cache2.files : [];
-    const maxFiles = Math.max(1, Number(reporting.maxFilesPerItem || CONFIG.REPORTING.MAX_FILES_PER_ITEM));
-    const maxBytes = Math.max(1, Number(reporting.maxFileSizeMb || CONFIG.REPORTING.MAX_FILE_SIZE_MB)) * 1024 * 1024;
-    for (const f of arquivos.slice(0, maxFiles)) {
-      if (!(f == null ? void 0 : f.blob)) continue;
-      if (f.blob.size > maxBytes) continue;
-      const fname = slugifyArquivo(f.filename || `media_${Date.now()}`);
-      form.append("files", f.blob, fname);
-    }
-    const baseUrl = (reporting.serviceUrl || CONFIG.REPORTING.SERVICE_DEFAULT).replace(/\/+$/, "");
-    const endpoint = `${baseUrl}/reports/item`;
-    const headers = {};
-    if (reporting.apiToken) headers["X-KM-Token"] = reporting.apiToken;
-    let data;
-    try {
-      data = await send(form, {
-        url: endpoint,
-        headers,
-        transport: reporting.transport,
-        timeoutMs: CONFIG.REPORTING.SERVICE_TIMEOUT_MS,
-        attempts: CONFIG.REPORTING.RETRY_ATTEMPTS
-      });
-    } catch (err) {
-      const code = classificarErroServico((err == null ? void 0 : err.message) || "");
-      throw criarErroRelatorio(code, (err == null ? void 0 : err.message) || "Falha ao enviar relatório", err);
-    }
-    updateItemReportingState(itemKey, {
-      reportDone: true,
-      reportResponse: {
-        ok: true,
-        itemId: (data == null ? void 0 : data.itemId) || meta.itemId || null,
-        pdfPath: (data == null ? void 0 : data.pdfPath) || null,
-        mdPath: (data == null ? void 0 : data.mdPath) || null,
-        warnings: (data == null ? void 0 : data.warnings) || [],
-        generatedAt: (/* @__PURE__ */ new Date()).toISOString()
-      },
-      reportError: null,
-      reportErrorCode: null
-    });
-    return data;
-  }
-  async function gerarRelatorioItem(estado, status, { getAcao: getAcao2 }) {
-    const acao = getAcao2("gerarRelatorioItem", estado);
-    if (!acao.ativo) return false;
-    const estadoAny = estado;
-    const itemKey = estadoAny["itemAtualKey"];
-    if (!itemKey) return false;
-    const reporting = getReportingConfig(estado);
-    const repState = getItemReportingState(estado, itemKey);
-    if (repState.reportDone) return false;
-    if (!reporting.enabledReport) {
-      updateItemReportingState(itemKey, {
-        reportDone: true,
-        reportResponse: {
-          ok: true,
-          skippedDisabled: true,
-          generatedAt: (/* @__PURE__ */ new Date()).toISOString(),
-          warnings: ["Geração de relatório PDF/MD desativada nas opções"]
-        },
-        reportError: null,
-        reportErrorCode: null
-      });
-      log(`ENVIO_RELATORIO | Item ${itemKey} | SKIPPED_DISABLED: geração de PDF/MD desativada`, "info");
-      return true;
-    }
-    const erroColeta = repState.mediaErrorCode || repState.acompanhamentoErrorCode;
-    if (erroColeta) {
-      const msgColeta = repState.mediaError || repState.acompanhamentoError || "Falha de coleta antes da geração do relatório";
-      updateItemReportingState(itemKey, {
-        reportDone: true,
-        reportResponse: {
-          ok: false,
-          skippedByCollectionError: true,
-          generatedAt: (/* @__PURE__ */ new Date()).toISOString(),
-          warnings: [msgColeta]
-        },
-        reportError: null,
-        reportErrorCode: null
-      });
-      log(`ENVIO_RELATORIO | Item ${itemKey} | SKIPPED_COLETA(${erroColeta}): ${msgColeta} | modo opcional`, "warn");
-      return true;
-    }
-    if (reporting.enabledMedia && !repState.mediaDone) return false;
-    if (reporting.enabledAcompanhamento && !repState.acompanhamentoDone) return false;
-    if (status) status.textContent = "Gerando relatório (PDF+MD)...";
-    try {
-      const data = await enviarRelatorioItem(estado, itemKey);
-      update((e) => {
-        const eAny = e;
-        registrarEventoItem(e, itemKey, "relatorio_enviado", {
-          itemTelaId: eAny["itemAtualTelaId"] || itemKey,
-          resumo: "Relatório enviado com sucesso",
-          payload: {
-            itemId: (data == null ? void 0 : data.itemId) || null,
-            pdfPath: (data == null ? void 0 : data.pdfPath) || null,
-            mdPath: (data == null ? void 0 : data.mdPath) || null,
-            warningsCount: Array.isArray(data == null ? void 0 : data.warnings) ? data.warnings.length : 0
-          },
-          status: "em_andamento",
-          now: Date.now()
-        });
-      });
-      log(`ENVIO_RELATORIO | Item ${itemKey} | OK | PDF=${(data == null ? void 0 : data.pdfPath) || "-"} MD=${(data == null ? void 0 : data.mdPath) || "-"}`, "info");
-      return true;
-    } catch (err) {
-      const msg = String((err == null ? void 0 : err.message) || err);
-      const code = (err == null ? void 0 : err.code) || REPORTING_ERROR_CODES.SERVICE_UNAVAILABLE;
-      updateItemReportingState(itemKey, {
-        reportDone: true,
-        reportError: msg,
-        reportErrorCode: code
-      });
-      log(`ENVIO_RELATORIO | Item ${itemKey} | ${code}: ${msg} | modo opcional: seguindo fluxo`, "warn");
-      return true;
-    }
-  }
   function createHandlerMap(ctx) {
     return {
       confirmar: (e, s) => confirmar(e, s, ctx),
@@ -6204,9 +4515,6 @@
       ncm: (e, s) => ncm(e, s, ctx),
       lei116Servico: (e, s) => lei116Servico(e, s, ctx),
       abaFiscal: (e, s) => abaFiscal(e, s, ctx),
-      coletarMidia: (e, s) => coletarMidia(e, s, ctx),
-      coletarAcompanhamento: (e, s) => coletarAcompanhamento(e, s, ctx),
-      gerarRelatorioItem: (e, s) => gerarRelatorioItem(e, s, ctx),
       prosseguir: (e, s) => prosseguir(e, s, ctx)
     };
   }
@@ -6840,11 +5148,9 @@
       }
     });
     persistirAcoes(estado);
-    const estadoAny = estado;
-    estadoAny["reporting"] = normalizarReportingConfig(estadoAny["reporting"]);
-    estadoAny["reporting"]["sessionRunId"] = resolverOuCriarSessionRunId(estado);
     estado.ativo = true;
     estado.pausado = false;
+    const estadoAny = estado;
     estadoAny["progresso"] = { atual: 0, total: totalPlanejadoJson, ultimoProcessado: null, concluidosIds: [] };
     estadoAny["itemFlags"] = {};
     estadoAny["itemAtualKey"] = null;
@@ -6859,13 +5165,13 @@
     estadoAny["trilhaExecucao"] = resetarTrilhaExecucao(
       estado,
       {
-        runId: estadoAny["reporting"]["sessionRunId"],
+        runId: null,
         now: Date.now()
       }
     );
     workflowState.reset();
     set$1(estado);
-    log(`▶️ Ciclo iniciado (session: ${estadoAny["reporting"]["sessionRunId"]})`, "info");
+    log("▶️ Ciclo iniciado", "info");
     tocar("success");
     _atualizarBotaoToggle();
     roboAtivo = true;
@@ -6881,17 +5187,6 @@
       e.ativo = false;
     });
     log("🛑 Ciclo parado", "info");
-    const estado = get();
-    const reporting = getReportingConfig(estado);
-    if (reporting["serviceUrl"]) {
-      touchSessionNoServico(estado, "manual-stop").then((data) => {
-        const dir = (data == null ? void 0 : data["sessionDir"]) || "-";
-        log(`📁 Sessão de relatório atualizada: ${dir}`, "info");
-      }).catch((err) => {
-        const e = err;
-        log(`⚠️ Não foi possível criar/atualizar pasta da sessão ao parar: ${(e == null ? void 0 : e.message) || err}`, "warn");
-      });
-    }
     _atualizarBotaoToggle();
     _atualizarIndicadorProgresso();
   }
@@ -7265,7 +5560,6 @@
     `;
   }
   function renderOpcoesSection(estado) {
-    const reporting = estado.reporting || normalizarReportingConfig(REPORTING_DEFAULTS);
     return `
         <section class="km-card">
             <label class="km-section-label">Opções</label>
@@ -7289,56 +5583,6 @@
                     <input type="range" id="clickCooldownSlider" min="0" max="20000" step="500" value="${Number(estado.clickCooldownMs || 3e3)}">
                 </div>
 
-                <div class="km-divider"></div>
-
-                <label class="km-checkline">
-                    <input type="checkbox" id="chkReportingEnabled" ${reporting.enabledReport ? "checked" : ""}>
-                    <span>Gerar relatório PDF/MD</span>
-                </label>
-                <label class="km-checkline">
-                    <input type="checkbox" id="chkReportingMedia" ${reporting.enabledMedia ? "checked" : ""}>
-                    <span>Coletar mídia</span>
-                </label>
-                <label class="km-checkline">
-                    <input type="checkbox" id="chkReportingClickMediaTab" ${reporting.clickMediaTabBeforeCollect ? "checked" : ""}>
-                    <span>Clicar na aba Mídias antes da coleta</span>
-                </label>
-                <label class="km-checkline">
-                    <input type="checkbox" id="chkReportingAcompanhamento" ${reporting.enabledAcompanhamento ? "checked" : ""}>
-                    <span>Coletar acompanhamento</span>
-                </label>
-                <label class="km-checkline">
-                    <input type="checkbox" id="chkReportingBlock" ${reporting.blockOnReportError ? "checked" : ""}>
-                    <span>Bloquear em erro de relatório</span>
-                </label>
-
-                <div class="km-field">
-                    <label for="txtReportingServiceUrl">Serviço local</label>
-                    <input type="text" id="txtReportingServiceUrl" value="${escapeHtml(reporting.serviceUrl || CONFIG.REPORTING.SERVICE_DEFAULT)}">
-                </div>
-                <div class="km-field">
-                    <label for="txtReportingApiToken">Token API</label>
-                    <input type="text" id="txtReportingApiToken" value="${escapeHtml(reporting.apiToken || "")}" placeholder="X-KM-Token">
-                </div>
-                <div class="km-field">
-                    <label for="selReportingTransport">Transporte</label>
-                    <select id="selReportingTransport">
-                        <option value="auto" ${reporting.transport === "auto" ? "selected" : ""}>auto</option>
-                        <option value="gm_xhr" ${reporting.transport === "gm_xhr" ? "selected" : ""}>gm_xhr</option>
-                        <option value="fetch" ${reporting.transport === "fetch" ? "selected" : ""}>fetch</option>
-                    </select>
-                </div>
-
-                <div class="km-field-grid">
-                    <div class="km-field">
-                        <label for="numReportingMaxFileMb">Max MB/arquivo</label>
-                        <input type="number" id="numReportingMaxFileMb" min="1" max="200" value="${Number(reporting.maxFileSizeMb || CONFIG.REPORTING.MAX_FILE_SIZE_MB)}">
-                    </div>
-                    <div class="km-field">
-                        <label for="numReportingMaxFiles">Max arquivos/item</label>
-                        <input type="number" id="numReportingMaxFiles" min="1" max="200" value="${Number(reporting.maxFilesPerItem || CONFIG.REPORTING.MAX_FILES_PER_ITEM)}">
-                    </div>
-                </div>
             </div>
         </section>
     `;
@@ -7441,7 +5685,6 @@
                 <div class="km-log-actions">
                     <button id="btnCopiarLogs" class="km-inline-button" type="button">Copiar tudo</button>
                     <button id="btnLimparLogs" class="km-inline-button km-inline-button--danger" type="button">Apagar</button>
-                    <button id="btnCopiarRelatorio" class="km-inline-button" type="button">Copiar erro</button>
                 </div>
             </div>
             <div class="km-log-resizer">
@@ -8198,7 +6441,6 @@
   function construirPainel(painelMinimizado) {
     var _a;
     const estado = get();
-    estado.reporting = normalizarReportingConfig(estado.reporting || REPORTING_DEFAULTS);
     const div = document.createElement("div");
     div.id = PANEL_ID;
     div.classList.toggle("is-collapsed", !!painelMinimizado);
@@ -8215,16 +6457,11 @@
     const estado = get();
     if (!estado.perfis) estado.perfis = {};
     estado.perfis[nome] = clone(estado.acoes || {});
-    estado.perfilConfigs = estado.perfilConfigs || {};
-    estado.perfilConfigs[nome] = {
-      reporting: normalizarReportingConfig(estado.reporting)
-    };
     set$1(estado);
     log(`📁 Perfil "${nome}" criado`, "info");
     renderizarSeletor();
   }
   function carregar(nome) {
-    var _a, _b;
     const estado = get();
     if (!estado.perfis || !estado.perfis[nome]) {
       log(`❌ Perfil "${nome}" não encontrado`, "error");
@@ -8232,8 +6469,6 @@
     }
     estado.acoes = clone(estado.perfis[nome]);
     estado.perfilAtivo = nome;
-    const cfgPerfil = (_b = (_a = estado.perfilConfigs) == null ? void 0 : _a[nome]) == null ? void 0 : _b.reporting;
-    estado.reporting = normalizarReportingConfig(cfgPerfil || REPORTING_DEFAULTS);
     set$1(estado);
     log(`📂 Perfil "${nome}" carregado`, "info");
     if (typeof globalThis.location !== "undefined") {
@@ -8241,19 +6476,15 @@
     }
   }
   function excluir(nome) {
-    var _a, _b;
     if (nome === "default") {
       log("⚠️ Não é possível excluir o perfil padrão", "warn");
       return;
     }
     const estado = get();
     if (estado.perfis) delete estado.perfis[nome];
-    if (estado.perfilConfigs) delete estado.perfilConfigs[nome];
     if (estado.perfilAtivo === nome) {
       estado.perfilAtivo = "default";
       estado.acoes = estado.perfis && estado.perfis.default ? estado.perfis.default : {};
-      const defaultCfg = (_b = (_a = estado.perfilConfigs) == null ? void 0 : _a.default) == null ? void 0 : _b.reporting;
-      estado.reporting = normalizarReportingConfig(defaultCfg || REPORTING_DEFAULTS);
     }
     set$1(estado);
     renderizarSeletor();
@@ -8266,7 +6497,6 @@
       schema: CONFIG.SCHEMA_VERSION,
       nome: estado.perfilAtivo || "default",
       acoes: perfilAtual,
-      reporting: normalizarReportingConfig(estado.reporting),
       exportadoEm: (/* @__PURE__ */ new Date()).toISOString()
     };
     const blob = new Blob([JSON.stringify(dadosExport, null, 2)], { type: "application/json" });
@@ -8319,11 +6549,6 @@
             };
           });
           estado.perfis[nomePerfil] = acoesValidadas;
-          estado.perfilConfigs = estado.perfilConfigs || {};
-          estado.perfilConfigs[nomePerfil] = {
-            reporting: normalizarReportingConfig(dados.reporting || REPORTING_DEFAULTS)
-          };
-          estado.reporting = normalizarReportingConfig(dados.reporting || estado.reporting || REPORTING_DEFAULTS);
           set$1(estado);
           log(`📥 Perfil "${nomePerfil}" importado com sucesso`, "info");
           tocar("success");
@@ -8457,68 +6682,6 @@
       estado.perfis[estado.perfilAtivo] = clone(estado.acoes);
       set$1(estado);
     }
-  }
-  function gerar(contexto = {}) {
-    const estado = get();
-    return JSON.stringify({
-      timestamp: (/* @__PURE__ */ new Date()).toISOString(),
-      url: globalThis.location.href,
-      userAgent: navigator.userAgent,
-      estado: {
-        ativo: estado.ativo,
-        pausado: estado.pausado,
-        progresso: estado.progresso,
-        perfilAtivo: estado.perfilAtivo,
-        itemMap: {
-          ativo: estado.itemMapAtivo,
-          total: Object.keys(estado.itemMap || {}).length,
-          ultimoAplicadoId: estado.itemMapUltimoAplicadoId
-        },
-        timers: {
-          globalActionDelayMs: estado.globalActionDelayMs,
-          clickCooldownMs: estado.clickCooldownMs
-        }
-      },
-      trilhaExecucao: serializarTrilhaParaRelatorio(estado),
-      ultimosLogs: (estado.logs || []).slice(0, 10),
-      contexto,
-      domSnapshot: {
-        title: document.title,
-        visibleButtons: [...document.querySelectorAll('button, input[type="button"], input[type="submit"], a')].filter(elementoVisivel).slice(0, 20).map((b) => ({
-          id: b.id,
-          name: b.name || null,
-          text: (b.textContent || b.value || "").replace(/\s+/g, " ").trim().slice(0, 60)
-        }))
-      }
-    }, null, 2);
-  }
-  async function copiar() {
-    var _a;
-    const estado = get();
-    const relatorio = gerar({ ultimoErro: (_a = estado.estatisticas) == null ? void 0 : _a.ultimoErro });
-    try {
-      await navigator.clipboard.writeText(relatorio);
-      log("📋 Relatório copiado para clipboard!", "info");
-      globalThis.alert("Relatório de erro copiado! Cole em um arquivo ou envie ao suporte.");
-    } catch {
-      mostrarModal(relatorio);
-    }
-  }
-  function mostrarModal(relatorio) {
-    var _a;
-    const modal = document.createElement("div");
-    modal.id = "modal-relatorio";
-    modal.style.cssText = "position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);z-index:9999999;display:flex;align-items:center;justify-content:center;";
-    modal.innerHTML = `
-        <div style="background:white;padding:20px;border-radius:8px;max-width:700px;width:90vw;max-height:80vh;overflow:auto;">
-          <h3>📋 Relatório de Erro</h3>
-          <textarea id="txtRelatorio" style="width:100%;height:320px;font-family:monospace;font-size:11px;"></textarea>
-          <br><button id="btnFecharModal" style="margin-top:10px;padding:8px 16px;">Fechar</button>
-        </div>
-    `;
-    document.body.appendChild(modal);
-    document.getElementById("txtRelatorio").value = relatorio;
-    (_a = document.getElementById("btnFecharModal")) == null ? void 0 : _a.addEventListener("click", () => modal.remove());
   }
   const LOG_AREA_DEFAULT_HEIGHT = 110;
   const LOG_AREA_MIN_HEIGHT = 80;
@@ -8692,7 +6855,7 @@
     return estado;
   }
   function wireEvents(toggleMinimizar2) {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z, _A;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p;
     const estado = get();
     const fmtS = (ms) => `${(Number(ms || 0) / 1e3).toFixed(1)}s`;
     const painelConteudo = document.getElementById("painelConteudo");
@@ -8808,10 +6971,6 @@
     });
     if (estado.perfis && !estado.perfis.default) {
       estado.perfis.default = clone(estado.acoes);
-      estado.perfilConfigs = estado.perfilConfigs || {};
-      estado.perfilConfigs.default = estado.perfilConfigs.default || {
-        reporting: normalizarReportingConfig(estado.reporting || REPORTING_DEFAULTS)
-      };
       set$1(estado);
     }
     renderizarSeletor();
@@ -8819,8 +6978,7 @@
     const logsAtuais = (preloadParaUI == null ? void 0 : preloadParaUI()) || [];
     logsAtuais.slice(0, 20).reverse().forEach((entry) => atualizarUI == null ? void 0 : atualizarUI(entry));
     (_a = document.getElementById("drawerToggle")) == null ? void 0 : _a.addEventListener("click", toggleMinimizar2);
-    (_b = document.getElementById("btnCopiarRelatorio")) == null ? void 0 : _b.addEventListener("click", () => copiar());
-    (_c = document.getElementById("btnCopiarLogs")) == null ? void 0 : _c.addEventListener("click", async () => {
+    (_b = document.getElementById("btnCopiarLogs")) == null ? void 0 : _b.addEventListener("click", async () => {
       const texto = (formatarTodos == null ? void 0 : formatarTodos()) || "";
       if (!texto.trim()) {
         log("ℹ️ Sem logs para copiar", "info");
@@ -8833,17 +6991,17 @@
         log(`❌ Erro ao copiar logs: ${(err == null ? void 0 : err.message) || err}`, "error");
       }
     });
-    (_d = document.getElementById("btnLimparLogs")) == null ? void 0 : _d.addEventListener("click", () => {
+    (_c = document.getElementById("btnLimparLogs")) == null ? void 0 : _c.addEventListener("click", () => {
       limpar$2 == null ? void 0 : limpar$2();
     });
-    (_e = document.getElementById("chkSimulacao")) == null ? void 0 : _e.addEventListener("change", (e) => {
+    (_d = document.getElementById("chkSimulacao")) == null ? void 0 : _d.addEventListener("change", (e) => {
       update((st) => {
         st.modoSimulacao = e.target.checked;
       });
       const novoEstado = get();
       log(novoEstado.modoSimulacao ? "🧪 Modo simulação ATIVADO" : "▶️ Modo simulação desativado", "info");
     });
-    (_f = document.getElementById("chkPausarReincidencia")) == null ? void 0 : _f.addEventListener("change", (e) => {
+    (_e = document.getElementById("chkPausarReincidencia")) == null ? void 0 : _e.addEventListener("change", (e) => {
       const ativo = !!e.target.checked;
       update((st) => {
         st.pausarEmReincidencia = ativo;
@@ -8852,7 +7010,7 @@
     });
     const itemMapTextarea = document.getElementById("itemMapJson");
     if (itemMapTextarea) itemMapTextarea.value = estado.itemMapJson || "";
-    (_g = document.getElementById("chkItemMapAtivo")) == null ? void 0 : _g.addEventListener("change", (e) => {
+    (_f = document.getElementById("chkItemMapAtivo")) == null ? void 0 : _f.addEventListener("change", (e) => {
       update((st) => {
         st.itemMapAtivo = e.target.checked;
       });
@@ -8860,24 +7018,24 @@
       log(novoEstado.itemMapAtivo ? "🧾 JSON por item ATIVADO" : "🧾 JSON por item DESATIVADO", "info");
       atualizarStatusUI(novoEstado);
     });
-    (_h = document.getElementById("btnItemMapAplicar")) == null ? void 0 : _h.addEventListener("click", () => {
+    (_g = document.getElementById("btnItemMapAplicar")) == null ? void 0 : _g.addEventListener("click", () => {
       aplicarJson((itemMapTextarea == null ? void 0 : itemMapTextarea.value) || "");
     });
-    (_i = document.getElementById("btnItemMapCriar")) == null ? void 0 : _i.addEventListener("click", () => {
+    (_h = document.getElementById("btnItemMapCriar")) == null ? void 0 : _h.addEventListener("click", () => {
       gerarJsonDoItemAtual(itemMapTextarea);
     });
     const fiscalHintsTextarea = document.getElementById("fiscalHintsJson");
     if (fiscalHintsTextarea && !fiscalHintsTextarea.value.trim()) {
       fiscalHintsTextarea.value = exportarDicasFiscaisJson(estado.fiscalHints || {});
     }
-    (_j = document.getElementById("chkFiscalHintsAtivo")) == null ? void 0 : _j.addEventListener("change", (e) => {
+    (_i = document.getElementById("chkFiscalHintsAtivo")) == null ? void 0 : _i.addEventListener("change", (e) => {
       update((st) => {
         st.fiscalHintsAtivo = e.target.checked;
       });
       aplicarDicasFiscaisDoEstado();
       log(e.target.checked ? "🔎 Dicas fiscais ativadas" : "🔎 Dicas fiscais desativadas", "info");
     });
-    (_k = document.getElementById("btnFiscalHintAdicionar")) == null ? void 0 : _k.addEventListener("click", () => {
+    (_j = document.getElementById("btnFiscalHintAdicionar")) == null ? void 0 : _j.addEventListener("click", () => {
       var _a2, _b2, _c2;
       const termo = ((_a2 = document.getElementById("txtFiscalHintTermo")) == null ? void 0 : _a2.value) || "";
       const ncm2 = ((_b2 = document.getElementById("txtFiscalHintNcm")) == null ? void 0 : _b2.value) || "";
@@ -8896,7 +7054,7 @@
       setFiscalHintsStatus("Dica adicionada.");
       log(`🔎 Dica fiscal adicionada para: ${termo}`, "info");
     });
-    (_l = document.getElementById("btnFiscalHintsImportar")) == null ? void 0 : _l.addEventListener("click", () => {
+    (_k = document.getElementById("btnFiscalHintsImportar")) == null ? void 0 : _k.addEventListener("click", () => {
       const json = (fiscalHintsTextarea == null ? void 0 : fiscalHintsTextarea.value) || "";
       const resultado2 = importarDicasFiscaisJson(json);
       if (!resultado2.ok) {
@@ -8907,7 +7065,7 @@
       setFiscalHintsStatus("JSON aplicado.");
       log("🔎 JSON de dicas fiscais aplicado", "info");
     });
-    (_m = document.getElementById("btnFiscalHintsExportar")) == null ? void 0 : _m.addEventListener("click", () => {
+    (_l = document.getElementById("btnFiscalHintsExportar")) == null ? void 0 : _l.addEventListener("click", () => {
       const est = get();
       const json = exportarDicasFiscaisJson(est.fiscalHints || {});
       update((st) => {
@@ -8916,7 +7074,7 @@
       if (fiscalHintsTextarea) fiscalHintsTextarea.value = json;
       setFiscalHintsStatus("JSON atualizado.");
     });
-    (_n = document.getElementById("fiscalHintsLista")) == null ? void 0 : _n.addEventListener("click", (e) => {
+    (_m = document.getElementById("fiscalHintsLista")) == null ? void 0 : _m.addEventListener("click", (e) => {
       const btn = e.target.closest("[data-km-fiscal-remove]");
       if (!btn) return;
       const id = btn.dataset.kmFiscalRemove || "";
@@ -8926,7 +7084,7 @@
       setFiscalHintsStatus("Dica removida.");
     });
     const deb = (fn) => debounce(fn, 80);
-    (_o = document.getElementById("globalActionDelaySlider")) == null ? void 0 : _o.addEventListener("input", deb((e) => {
+    (_n = document.getElementById("globalActionDelaySlider")) == null ? void 0 : _n.addEventListener("input", deb((e) => {
       const valor = parseInt(e.target.value, 10);
       const label = document.getElementById("globalActionDelayLabel");
       if (label) label.textContent = fmtS(valor);
@@ -8934,7 +7092,7 @@
         st.globalActionDelayMs = valor;
       });
     }));
-    (_p = document.getElementById("clickCooldownSlider")) == null ? void 0 : _p.addEventListener("input", deb((e) => {
+    (_o = document.getElementById("clickCooldownSlider")) == null ? void 0 : _o.addEventListener("input", deb((e) => {
       const valor = parseInt(e.target.value, 10);
       const label = document.getElementById("clickCooldownLabel");
       if (label) label.textContent = fmtS(valor);
@@ -8942,87 +7100,7 @@
         st.clickCooldownMs = valor;
       });
     }));
-    const persistReporting = (mutator) => {
-      update((st) => {
-        st.reporting = normalizarReportingConfig(st.reporting || REPORTING_DEFAULTS);
-        mutator(st.reporting);
-        persistirAcoes(st);
-      });
-    };
-    (_q = document.getElementById("chkReportingMedia")) == null ? void 0 : _q.addEventListener("change", (e) => {
-      persistReporting((cfg) => {
-        cfg.enabledMedia = !!e.target.checked;
-      });
-      log(`🖼️ Coleta de mídia ${e.target.checked ? "ativada" : "desativada"}`, "info");
-    });
-    (_r = document.getElementById("chkReportingEnabled")) == null ? void 0 : _r.addEventListener("change", (e) => {
-      persistReporting((cfg) => {
-        cfg.enabledReport = !!e.target.checked;
-      });
-      log(`📝 Geração de relatório PDF/MD ${e.target.checked ? "ativada" : "desativada"}`, "info");
-    });
-    (_s = document.getElementById("chkReportingClickMediaTab")) == null ? void 0 : _s.addEventListener("change", (e) => {
-      persistReporting((cfg) => {
-        cfg.clickMediaTabBeforeCollect = !!e.target.checked;
-      });
-      log(`🖱️ Clique na aba Mídias antes da coleta ${e.target.checked ? "ativado" : "desativado"}`, "info");
-    });
-    (_t = document.getElementById("chkReportingAcompanhamento")) == null ? void 0 : _t.addEventListener("change", (e) => {
-      persistReporting((cfg) => {
-        cfg.enabledAcompanhamento = !!e.target.checked;
-      });
-      log(`📜 Coleta de acompanhamento ${e.target.checked ? "ativada" : "desativada"}`, "info");
-    });
-    (_u = document.getElementById("chkReportingBlock")) == null ? void 0 : _u.addEventListener("change", (e) => {
-      persistReporting((cfg) => {
-        cfg.blockOnReportError = !!e.target.checked;
-      });
-      log(`🧱 Bloqueio em erro de relatório ${e.target.checked ? "ativado" : "desativado"}`, "info");
-    });
-    (_v = document.getElementById("txtReportingServiceUrl")) == null ? void 0 : _v.addEventListener("change", (e) => {
-      const input = e.target;
-      const novo = String(input.value || "").trim() || CONFIG.REPORTING.SERVICE_DEFAULT;
-      persistReporting((cfg) => {
-        cfg.serviceUrl = novo;
-      });
-      input.value = novo;
-      log(`🔗 Serviço de relatório: ${novo}`, "info");
-    });
-    (_w = document.getElementById("txtReportingApiToken")) == null ? void 0 : _w.addEventListener("change", (e) => {
-      const input = e.target;
-      const token = String(input.value || "").trim();
-      persistReporting((cfg) => {
-        cfg.apiToken = token || null;
-      });
-      input.value = token;
-      log(`🔐 Token de API ${token ? "configurado" : "removido"}`, "info");
-    });
-    (_x = document.getElementById("selReportingTransport")) == null ? void 0 : _x.addEventListener("change", (e) => {
-      const transport = String(e.target.value || "auto").trim();
-      persistReporting((cfg) => {
-        cfg.transport = transport;
-      });
-      log(`🚚 Transporte de relatório: ${transport}`, "info");
-    });
-    (_y = document.getElementById("numReportingMaxFileMb")) == null ? void 0 : _y.addEventListener("change", (e) => {
-      const input = e.target;
-      const val = Math.max(1, Math.min(200, Number(input.value || CONFIG.REPORTING.MAX_FILE_SIZE_MB)));
-      persistReporting((cfg) => {
-        cfg.maxFileSizeMb = val;
-      });
-      input.value = String(val);
-      log(`📦 Limite por arquivo: ${val}MB`, "info");
-    });
-    (_z = document.getElementById("numReportingMaxFiles")) == null ? void 0 : _z.addEventListener("change", (e) => {
-      const input = e.target;
-      const val = Math.max(1, Math.min(200, Number(input.value || CONFIG.REPORTING.MAX_FILES_PER_ITEM)));
-      persistReporting((cfg) => {
-        cfg.maxFilesPerItem = val;
-      });
-      input.value = String(val);
-      log(`📚 Limite de arquivos por item: ${val}`, "info");
-    });
-    (_A = document.getElementById("btnToggle")) == null ? void 0 : _A.addEventListener("click", () => {
+    (_p = document.getElementById("btnToggle")) == null ? void 0 : _p.addEventListener("click", () => {
       const est = get();
       if (est.pausado) togglePausar();
       else if (est.ativo) parar();

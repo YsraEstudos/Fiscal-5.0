@@ -7,7 +7,6 @@ const mockTocar = vi.fn();
 
 vi.mock("../src/config/constants.ts", () => ({
   CONFIG: { SCHEMA_VERSION: 1 },
-  REPORTING_DEFAULTS: { transport: "auto" }
 }));
 
 vi.mock("../src/config/workflow-actions.ts", () => ({
@@ -19,7 +18,6 @@ vi.mock("../src/config/workflow-actions.ts", () => ({
 vi.mock("../src/core/estado-manager.ts", () => ({
   get: mockGetEstado,
   set: mockSetEstado,
-  normalizarReportingConfig: (config) => config || {},
 }));
 
 vi.mock("../src/core/log-manager.ts", () => ({
@@ -55,9 +53,7 @@ describe("ui/perfil-manager", () => {
             "default": { "acao1": { ativo: true } },
             "antigo": { "acao1": { ativo: false } }
         },
-        perfilConfigs: {},
         perfilAtivo: "default",
-        reporting: {}
     });
 
     originalPrompt = globalThis.prompt;
@@ -90,7 +86,6 @@ describe("ui/perfil-manager", () => {
     expect(mockSetEstado).toHaveBeenCalled();
     const st = mockSetEstado.mock.calls[0][0];
     expect(st.perfis["novo_perfil"]).toBeDefined();
-    expect(st.perfilConfigs["novo_perfil"]).toBeDefined();
     expect(mockLog).toHaveBeenCalledWith('📁 Perfil "novo_perfil" criado', 'info');
   });
 
@@ -107,9 +102,7 @@ describe("ui/perfil-manager", () => {
     mockGetEstado.mockReturnValue({
         acoes: {},
         perfis: { "default": {}, "para_deletar": {} },
-        perfilConfigs: { "para_deletar": {} },
         perfilAtivo: "para_deletar",
-        reporting: {}
     });
 
     mod.excluir("para_deletar");
