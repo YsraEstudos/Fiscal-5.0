@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   avaliarCamposObrigatoriosJsonEmpresa,
   empresaExigeUnspsc,
+  empresaNaoPreencheNbs,
   obterEmpresaAtual,
 } from "../src/validation/empresa-json-requirements.ts";
 
@@ -21,6 +22,11 @@ describe("validation/empresa-json-requirements", () => {
     expect(empresaExigeUnspsc(null)).toBe(null);
   });
 
+  it("marca BAHIAGAS como empresa que não preenche NBS", () => {
+    expect(empresaNaoPreencheNbs("BAHIAGAS")).toBe(true);
+    expect(empresaNaoPreencheNbs("INTERCEMENT")).toBe(false);
+    expect(empresaNaoPreencheNbs(null)).toBe(null);
+  });
   it("RODONAVES não bloqueia NCM sem CEST quando outro item do lote trouxe CEST", () => {
     const itemMap = {
       "1001": { ncm: "8708.29.99", nbs: null, cest: null, unspsc: null, lei116: null },

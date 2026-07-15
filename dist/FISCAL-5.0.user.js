@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         FISCAL 5.0 (Robust Robot)
 // @namespace    http://tampermonkey.net/
-// @version      5.2.3
+// @version      5.2.4
 // @author       System Admin
 // @description  Automação modular FISCAL 5.0 com controle individual de ações, inspeção de elementos, perfis e seletor robusto (ID + Texto).
 // @downloadURL  https://raw.githubusercontent.com/YsraEstudos/Fiscal-5.0/main/dist/FISCAL-5.0.user.js
@@ -2695,6 +2695,9 @@
     "VOPAK",
     "WOODBRIDGE"
   ];
+  const EMPRESAS_NAO_PREENCHER_NBS = [
+    "BAHIAGAS"
+  ];
   const EMPRESAS_CEST_QUANDO_NCM = [
     "ACCOR",
     "ACECO",
@@ -2731,6 +2734,7 @@
     aplicarCampoRegra(regras, EMPRESAS_LEI116_QUANDO_NBS, "lei116QuandoNbs");
     aplicarCampoRegra(regras, EMPRESAS_UNSPSC, "unspsc");
     aplicarCampoRegra(regras, EMPRESAS_CEST_QUANDO_NCM, "cestQuandoNcm");
+    aplicarCampoRegra(regras, EMPRESAS_NAO_PREENCHER_NBS, "naoPreencherNbs");
     return regras;
   }
   function normalizarEspacosLocal(valor) {
@@ -2800,6 +2804,12 @@
     const empresaNorm = normalizarEmpresa(obterEmpresaAtual());
     if (!empresaNorm) return null;
     return ((_a = REGRAS_EMPRESA[empresaNorm]) == null ? void 0 : _a.unspsc) === true;
+  }
+  function empresaNaoPreencheNbs(empresa) {
+    var _a;
+    const empresaNorm = normalizarEmpresa(obterEmpresaAtual());
+    if (!empresaNorm) return null;
+    return ((_a = REGRAS_EMPRESA[empresaNorm]) == null ? void 0 : _a.naoPreencherNbs) === true;
   }
   function avaliarCamposObrigatoriosJsonEmpresa({
     empresa,
@@ -4159,6 +4169,10 @@
     if (!String(valorNcm ?? "").trim()) return false;
     const entry = obterEntradaItem(estado);
     const emModoServico = detectarModoServico(estado, entry, valorNcm);
+    if (emModoServico && empresaNaoPreencheNbs() === true) {
+      if (status) status.textContent = "NBS não preenchido para esta empresa.";
+      return false;
+    }
     const campoNcm = emModoServico ? encontrarCampoNbsPreferido() || encontrarCampoNcmPreferido(acaoNcm.seletor) : encontrarCampoNcmPreferido(acaoNcm.seletor);
     if (!campoNcm) return false;
     const nomeCampoFiscal = emModoServico ? "NBS" : "NCM";

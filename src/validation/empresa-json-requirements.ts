@@ -31,6 +31,7 @@ type RegraEmpresa = {
     cestQuandoNcm?: boolean;
     lei116QuandoNbs?: boolean;
     unspsc?: boolean;
+    naoPreencherNbs?: boolean;
 };
 
 type CampoRegraEmpresa = keyof RegraEmpresa;
@@ -204,6 +205,10 @@ const EMPRESAS_UNSPSC = [
     'VAXXINOVA', 'VERACEL', 'VERDEFORTE', 'VERENE', 'VILARES METALS', 'VOESTALPINE', 'VOPAK', 'WOODBRIDGE',
 ];
 
+const EMPRESAS_NAO_PREENCHER_NBS = [
+    'BAHIAGAS',
+];
+
 const EMPRESAS_CEST_QUANDO_NCM = [
     'ACCOR', 'ACECO', 'AZUL', 'DPSP', 'EDP', 'ELFSM', 'GREEN4T', 'GRUPODECIO', 'LEBES', 'M DIAS BRANCO',
     'PAGOLD', 'RODONAVES', 'SABESP', 'SAE', 'SANTHER', 'TAM', 'TANAC', 'TEMA', 'TEGMA', 'TRAMONTINA',
@@ -224,6 +229,7 @@ function criarRegrasEmpresa(): Record<string, RegraEmpresa> {
     aplicarCampoRegra(regras, EMPRESAS_LEI116_QUANDO_NBS, 'lei116QuandoNbs');
     aplicarCampoRegra(regras, EMPRESAS_UNSPSC, 'unspsc');
     aplicarCampoRegra(regras, EMPRESAS_CEST_QUANDO_NCM, 'cestQuandoNcm');
+    aplicarCampoRegra(regras, EMPRESAS_NAO_PREENCHER_NBS, 'naoPreencherNbs');
     return regras;
 }
 
@@ -311,6 +317,12 @@ export function empresaExigeUnspsc(empresa?: unknown): boolean | null {
     const empresaNorm = normalizarEmpresa(empresa === undefined ? obterEmpresaAtual() : empresa);
     if (!empresaNorm) return null;
     return REGRAS_EMPRESA[empresaNorm]?.unspsc === true;
+}
+
+export function empresaNaoPreencheNbs(empresa?: unknown): boolean | null {
+    const empresaNorm = normalizarEmpresa(empresa === undefined ? obterEmpresaAtual() : empresa);
+    if (!empresaNorm) return null;
+    return REGRAS_EMPRESA[empresaNorm]?.naoPreencherNbs === true;
 }
 
 export function avaliarCamposObrigatoriosJsonEmpresa({

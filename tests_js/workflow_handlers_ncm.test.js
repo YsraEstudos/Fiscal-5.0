@@ -15,6 +15,7 @@ const mockEncontrarCampoLei116Subgrupo = vi.fn();
 const mockElementoVisivel = vi.fn(() => true);
 const mockRegistrarEventoItemAtual = vi.fn();
 const mockGetValoresParaItem = vi.fn(() => null);
+const mockEmpresaNaoPreencheNbs = vi.fn(() => false);
 
 const cooldowns = new Map();
 const mockSetCooldown = vi.fn((key) => cooldowns.set(key, true));
@@ -52,6 +53,9 @@ vi.mock("../src/workflow/item-trace.ts", () => ({
   registrarEventoItemAtual: mockRegistrarEventoItemAtual,
 }));
 
+vi.mock("../src/validation/empresa-json-requirements.ts", () => ({
+  empresaNaoPreencheNbs: mockEmpresaNaoPreencheNbs,
+}));
 const mod = await import("../src/workflow/handlers/ncm.ts");
 
 function getAcaoFactory() {
@@ -78,6 +82,7 @@ describe("workflow/handlers/ncm", () => {
     document.body.innerHTML = "";
     currentState = { itemAtualKey: "320780", itemAtualTelaId: "320780", itemFlags: {} };
     mockGetValoresParaItem.mockReturnValue(null);
+    mockEmpresaNaoPreencheNbs.mockReturnValue(false);
     mockEncontrarCampoNbsPreferido.mockReturnValue(null);
     mockEncontrarCampoLei116Grupo.mockReturnValue(null);
     mockEncontrarCampoLei116Subgrupo.mockReturnValue(null);
@@ -131,6 +136,31 @@ describe("workflow/handlers/ncm", () => {
     );
   });
 
+  it("não preenche NBS quando a empresa possui essa regra", async () => {
+    const campoNbs = document.createElement("input");
+    mockEncontrarCampoNbsPreferido.mockReturnValue(campoNbs);
+    mockEmpresaNaoPreencheNbs.mockReturnValue(true);
+    mockGetValoresParaItem.mockReturnValue({ nbs: "1.0105.40.00", lei116: null });
+    const status = { textContent: "" };
+
+    const ok = await mod.ncm(
+      currentState,
+      status,
+      {
+        getAcao: getAcaoFactory(),
+        getValorAcao: () => "1.0105.40.00",
+        valoresSaoIguais: () => false,
+        habilitarValidacaoNcmAposInsercao: vi.fn(),
+        isValidacaoNcmLiberada: () => true,
+        registrarAvisoValidacaoNcmAguardando: vi.fn(),
+        workflowState: { isCompleta: () => false },
+      },
+    );
+
+    expect(ok).toBe(false);
+    expect(status.textContent).toContain("NBS não preenchido");
+    expect(mockInteragir).not.toHaveBeenCalled();
+  });
   it("ncm em modo serviço preenche NBS quando lei116 existe no item", async () => {
     const campoNbs = document.createElement("input");
     campoNbs.value = "";

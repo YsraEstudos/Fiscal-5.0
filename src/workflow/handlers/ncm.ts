@@ -20,6 +20,7 @@ import {
 import { normalizarTextoSemAcento } from '../../utils/text.ts';
 import { sleep } from '../../utils/misc.ts';
 import * as ItemTrace from '../item-trace.ts';
+import { empresaNaoPreencheNbs } from '../../validation/empresa-json-requirements.ts';
 import {
     campoLei116EhPlaceholder,
     ehValorNbs,
@@ -159,6 +160,10 @@ export async function ncm(estado: EstadoApp, status: HTMLElement | null, ctx: Nc
 
     const entry = obterEntradaItem(estado);
     const emModoServico = detectarModoServico(estado, entry, valorNcm);
+    if (emModoServico && empresaNaoPreencheNbs() === true) {
+        if (status) status.textContent = 'NBS não preenchido para esta empresa.';
+        return false;
+    }
     const campoNcm = (
         emModoServico
             ? (encontrarCampoNbsPreferido() || encontrarCampoNcmPreferido(acaoNcm.seletor))
