@@ -688,7 +688,7 @@ describe("workflow/executor", () => {
     expect(mockInteragir).not.toHaveBeenCalledWith(link, null, "selecionarItemNormal");
   });
 
-  it("para a procura quando nao encontra item por um minuto", async () => {
+  it("pausa a procura quando nao encontra item por 15 segundos", async () => {
     state.itemMapAtivo = true;
     state.itemMap = { "777": { ncm: "8471.30.12" } };
     vi.useFakeTimers();
@@ -696,13 +696,17 @@ describe("workflow/executor", () => {
     mockEncontrarItensPendentesInfo.mockReturnValue({ elegiveis: [], ignorados: 0 });
 
     await mod.executarCiclo("test");
-    vi.setSystemTime(new Date("2030-05-05T12:01:01.000Z"));
+    expect(state.ativo).toBe(true);
+    expect(state.pausado).toBe(false);
+
+    vi.setSystemTime(new Date("2030-05-05T12:00:15.000Z"));
     await mod.executarCiclo("test");
 
     const status = document.getElementById("statusRobo");
-    expect(state.ativo).toBe(false);
-    expect(status.textContent).toBe("Procura parada: nenhum item encontrado em 1 minuto.");
-    expect(mockLog).toHaveBeenCalledWith("⏹️ Procura parada: nenhum item encontrado em 1 minuto.", "warn");
+    expect(state.ativo).toBe(true);
+    expect(state.pausado).toBe(true);
+    expect(status.textContent).toBe("Procura pausada: nenhum item encontrado em 15 segundos.");
+    expect(mockLog).toHaveBeenCalledWith("⏸️ Procura pausada: nenhum item encontrado em 15 segundos.", "warn");
   });
 
   it("atualiza progresso total a partir do JSON ativo ao iniciar", () => {
@@ -847,6 +851,26 @@ describe("workflow/executor", () => {
     await mod.executarCiclo("item-aberto");
 
     expect(state.progresso.atual).toBe(0);
+    expect(state.progresso.total).toBe(5);
+    expect(state.estimativa.totalPlanejado).toBe(5);
+    expect(state.estimativa.restantes).toBe(5);
+  });
+
+  it("preserva o snapshot do lote no detalhe quando o JSON ativo ainda não está disponível", async () => {
+    history.pushState({}, "", "/SIN_Item_Resultante.aspx?IdSIN=194981");
+    state.itemMapAtivo = true;
+    state.itemMap = {};
+    state.progresso = { atual: 0, total: 5, ultimoProcessado: null, concluidosIds: [] };
+    state.estimativa.totalPlanejado = 5;
+    mockObterResumoPendentesServidor.mockReturnValue({
+      primeiro: 0,
+      ultimo: 0,
+      total: 0,
+      texto: "Exibindo SIN 0 a 0 de um total de 0",
+    });
+
+    await mod.executarCiclo("item-detalhe");
+
     expect(state.progresso.total).toBe(5);
     expect(state.estimativa.totalPlanejado).toBe(5);
     expect(state.estimativa.restantes).toBe(5);

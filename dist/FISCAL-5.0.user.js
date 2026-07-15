@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         FISCAL 5.0 (Robust Robot)
 // @namespace    http://tampermonkey.net/
-// @version      5.2.7
+// @version      5.2.8
 // @author       System Admin
 // @description  Automação modular FISCAL 5.0 com controle individual de ações, inspeção de elementos, perfis e seletor robusto (ID + Texto).
 // @downloadURL  https://raw.githubusercontent.com/YsraEstudos/Fiscal-5.0/main/dist/FISCAL-5.0.user.js
@@ -3224,15 +3224,36 @@
     }
     return count;
   }
+  function obterTotalConhecido(estado) {
+    var _a, _b;
+    return Math.max(
+      0,
+      Number(((_a = estado == null ? void 0 : estado.progresso) == null ? void 0 : _a.total) || 0),
+      Number(((_b = estado == null ? void 0 : estado.estimativa) == null ? void 0 : _b.totalPlanejado) || 0)
+    );
+  }
+  function ehPaginaDetalheItem() {
+    if (typeof window === "undefined") return false;
+    try {
+      const pathname = new URL(window.location.href).pathname;
+      return /\/(?:SIN_Item_Resultante|SIN_Item|ITEM_Edita)\.aspx$/i.test(pathname);
+    } catch {
+      return false;
+    }
+  }
   function calcularTotaisDinamicos(estado, itensInfo = { elegiveis: [] }, concluidosSet = obterConcluidosSet(estado)) {
-    var _a, _b, _c;
+    var _a;
+    const totalAnterior = obterTotalConhecido(estado);
+    const resumoServidor = obterResumoPendentesServidor();
+    const pendentesFallback = Math.max(0, Number(((_a = itensInfo == null ? void 0 : itensInfo.elegiveis) == null ? void 0 : _a.length) || 0));
+    const possuiItensVisiveis = Number((itensInfo == null ? void 0 : itensInfo.totalVisiveis) || 0) > 0 || pendentesFallback > 0;
+    const detalheSemLista = ehPaginaDetalheItem() && !possuiItensVisiveis && !document.querySelector("#DIVResultado");
     if (estado == null ? void 0 : estado.itemMapAtivo) {
       const totalJson = getTotalPlanejadoJson(estado);
       const concluidosFallback = contarConcluidosEfetivos(estado, concluidosSet);
-      const totalPlanejado2 = totalJson > 0 ? totalJson : concluidosFallback;
-      const resumoServidor2 = obterResumoPendentesServidor();
-      if (totalJson > 0 && Number.isFinite(resumoServidor2 == null ? void 0 : resumoServidor2.total)) {
-        const pendentesServidor3 = Math.min(totalJson, Math.max(0, Number(resumoServidor2 == null ? void 0 : resumoServidor2.total)));
+      const totalPlanejado2 = totalJson > 0 ? totalJson : detalheSemLista && totalAnterior > 0 ? Math.max(totalAnterior, concluidosFallback) : concluidosFallback;
+      if (totalJson > 0 && Number.isFinite(resumoServidor == null ? void 0 : resumoServidor.total)) {
+        const pendentesServidor3 = Math.min(totalJson, Math.max(0, Number(resumoServidor == null ? void 0 : resumoServidor.total)));
         const concluidosEfetivos2 = Math.max(0, totalJson - pendentesServidor3);
         return { totalPlanejado: totalJson, concluidosEfetivos: concluidosEfetivos2, pendentesServidor: pendentesServidor3, fonteTotal: "json" };
       }
@@ -3240,16 +3261,9 @@
       return { totalPlanejado: totalPlanejado2, concluidosEfetivos: concluidosFallback, pendentesServidor: pendentesServidor2, fonteTotal: "json" };
     }
     const concluidosEfetivos = contarConcluidosEfetivos(estado, concluidosSet);
-    const resumoServidor = obterResumoPendentesServidor();
-    const pendentesFallback = Math.max(0, Number(((_a = itensInfo == null ? void 0 : itensInfo.elegiveis) == null ? void 0 : _a.length) || 0));
-    const possuiItensVisiveis = Number((itensInfo == null ? void 0 : itensInfo.totalVisiveis) || 0) > 0 || pendentesFallback > 0;
-    const totalAnterior = Math.max(
-      0,
-      Number(((_b = estado == null ? void 0 : estado.progresso) == null ? void 0 : _b.total) || 0),
-      Number(((_c = estado == null ? void 0 : estado.estimativa) == null ? void 0 : _c.totalPlanejado) || 0)
-    );
     const semInformacaoDeLista = !Number.isFinite(resumoServidor == null ? void 0 : resumoServidor.total) && !possuiItensVisiveis;
-    const totalPlanejado = semInformacaoDeLista && totalAnterior > 0 ? Math.max(totalAnterior, concluidosEfetivos) : concluidosEfetivos + (Number.isFinite(resumoServidor == null ? void 0 : resumoServidor.total) ? Math.max(0, resumoServidor.total) : pendentesFallback);
+    const preservarSnapshot = (semInformacaoDeLista || detalheSemLista) && totalAnterior > 0;
+    const totalPlanejado = preservarSnapshot ? Math.max(totalAnterior, concluidosEfetivos) : concluidosEfetivos + (Number.isFinite(resumoServidor == null ? void 0 : resumoServidor.total) ? Math.max(0, resumoServidor.total) : pendentesFallback);
     const pendentesServidor = Math.max(0, totalPlanejado - concluidosEfetivos);
     return { totalPlanejado, concluidosEfetivos, pendentesServidor, fonteTotal: "fila" };
   }
@@ -4758,7 +4772,7 @@
   let lastItensEmAtuacaoCount = -1;
   let buscaSemItemInicioTs = null;
   let retornoItemBloqueadoEmAndamento = false;
-  const BUSCA_SEM_ITEM_TIMEOUT_MS = 6e4;
+  const BUSCA_SEM_ITEM_TIMEOUT_MS = 15e3;
   const SHIFT_S_RETORNO_DELAY_MS = 600;
   const scheduler = createWorkflowScheduler((trigger) => {
     void executarCiclo(trigger);
@@ -5281,11 +5295,13 @@
     } else if (agora - buscaSemItemInicioTs >= BUSCA_SEM_ITEM_TIMEOUT_MS) {
       scheduler.cancelarTimer();
       update((e) => {
-        e.ativo = false;
+        e.ativo = true;
+        e.pausado = true;
       });
-      const mensagem = "Procura parada: nenhum item encontrado em 1 minuto.";
+      buscaSemItemInicioTs = null;
+      const mensagem = "Procura pausada: nenhum item encontrado em 15 segundos.";
       if (status) status.textContent = mensagem;
-      log(`⏹️ ${mensagem}`, "warn");
+      log(`⏸️ ${mensagem}`, "warn");
       _atualizarBotaoToggle();
       _atualizarIndicadorProgresso();
       return false;

@@ -74,7 +74,7 @@ let wakePending = false;
 let lastItensEmAtuacaoCount = -1;
 let buscaSemItemInicioTs: number | null = null;
 let retornoItemBloqueadoEmAndamento = false;
-const BUSCA_SEM_ITEM_TIMEOUT_MS = 60_000;
+const BUSCA_SEM_ITEM_TIMEOUT_MS = 15_000;
 const SHIFT_S_RETORNO_DELAY_MS = 600;
 const scheduler = createWorkflowScheduler((trigger: string) => {
     void executarCiclo(trigger);
@@ -677,10 +677,14 @@ async function executarLogica(): Promise<boolean> {
         buscaSemItemInicioTs = agora;
     } else if (agora - buscaSemItemInicioTs >= BUSCA_SEM_ITEM_TIMEOUT_MS) {
         scheduler.cancelarTimer();
-        EstadoManager.update((e: EstadoApp) => { e.ativo = false; });
-        const mensagem = 'Procura parada: nenhum item encontrado em 1 minuto.';
+        EstadoManager.update((e: EstadoApp) => {
+            e.ativo = true;
+            e.pausado = true;
+        });
+        buscaSemItemInicioTs = null;
+        const mensagem = 'Procura pausada: nenhum item encontrado em 15 segundos.';
         if (status) status.textContent = mensagem;
-        log(`⏹️ ${mensagem}`, 'warn');
+        log(`⏸️ ${mensagem}`, 'warn');
         _atualizarBotaoToggle();
         _atualizarIndicadorProgresso();
         return false;

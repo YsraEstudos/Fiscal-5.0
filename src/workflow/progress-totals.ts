@@ -36,16 +36,46 @@ export function contarConcluidosEfetivos(
     return count;
 }
 
+function obterTotalConhecido(estado: EstadoApp): number {
+    return Math.max(
+        0,
+        Number(estado?.progresso?.total || 0),
+        Number(estado?.estimativa?.totalPlanejado || 0),
+    );
+}
+
+function ehPaginaDetalheItem(): boolean {
+    if (typeof window === 'undefined') return false;
+
+    try {
+        const pathname = new URL(window.location.href).pathname;
+        return /\/(?:SIN_Item_Resultante|SIN_Item|ITEM_Edita)\.aspx$/i.test(pathname);
+    } catch {
+        return false;
+    }
+}
+
 export function calcularTotaisDinamicos(
     estado: EstadoApp,
     itensInfo: { elegiveis: Element[]; totalVisiveis?: number } = { elegiveis: [] },
     concluidosSet: Set<string> = obterConcluidosSet(estado)
 ): TotaisDinamicos {
+    const totalAnterior = obterTotalConhecido(estado);
+    const resumoServidor = PaginaVerificador.obterResumoPendentesServidor();
+    const pendentesFallback = Math.max(0, Number(itensInfo?.elegiveis?.length || 0));
+    const possuiItensVisiveis = Number(itensInfo?.totalVisiveis || 0) > 0 || pendentesFallback > 0;
+    const detalheSemLista = ehPaginaDetalheItem()
+        && !possuiItensVisiveis
+        && !document.querySelector('#DIVResultado');
+
     if (estado?.itemMapAtivo) {
         const totalJson = getTotalPlanejadoJson(estado);
         const concluidosFallback = contarConcluidosEfetivos(estado, concluidosSet);
-        const totalPlanejado = totalJson > 0 ? totalJson : concluidosFallback;
-        const resumoServidor = PaginaVerificador.obterResumoPendentesServidor();
+        const totalPlanejado = totalJson > 0
+            ? totalJson
+            : detalheSemLista && totalAnterior > 0
+                ? Math.max(totalAnterior, concluidosFallback)
+                : concluidosFallback;
         if (totalJson > 0 && Number.isFinite(resumoServidor?.total)) {
             const pendentesServidor = Math.min(totalJson, Math.max(0, Number(resumoServidor?.total)));
             const concluidosEfetivos = Math.max(0, totalJson - pendentesServidor);
@@ -56,16 +86,9 @@ export function calcularTotaisDinamicos(
     }
 
     const concluidosEfetivos = contarConcluidosEfetivos(estado, concluidosSet);
-    const resumoServidor = PaginaVerificador.obterResumoPendentesServidor();
-    const pendentesFallback = Math.max(0, Number(itensInfo?.elegiveis?.length || 0));
-    const possuiItensVisiveis = Number(itensInfo?.totalVisiveis || 0) > 0 || pendentesFallback > 0;
-    const totalAnterior = Math.max(
-        0,
-        Number(estado?.progresso?.total || 0),
-        Number(estado?.estimativa?.totalPlanejado || 0)
-    );
     const semInformacaoDeLista = !Number.isFinite(resumoServidor?.total) && !possuiItensVisiveis;
-    const totalPlanejado = semInformacaoDeLista && totalAnterior > 0
+    const preservarSnapshot = (semInformacaoDeLista || detalheSemLista) && totalAnterior > 0;
+    const totalPlanejado = preservarSnapshot
         ? Math.max(totalAnterior, concluidosEfetivos)
         : concluidosEfetivos + (Number.isFinite(resumoServidor?.total)
             ? Math.max(0, resumoServidor!.total)
