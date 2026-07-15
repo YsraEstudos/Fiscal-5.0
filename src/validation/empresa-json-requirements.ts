@@ -301,6 +301,18 @@ export function obterEmpresaAtual(): string | null {
     return null;
 }
 
+/**
+ * Retorna se a empresa atual exige UNSPSC.
+ *
+ * `null` representa que a empresa ainda não pôde ser identificada; nesse caso
+ * o workflow mantém o comportamento configurado pelo usuário.
+ */
+export function empresaExigeUnspsc(empresa?: unknown): boolean | null {
+    const empresaNorm = normalizarEmpresa(empresa === undefined ? obterEmpresaAtual() : empresa);
+    if (!empresaNorm) return null;
+    return REGRAS_EMPRESA[empresaNorm]?.unspsc === true;
+}
+
 export function avaliarCamposObrigatoriosJsonEmpresa({
     empresa,
     itemId,

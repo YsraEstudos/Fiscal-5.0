@@ -584,6 +584,17 @@
     fiscalHints: {},
     acoes: {}
   };
+  const IDS_ACOES_UNSPSC = Object.freeze([
+    "abaClassificacao",
+    "lupaUnspsc",
+    "unspsc",
+    "pesquisar",
+    "resultado",
+    "selecionar"
+  ]);
+  function ehAcaoUnspsc(id) {
+    return IDS_ACOES_UNSPSC.includes(id);
+  }
   const ACOES_WORKFLOW = Object.freeze([
     { id: "atuar", nome: "Atuar no Item", seletor: 'input[name$="butAcao3"]', tipo: "click", ordem: 1 },
     { id: "abaFiscal", nome: "Aba Fiscal", seletor: "text=Fiscal", tipo: "click", ordem: 2 },
@@ -2767,6 +2778,12 @@
     }
     return null;
   }
+  function empresaExigeUnspsc(empresa) {
+    var _a;
+    const empresaNorm = normalizarEmpresa(obterEmpresaAtual());
+    if (!empresaNorm) return null;
+    return ((_a = REGRAS_EMPRESA[empresaNorm]) == null ? void 0 : _a.unspsc) === true;
+  }
   function avaliarCamposObrigatoriosJsonEmpresa({
     empresa,
     itemId,
@@ -4538,7 +4555,12 @@
     void executarCiclo(trigger);
   });
   function getAcao(id, estado) {
-    return estado.acoes[id] || { ativo: false, seletor: "", valor: null };
+    const acao = estado.acoes[id] || { ativo: false, seletor: "", valor: null };
+    const exigeUnspsc = empresaExigeUnspsc();
+    if (ehAcaoUnspsc(id) && exigeUnspsc === false) {
+      return { ...acao, ativo: false };
+    }
+    return acao;
   }
   function getAcoesOrdenadas(estado) {
     return ACOES_WORKFLOW.map((acao) => {
@@ -5138,12 +5160,14 @@
   function iniciar() {
     const estado = get();
     const totalPlanejadoJson = getTotalPlanejadoJson(estado);
+    const exigeUnspsc = empresaExigeUnspsc();
     ACOES_WORKFLOW.forEach((acao) => {
       const chk = document.getElementById(`chk_${acao.id}`);
       const val = document.getElementById(`val_${acao.id}`);
       const acoes = estado.acoes;
       if (acoes[acao.id]) {
-        acoes[acao.id].ativo = (chk == null ? void 0 : chk.checked) ?? true;
+        const disponivelParaEmpresa = !ehAcaoUnspsc(acao.id) || exigeUnspsc !== false;
+        acoes[acao.id].ativo = disponivelParaEmpresa && ((chk == null ? void 0 : chk.checked) ?? true);
         if (val) acoes[acao.id].valor = val.value;
       }
     });
@@ -5235,7 +5259,9 @@
     setRegistrarInteracao(registrarInteracao);
   }
   function getAcaoState(estado, acao) {
-    return estado.acoes && estado.acoes[acao.id] ? estado.acoes[acao.id] : { ativo: true, seletor: acao.seletor, valor: acao.valorPadrao };
+    const acaoState = estado.acoes && estado.acoes[acao.id] ? estado.acoes[acao.id] : { ativo: true, seletor: acao.seletor, valor: acao.valorPadrao };
+    const desabilitadaPorEmpresa = ehAcaoUnspsc(acao.id) && empresaExigeUnspsc() === false;
+    return desabilitadaPorEmpresa ? { ...acaoState, ativo: false, desabilitadaPorEmpresa: true } : acaoState;
   }
   function renderValorInput(acao, acaoState) {
     if (acao.tipo !== "input") return "";
@@ -5258,10 +5284,12 @@
     `;
   }
   function renderAcaoItemHtml(acao, acaoState) {
+    const desabilitadaPorEmpresa = acaoState.desabilitadaPorEmpresa === true;
+    const motivo = "UNSPSC não é necessário para esta empresa";
     return `
         <span class="acao-handle" title="Arrastar para reordenar">☰</span>
-        <input type="checkbox" id="chk_${acao.id}" ${acaoState.ativo ? "checked" : ""}>
-        <span class="km-acao-nome" title="${escapeHtml(acaoState.seletor || acao.seletor)}">${escapeHtml(acao.nome)}</span>
+        <input type="checkbox" id="chk_${acao.id}" ${acaoState.ativo ? "checked" : ""} ${desabilitadaPorEmpresa ? "disabled" : ""} title="${desabilitadaPorEmpresa ? motivo : "Ativar ou desativar ação"}">
+        <span class="km-acao-nome" title="${escapeHtml(acaoState.seletor || acao.seletor)}">${escapeHtml(acao.nome)}${desabilitadaPorEmpresa ? " (não se aplica)" : ""}</span>
         ${renderValorInput(acao, acaoState)}
         ${renderBotoesAcao(acao)}
     `;
@@ -5275,6 +5303,7 @@
       const acaoState = getAcaoState(estado, acao);
       const divItem = document.createElement("div");
       divItem.className = "acao-item";
+      divItem.classList.toggle("acao-item--desabilitado", acaoState.desabilitadaPorEmpresa === true);
       divItem.dataset.acao = acao.id;
       divItem.draggable = true;
       divItem.innerHTML = renderAcaoItemHtml(acao, acaoState);
@@ -6301,6 +6330,7 @@
         }
 
         .acao-item.dragging { opacity: 0.5; }
+        .acao-item.acao-item--desabilitado { opacity: 0.58; }
         .acao-item.drag-over {
             border-color: rgba(14, 90, 72, 0.35);
             background: rgba(14, 90, 72, 0.08);

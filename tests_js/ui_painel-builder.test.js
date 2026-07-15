@@ -121,4 +121,34 @@ describe("ui/painel-builder", () => {
     // Ação custom vem sem botões interativos
     expect(items[2].querySelectorAll("button[disabled]").length).toBe(2);
   });
+
+  it("desativa as ações de UNSPSC para empresas que não exigem esse campo", () => {
+    document.body.innerHTML = `
+      <span id="lblUsuario">USUARIO//INTERCEMENT</span>
+      <div id="lista-acoes"></div>
+    `;
+
+    const idsUnspsc = ["abaClassificacao", "lupaUnspsc", "unspsc", "pesquisar", "resultado", "selecionar"];
+    mockGetAcoesOrdenadas.mockReturnValue(idsUnspsc.map((id) => ({
+      id,
+      nome: id,
+      tipo: id === "unspsc" ? "input" : "click",
+      seletor: `#${id}`,
+    })));
+    mockGetEstado.mockReturnValue({
+      acoes: Object.fromEntries(idsUnspsc.map((id) => [id, { ativo: true, valor: "30103618" }])),
+    });
+
+    mod.construirListaAcoes(mockGetEstado());
+
+    const items = [...document.querySelectorAll(".acao-item")];
+    expect(items).toHaveLength(idsUnspsc.length);
+    items.forEach((item) => {
+      const checkbox = item.querySelector("input[type='checkbox']");
+      expect(checkbox.checked).toBe(false);
+      expect(checkbox.disabled).toBe(true);
+      expect(item.classList.contains("acao-item--desabilitado")).toBe(true);
+      expect(item.textContent).toContain("não se aplica");
+    });
+  });
 });

@@ -561,6 +561,7 @@ export function injetarEstilosPainel(): void {
         }
 
         .acao-item.dragging { opacity: 0.5; }
+        .acao-item.acao-item--desabilitado { opacity: 0.58; }
         .acao-item.drag-over {
             border-color: rgba(14, 90, 72, 0.35);
             background: rgba(14, 90, 72, 0.08);

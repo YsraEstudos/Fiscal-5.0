@@ -15,6 +15,20 @@ export interface AcaoWorkflow {
     readonly valorPadrao?: string;
 }
 
+/** Ações que só fazem sentido para empresas com UNSPSC obrigatório. */
+export const IDS_ACOES_UNSPSC: readonly string[] = Object.freeze([
+    'abaClassificacao',
+    'lupaUnspsc',
+    'unspsc',
+    'pesquisar',
+    'resultado',
+    'selecionar',
+]);
+
+export function ehAcaoUnspsc(id: string): boolean {
+    return IDS_ACOES_UNSPSC.includes(id);
+}
+
 export const ACOES_WORKFLOW: readonly AcaoWorkflow[] = Object.freeze([
     { id: 'atuar', nome: 'Atuar no Item', seletor: 'input[name$="butAcao3"]', tipo: 'click', ordem: 1 },
     { id: 'abaFiscal', nome: 'Aba Fiscal', seletor: 'text=Fiscal', tipo: 'click', ordem: 2 },

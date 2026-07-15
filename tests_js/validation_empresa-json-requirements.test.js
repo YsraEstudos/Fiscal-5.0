@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   avaliarCamposObrigatoriosJsonEmpresa,
+  empresaExigeUnspsc,
   obterEmpresaAtual,
 } from "../src/validation/empresa-json-requirements.ts";
 
@@ -12,6 +13,12 @@ describe("validation/empresa-json-requirements", () => {
     `;
 
     expect(obterEmpresaAtual()).toBe("VAXXINOVA");
+  });
+
+  it("reutiliza a regra de UNSPSC para habilitar ou desabilitar a empresa", () => {
+    expect(empresaExigeUnspsc("VAXXINOVA")).toBe(true);
+    expect(empresaExigeUnspsc("INTERCEMENT")).toBe(false);
+    expect(empresaExigeUnspsc(null)).toBe(null);
   });
 
   it("RODONAVES não bloqueia NCM sem CEST quando outro item do lote trouxe CEST", () => {

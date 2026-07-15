@@ -1,11 +1,18 @@
 import { escapeHtml } from '../../utils/misc.ts';
 import { getAcoesOrdenadas } from '../../workflow/executor.ts';
+import { ehAcaoUnspsc } from '../../config/workflow-actions.ts';
 import type { EstadoApp } from '../../core/estado-manager.ts';
+import { empresaExigeUnspsc } from '../../validation/empresa-json-requirements.ts';
 
 function getAcaoState(estado: EstadoApp, acao: any): any {
-    return estado.acoes && estado.acoes[acao.id]
+    const acaoState = estado.acoes && estado.acoes[acao.id]
         ? estado.acoes[acao.id]
         : { ativo: true, seletor: acao.seletor, valor: acao.valorPadrao };
+    const desabilitadaPorEmpresa = ehAcaoUnspsc(acao.id) && empresaExigeUnspsc() === false;
+
+    return desabilitadaPorEmpresa
+        ? { ...acaoState, ativo: false, desabilitadaPorEmpresa: true }
+        : acaoState;
 }
 
 function renderValorInput(acao: any, acaoState: any): string {
@@ -32,10 +39,13 @@ function renderBotoesAcao(acao: any): string {
 }
 
 function renderAcaoItemHtml(acao: any, acaoState: any): string {
+    const desabilitadaPorEmpresa = acaoState.desabilitadaPorEmpresa === true;
+    const motivo = 'UNSPSC não é necessário para esta empresa';
+
     return `
         <span class="acao-handle" title="Arrastar para reordenar">☰</span>
-        <input type="checkbox" id="chk_${acao.id}" ${acaoState.ativo ? 'checked' : ''}>
-        <span class="km-acao-nome" title="${escapeHtml(acaoState.seletor || acao.seletor)}">${escapeHtml(acao.nome)}</span>
+        <input type="checkbox" id="chk_${acao.id}" ${acaoState.ativo ? 'checked' : ''} ${desabilitadaPorEmpresa ? 'disabled' : ''} title="${desabilitadaPorEmpresa ? motivo : 'Ativar ou desativar ação'}">
+        <span class="km-acao-nome" title="${escapeHtml(acaoState.seletor || acao.seletor)}">${escapeHtml(acao.nome)}${desabilitadaPorEmpresa ? ' (não se aplica)' : ''}</span>
         ${renderValorInput(acao, acaoState)}
         ${renderBotoesAcao(acao)}
     `;
@@ -52,6 +62,7 @@ export function construirListaAcoes(estado: EstadoApp): void {
         const acaoState = getAcaoState(estado, acao);
         const divItem = document.createElement('div');
         divItem.className = 'acao-item';
+        divItem.classList.toggle('acao-item--desabilitado', acaoState.desabilitadaPorEmpresa === true);
         divItem.dataset.acao = acao.id;
         divItem.draggable = true;
         divItem.innerHTML = renderAcaoItemHtml(acao, acaoState);

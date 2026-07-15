@@ -8,7 +8,7 @@
  */
 
 import { CONFIG } from '../config/constants.ts';
-import { ACOES_WORKFLOW } from '../config/workflow-actions.ts';
+import { ACOES_WORKFLOW, ehAcaoUnspsc } from '../config/workflow-actions.ts';
 import * as EstadoManager from '../core/estado-manager.ts';
 import type { EstadoApp } from '../core/estado-manager.ts';
 import type { AcaoWorkflow } from '../config/workflow-actions.ts';
@@ -82,7 +82,14 @@ const scheduler = createWorkflowScheduler((trigger: string) => {
 // Helpers internos
 // ---------------------------------------------------------------------------
 function getAcao(id: string, estado: EstadoApp): AcaoEstadoSlim {
-    return (estado.acoes as Record<string, AcaoEstadoSlim>)[id] || { ativo: false, seletor: '', valor: null };
+    const acao = (estado.acoes as Record<string, AcaoEstadoSlim>)[id] || { ativo: false, seletor: '', valor: null };
+    const exigeUnspsc = EmpresaJsonRequirements.empresaExigeUnspsc();
+
+    if (ehAcaoUnspsc(id) && exigeUnspsc === false) {
+        return { ...acao, ativo: false };
+    }
+
+    return acao;
 }
 
 export function getAcoesOrdenadas(estado: EstadoApp): AcaoWorkflow[] {
@@ -776,13 +783,15 @@ export function togglePausar(): void {
 export function iniciar(): void {
     const estado = EstadoManager.get();
     const totalPlanejadoJson = getTotalPlanejadoJson(estado);
+    const exigeUnspsc = EmpresaJsonRequirements.empresaExigeUnspsc();
 
     ACOES_WORKFLOW.forEach((acao: AcaoWorkflow) => {
         const chk = document.getElementById(`chk_${acao.id}`) as HTMLInputElement | null;
         const val = document.getElementById(`val_${acao.id}`) as HTMLInputElement | null;
         const acoes = estado.acoes as Record<string, AcaoEstadoSlim>;
         if (acoes[acao.id]) {
-            acoes[acao.id].ativo = chk?.checked ?? true;
+            const disponivelParaEmpresa = !ehAcaoUnspsc(acao.id) || exigeUnspsc !== false;
+            acoes[acao.id].ativo = disponivelParaEmpresa && (chk?.checked ?? true);
             if (val) acoes[acao.id].valor = val.value;
         }
     });
