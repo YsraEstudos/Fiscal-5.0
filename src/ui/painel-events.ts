@@ -21,6 +21,7 @@ import { abrirGerenciadorDicasFiscais } from './fiscal-hints-manager.ts';
 import { construirListaAcoes } from './painel-builder.ts';
 import * as WorkflowExecutor from '../workflow/executor.ts';
 import * as AcompanhamentoPauseControl from '../workflow/acompanhamento-pause-control.ts';
+import * as SsoEmpresaAbas from '../sso/empresa-abas.ts';
 import type { EstadoApp } from '../core/estado-manager.ts';
 
 const LOG_AREA_DEFAULT_HEIGHT = 110;
@@ -505,6 +506,29 @@ export function wireEvents(toggleMinimizar: () => void): void {
     });
 
     ItemMapManager.atualizarStatusUI(EstadoManager.get() as EstadoApp);
+    document.getElementById('btnSsoEmpresasSalvar')?.addEventListener('click', () => {
+        const textarea = document.getElementById('kmSsoEmpresasInput') as HTMLTextAreaElement | null;
+        const empresas = SsoEmpresaAbas.salvarEmpresasMonitoradas(textarea?.value || '');
+        SsoEmpresaAbas.definirMensagemMonitorSSO(empresas.length + ' empresa(s) salvas.');
+        SsoEmpresaAbas.atualizarPainelSso();
+        log('💾 Lista de empresas do SSO salva', 'info');
+    });
+
+    document.getElementById('btnSsoEmpresasAtualizar')?.addEventListener('click', () => {
+        SsoEmpresaAbas.atualizarPainelSso();
+        SsoEmpresaAbas.definirMensagemMonitorSSO('Status das abas atualizado.');
+    });
+
+    document.getElementById('btnSsoEmpresasAbrir')?.addEventListener('click', () => {
+        const resultado = SsoEmpresaAbas.abrirEmpresasFaltantes();
+        const mensagem = resultado.semLink > 0
+            ? resultado.abertas + ' empresa(s) enviadas para abertura; ' + resultado.semLink + ' sem cartão encontrado.'
+            : resultado.abertas + ' empresa(s) enviadas para abertura.';
+        SsoEmpresaAbas.definirMensagemMonitorSSO(mensagem, resultado.semLink > 0);
+        log('🚀 Abertura automática do SSO solicitada', 'info');
+    });
+
+    SsoEmpresaAbas.atualizarPainelSso();
     atualizarListaDicasFiscais(estado);
     aplicarDicasFiscaisDoEstado();
     if (container) setupDragAndDrop(container);

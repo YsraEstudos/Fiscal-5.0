@@ -1,12 +1,13 @@
 // ==UserScript==
 // @name         FISCAL 5.0 (Robust Robot)
 // @namespace    http://tampermonkey.net/
-// @version      5.2.4
+// @version      5.2.5
 // @author       System Admin
 // @description  Automação modular FISCAL 5.0 com controle individual de ações, inspeção de elementos, perfis e seletor robusto (ID + Texto).
 // @downloadURL  https://raw.githubusercontent.com/YsraEstudos/Fiscal-5.0/main/dist/FISCAL-5.0.user.js
 // @updateURL    https://raw.githubusercontent.com/YsraEstudos/Fiscal-5.0/main/dist/FISCAL-5.0.user.js
 // @match        https://*.klassmatt.com.br/*
+// @match        http://*.klassmatt.com.br/*
 // @grant        none
 // @run-at       document-end
 // ==/UserScript==
@@ -5966,6 +5967,318 @@
         </section>
     `;
   }
+  const CONFIG_COOKIE = "km_fiscal_sso_empresas_v1";
+  const TAB_COOKIE_PREFIX = "km_fiscal_sso_tab_v1_";
+  const TAB_ID_STORAGE_KEY = "km_fiscal_sso_tab_id";
+  const HEARTBEAT_INTERVAL_MS = 4e3;
+  const HEARTBEAT_TTL_MS = 15e3;
+  const HEARTBEAT_COOKIE_MAX_AGE = 25;
+  const CONFIG_COOKIE_MAX_AGE = 31536e3;
+  let heartbeatTimer = null;
+  let monitorTimer = null;
+  let mensagemMonitor = "";
+  let mensagemMonitorErro = false;
+  function temDocumento() {
+    return typeof document !== "undefined" && typeof location !== "undefined";
+  }
+  function obterDominioCookie() {
+    if (typeof location !== "undefined" && /(?:^|\.)klassmatt\.com\.br$/i.test(location.hostname)) {
+      return "; domain=.klassmatt.com.br";
+    }
+    return "";
+  }
+  function definirCookie(nome, valor, maxAge) {
+    if (!temDocumento()) return;
+    document.cookie = `${nome}=${encodeURIComponent(valor)}; path=/${obterDominioCookie()}; max-age=${maxAge}; samesite=lax`;
+  }
+  function removerCookie(nome) {
+    definirCookie(nome, "", 0);
+  }
+  function lerCookies() {
+    if (!temDocumento()) return {};
+    return document.cookie.split(";").reduce((cookies, parte) => {
+      const separador = parte.indexOf("=");
+      if (separador < 0) return cookies;
+      const nome = parte.slice(0, separador).trim();
+      if (!nome) return cookies;
+      const valor = parte.slice(separador + 1);
+      try {
+        cookies[nome] = decodeURIComponent(valor);
+      } catch {
+        cookies[nome] = valor;
+      }
+      return cookies;
+    }, {});
+  }
+  function obterTabId() {
+    var _a;
+    try {
+      const existente = sessionStorage.getItem(TAB_ID_STORAGE_KEY);
+      if (existente) return existente;
+      const cryptoApi = globalThis.crypto;
+      const novo = ((_a = cryptoApi == null ? void 0 : cryptoApi.randomUUID) == null ? void 0 : _a.call(cryptoApi)) || `tab_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+      sessionStorage.setItem(TAB_ID_STORAGE_KEY, novo);
+      return novo;
+    } catch {
+      return `tab_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    }
+  }
+  const TAB_ID = obterTabId();
+  function ehPaginaSso() {
+    if (!temDocumento()) return false;
+    const host = location.hostname.toLowerCase();
+    return (host === "sso.klassmatt.com.br" || host === "sso2.klassmatt.com.br") && /\/painel\.aspx$/i.test(location.pathname);
+  }
+  function normalizarNomeMonitorado(valor) {
+    return String(valor ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/[_\-/.]+/g, " ").replace(/[^A-Z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
+  }
+  function chavesComparacao(valor) {
+    const normalizado = normalizarNomeMonitorado(valor);
+    if (!normalizado) return [];
+    const semAmbiente = normalizado.replace(/\b(PRD|PRODUCAO|HOMOLOGACAO|HOMOLOG|FERRAMENTAS|FER)\b/g, " ").replace(/\s+/g, " ").trim();
+    return [...new Set([normalizado, semAmbiente].filter(Boolean))];
+  }
+  function identidadesCombinam(primeiro, segundo) {
+    const chavesPrimeiro = chavesComparacao(primeiro);
+    const chavesSegundo = new Set(chavesComparacao(segundo));
+    return chavesPrimeiro.some((chave) => chavesSegundo.has(chave));
+  }
+  function deduplicarEmpresas(empresas) {
+    const vistos = /* @__PURE__ */ new Set();
+    return empresas.filter((empresa) => {
+      const chave = normalizarNomeMonitorado(empresa.codigo || empresa.nome);
+      if (!chave || vistos.has(chave)) return false;
+      vistos.add(chave);
+      return true;
+    });
+  }
+  function criarEmpresaMonitorada(nome, projetos) {
+    const nomeLimpo = nome.trim();
+    const projeto = projetos.find((candidato) => {
+      return [candidato.codigo, candidato.rotulo].some((valor) => identidadesCombinam(nomeLimpo, valor));
+    });
+    return {
+      nome: nomeLimpo,
+      codigo: (projeto == null ? void 0 : projeto.codigo) || nomeLimpo
+    };
+  }
+  function obterProjetosSso() {
+    if (!temDocumento()) return [];
+    return Array.from(document.querySelectorAll("a#lkDest[title]")).map((link) => ({
+      codigo: String(link.getAttribute("title") || "").trim(),
+      rotulo: String(link.textContent || "").replace(/\s+/g, " ").trim(),
+      href: String(link.getAttribute("href") || "").trim()
+    })).filter((projeto) => projeto.codigo && projeto.href);
+  }
+  function analisarListaEmpresas(valor) {
+    return [...new Set(
+      String(valor || "").split(/\r?\n/).map((linha) => linha.trim()).filter(Boolean)
+    )];
+  }
+  function obterEmpresasMonitoradas() {
+    const bruto = lerCookies()[CONFIG_COOKIE];
+    if (!bruto) return [];
+    try {
+      const salvo = JSON.parse(bruto);
+      const entradas = Array.isArray(salvo) ? salvo : salvo && typeof salvo === "object" && Array.isArray(salvo.empresas) ? salvo.empresas : [];
+      return deduplicarEmpresas(entradas.map((entrada) => {
+        if (typeof entrada === "string") return criarEmpresaMonitorada(entrada, []);
+        const objeto = entrada && typeof entrada === "object" ? entrada : {};
+        const nome = String(objeto["nome"] || objeto["codigo"] || "").trim();
+        return {
+          nome,
+          codigo: String(objeto["codigo"] || nome).trim()
+        };
+      }).filter((empresa) => empresa.nome));
+    } catch {
+      return [];
+    }
+  }
+  function salvarEmpresasMonitoradas(valor) {
+    const projetos = obterProjetosSso();
+    const empresas = deduplicarEmpresas(analisarListaEmpresas(valor).map((nome) => criarEmpresaMonitorada(nome, projetos)));
+    definirCookie(CONFIG_COOKIE, JSON.stringify(empresas), CONFIG_COOKIE_MAX_AGE);
+    mensagemMonitor = empresas.length ? `${empresas.length} empresa(s) configurada(s).` : "Nenhuma empresa configurada.";
+    mensagemMonitorErro = false;
+    atualizarPainelSso();
+    return empresas;
+  }
+  function lerBatimentos() {
+    const agora = Date.now();
+    return Object.entries(lerCookies()).filter(([nome]) => nome.startsWith(TAB_COOKIE_PREFIX)).map(([nome, valor]) => {
+      try {
+        const batimento = JSON.parse(valor);
+        if (!batimento || !batimento.id || !Number.isFinite(batimento.atualizadoEm)) return null;
+        if (agora - batimento.atualizadoEm > HEARTBEAT_TTL_MS) {
+          removerCookie(nome);
+          return null;
+        }
+        return batimento;
+      } catch {
+        return null;
+      }
+    }).filter((batimento) => !!batimento);
+  }
+  function empresaMonitoradaEstaAberta(empresa, abas) {
+    return abas.find((aba) => aba.identidades.some((identidade) => {
+      return identidadesCombinam(empresa.nome, identidade) || identidadesCombinam(empresa.codigo, identidade);
+    })) || null;
+  }
+  function obterStatusEmpresas() {
+    const abas = lerBatimentos();
+    return obterEmpresasMonitoradas().map((empresa) => {
+      const aba = empresaMonitoradaEstaAberta(empresa, abas);
+      return { ...empresa, aberta: !!aba, aba };
+    });
+  }
+  function adicionarIdentidade(lista, valor) {
+    const texto = String(valor || "").replace(/\s+/g, " ").trim();
+    if (!texto) return;
+    const partes = texto.split(/\/\//).map((parte) => parte.trim()).filter(Boolean);
+    [...partes, texto].forEach((parte) => {
+      if (!lista.some((existente) => identidadesCombinam(existente, parte))) lista.push(parte);
+    });
+  }
+  function obterIdentidadesDaAba() {
+    var _a, _b, _c, _d;
+    if (!temDocumento()) return [];
+    const identidades = [];
+    const usuario = ((_a = buscarElementoDeep("#lblUsuario")) == null ? void 0 : _a.textContent) || ((_b = document.querySelector("#lblUsuario")) == null ? void 0 : _b.textContent);
+    adicionarIdentidade(identidades, usuario);
+    const infoSin = ((_c = document.querySelector("#Label_infoSIN")) == null ? void 0 : _c.textContent) || "";
+    const empresaInfo = (_d = infoSin.match(/Empresa\s*:\s*(.+)$/i)) == null ? void 0 : _d[1];
+    adicionarIdentidade(identidades, empresaInfo);
+    adicionarIdentidade(identidades, document.title);
+    adicionarIdentidade(identidades, location.hostname.split(".")[0]);
+    return identidades.slice(0, 12);
+  }
+  function publicarBatimento() {
+    if (!temDocumento() || ehPaginaSso()) return;
+    const batimento = {
+      id: TAB_ID,
+      identidades: obterIdentidadesDaAba(),
+      host: location.host,
+      url: location.href,
+      titulo: document.title,
+      atualizadoEm: Date.now()
+    };
+    definirCookie(`${TAB_COOKIE_PREFIX}${TAB_ID.replace(/[^a-zA-Z0-9_-]/g, "_")}`, JSON.stringify(batimento), HEARTBEAT_COOKIE_MAX_AGE);
+  }
+  function removerBatimento() {
+    removerCookie(`${TAB_COOKIE_PREFIX}${TAB_ID.replace(/[^a-zA-Z0-9_-]/g, "_")}`);
+    if (heartbeatTimer !== null && typeof globalThis !== "undefined") {
+      globalThis.clearInterval(heartbeatTimer);
+      heartbeatTimer = null;
+    }
+  }
+  function iniciarBatimentoAba() {
+    if (!temDocumento() || ehPaginaSso() || heartbeatTimer !== null) return;
+    publicarBatimento();
+    heartbeatTimer = globalThis.setInterval(publicarBatimento, HEARTBEAT_INTERVAL_MS);
+    globalThis.addEventListener("pagehide", removerBatimento, { once: true });
+    globalThis.addEventListener("beforeunload", removerBatimento, { once: true });
+  }
+  function definirMensagemMonitorSSO(mensagem, erro = false) {
+    mensagemMonitor = mensagem;
+    mensagemMonitorErro = erro;
+    const status = document.getElementById("kmSsoEmpresasStatus");
+    if (!status) return;
+    status.textContent = mensagem;
+    status.classList.toggle("is-error", erro);
+  }
+  function renderSsoEmpresasSection() {
+    if (!ehPaginaSso()) return "";
+    const empresas = obterEmpresasMonitoradas();
+    return `
+        <section id="kmSsoEmpresas" class="km-card km-sso-card">
+            <div class="km-card-head km-card-head--tight">
+                <div>
+                    <label class="km-section-label">Empresas no SSO</label>
+                    <div class="km-helper-text km-sso-subtitle">Monitore e abra automaticamente as empresas desejadas.</div>
+                </div>
+                <span id="kmSsoEmpresasResumo" class="km-badge">0/0 abertas</span>
+            </div>
+            <div class="km-field">
+                <label for="kmSsoEmpresasInput">Uma empresa por linha</label>
+                <textarea id="kmSsoEmpresasInput" class="km-textarea km-sso-input" placeholder="TRES_CORACOES_S4HANA - PRD
+RODONAVES - PRD">${escapeHtml(empresas.map((empresa) => empresa.nome).join("\n"))}</textarea>
+                <div class="km-helper-text">Use o nome/código exibido no cartão do SSO. A lista fica disponível entre os subdomínios Klassmatt.</div>
+            </div>
+            <div class="km-button-row">
+                <button id="btnSsoEmpresasSalvar" class="km-secondary-button" type="button">Salvar lista</button>
+                <button id="btnSsoEmpresasAtualizar" class="km-secondary-button" type="button">Atualizar status</button>
+            </div>
+            <button id="btnSsoEmpresasAbrir" class="km-primary-button km-sso-open-button" type="button">Abrir empresas fechadas</button>
+            <div id="kmSsoEmpresasStatus" class="km-status ${mensagemMonitorErro ? "is-error" : ""}">${escapeHtml(mensagemMonitor)}</div>
+            <div id="kmSsoEmpresasLista" class="km-sso-list"></div>
+        </section>
+    `;
+  }
+  function atualizarPainelSso() {
+    const root = document.getElementById("kmSsoEmpresas");
+    if (!root) return;
+    const status = obterStatusEmpresas();
+    const abertas = status.filter((empresa) => empresa.aberta).length;
+    const faltantes = status.length - abertas;
+    const resumo = document.getElementById("kmSsoEmpresasResumo");
+    const lista = document.getElementById("kmSsoEmpresasLista");
+    const botaoAbrir = document.getElementById("btnSsoEmpresasAbrir");
+    if (resumo) resumo.textContent = `${abertas}/${status.length} abertas`;
+    if (botaoAbrir) {
+      botaoAbrir.disabled = faltantes === 0;
+      botaoAbrir.textContent = faltantes ? `Abrir empresas fechadas (${faltantes})` : "Todas as empresas estão abertas";
+    }
+    if (lista) {
+      lista.innerHTML = status.length ? status.map((empresa) => `
+                <div class="km-sso-company-row ${empresa.aberta ? "is-open" : "is-closed"}">
+                    <span class="km-sso-company-dot" aria-hidden="true">●</span>
+                    <span class="km-sso-company-name">${escapeHtml(empresa.nome)}</span>
+                    <strong class="km-sso-company-status">${empresa.aberta ? "ABERTA" : "FECHADA"}</strong>
+                </div>
+            `).join("") : '<div class="km-helper-text">Nenhuma empresa configurada.</div>';
+    }
+  }
+  function aplicarPesquisaSso(valor) {
+    var _a;
+    const input = document.querySelector("#pesquisar");
+    if (!input) return;
+    const setter = (_a = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")) == null ? void 0 : _a.set;
+    setter == null ? void 0 : setter.call(input, valor);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new KeyboardEvent("keyup", { bubbles: true, key: "Enter" }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+  function encontrarLinkProjeto(empresa) {
+    const projetos = obterProjetosSso();
+    const projeto = projetos.find((candidato) => [empresa.codigo, empresa.nome].some((valor) => {
+      return [candidato.codigo, candidato.rotulo].some((nome) => identidadesCombinam(valor, nome));
+    }));
+    if (!projeto) return null;
+    return Array.from(document.querySelectorAll("a#lkDest[title]")).find((link) => link.getAttribute("href") === projeto.href) || null;
+  }
+  function abrirEmpresasFaltantes() {
+    if (!ehPaginaSso()) return { solicitadas: 0, abertas: 0, semLink: 0 };
+    const faltantes = obterStatusEmpresas().filter((empresa) => !empresa.aberta);
+    let abertas = 0;
+    let semLink = 0;
+    faltantes.forEach((empresa) => {
+      const link = encontrarLinkProjeto(empresa);
+      if (!link) {
+        semLink += 1;
+        return;
+      }
+      aplicarPesquisaSso(empresa.codigo || empresa.nome);
+      link.click();
+      abertas += 1;
+    });
+    atualizarPainelSso();
+    return { solicitadas: faltantes.length, abertas, semLink };
+  }
+  function iniciarMonitorSso() {
+    if (!temDocumento() || !ehPaginaSso() || monitorTimer !== null) return;
+    atualizarPainelSso();
+    monitorTimer = globalThis.setInterval(atualizarPainelSso, 3e3);
+  }
   function renderSecaoColapsavel(estado, chave, titulo, conteudoHtml) {
     const secoes = estado.painelSecoes || {};
     const expandida = secoes[chave] !== void 0 ? !!secoes[chave] : true;
@@ -6005,6 +6318,7 @@
                 ${renderSecaoColapsavel(estado, "opcoes", "Opções", renderOpcoesSection(estado))}
                 ${renderSecaoColapsavel(estado, "fiscalHints", "Dicas fiscais", renderFiscalHintsSection(estado))}
                 ${renderSecaoColapsavel(estado, "json", "JSON por Item", renderJsonSection(estado))}
+                ${ehPaginaSso() ? renderSsoEmpresasSection() : ""}
                 ${renderSecaoColapsavel(estado, "progresso", "Progresso", renderProgressoSection())}
                 ${renderSecaoColapsavel(estado, "controle", "Controle", renderControleSection(estado))}
                 ${renderSecaoColapsavel(estado, "logs", "Logs", renderLogsSection())}
@@ -6462,6 +6776,64 @@
             color: var(--km-muted);
         }
 
+        .km-sso-card .km-sso-subtitle {
+            margin-top: 3px;
+        }
+
+        .km-sso-input {
+            min-height: 90px;
+        }
+
+        .km-sso-open-button {
+            margin-top: 10px;
+            font-size: 11px;
+        }
+
+        .km-sso-open-button:disabled {
+            cursor: not-allowed;
+            opacity: 0.55;
+            transform: none;
+        }
+
+        .km-sso-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-top: 10px;
+        }
+
+        .km-sso-company-row {
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr) auto;
+            align-items: center;
+            gap: 7px;
+            padding: 7px 8px;
+            border-radius: 10px;
+            background: rgba(90, 68, 44, 0.06);
+            font-size: 11px;
+        }
+
+        .km-sso-company-name {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .km-sso-company-status {
+            font-size: 10px;
+        }
+
+        .km-sso-company-row.is-closed .km-sso-company-status,
+        .km-sso-company-row.is-closed .km-sso-company-dot,
+        .km-status.is-error {
+            color: var(--km-danger);
+        }
+
+        .km-sso-company-row.is-open .km-sso-company-status,
+        .km-sso-company-row.is-open .km-sso-company-dot {
+            color: var(--km-accent);
+        }
         .km-progress-card {
             gap: 8px;
         }
@@ -7581,7 +7953,7 @@
     return estado;
   }
   function wireEvents(toggleMinimizar2) {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t;
     const estado = get();
     inicializar$1();
     const fmtS = (ms) => `${(Number(ms || 0) / 1e3).toFixed(1)}s`;
@@ -7831,6 +8203,24 @@
       else iniciar();
     });
     atualizarStatusUI(get());
+    (_r = document.getElementById("btnSsoEmpresasSalvar")) == null ? void 0 : _r.addEventListener("click", () => {
+      const textarea = document.getElementById("kmSsoEmpresasInput");
+      const empresas = salvarEmpresasMonitoradas((textarea == null ? void 0 : textarea.value) || "");
+      definirMensagemMonitorSSO(empresas.length + " empresa(s) salvas.");
+      atualizarPainelSso();
+      log("💾 Lista de empresas do SSO salva", "info");
+    });
+    (_s = document.getElementById("btnSsoEmpresasAtualizar")) == null ? void 0 : _s.addEventListener("click", () => {
+      atualizarPainelSso();
+      definirMensagemMonitorSSO("Status das abas atualizado.");
+    });
+    (_t = document.getElementById("btnSsoEmpresasAbrir")) == null ? void 0 : _t.addEventListener("click", () => {
+      const resultado2 = abrirEmpresasFaltantes();
+      const mensagem = resultado2.semLink > 0 ? resultado2.abertas + " empresa(s) enviadas para abertura; " + resultado2.semLink + " sem cartão encontrado." : resultado2.abertas + " empresa(s) enviadas para abertura.";
+      definirMensagemMonitorSSO(mensagem, resultado2.semLink > 0);
+      log("🚀 Abertura automática do SSO solicitada", "info");
+    });
+    atualizarPainelSso();
     atualizarListaDicasFiscais(estado);
     aplicarDicasFiscaisDoEstado();
     if (container) setupDragAndDrop(container);
@@ -8123,7 +8513,9 @@
     limpar();
   }
   enableTrustedTypesBypass();
-  inicializarHooks();
+  if (!ehPaginaSso()) {
+    inicializarHooks();
+  }
   setRegistrarInteracao((acaoId) => {
     if (registrarInteracao) {
       registrarInteracao(acaoId);
@@ -8135,6 +8527,8 @@
     } else {
       inicializar();
     }
+    if (ehPaginaSso()) iniciarMonitorSso();
+    else iniciarBatimentoAba();
     document.addEventListener("click", () => inicializar$2(), { once: true });
   }
   if (typeof globalThis !== "undefined") {

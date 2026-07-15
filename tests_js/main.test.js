@@ -24,7 +24,7 @@ vi.mock("../src/core/estado-manager.ts", () => ({}));
 vi.mock("../src/core/log-manager.ts", () => ({ log: vi.fn() }));
 vi.mock("../src/core/aspnet-lifecycle.ts", () => ({}));
 vi.mock("../src/utils/dom-helpers.ts", () => ({}));
-vi.mock("../src/utils/selectors.ts", () => ({}));
+vi.mock("../src/utils/selectors.ts", () => ({ buscarElementoDeep: () => null }));
 vi.mock("../src/validation/validador.ts", () => ({}));
 vi.mock("../src/data/item-map-manager.ts", () => ({}));
 vi.mock("../src/workflow/pagina-verificador.ts", () => ({}));

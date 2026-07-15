@@ -451,6 +451,64 @@ export function injetarEstilosPainel(): void {
             color: var(--km-muted);
         }
 
+        .km-sso-card .km-sso-subtitle {
+            margin-top: 3px;
+        }
+
+        .km-sso-input {
+            min-height: 90px;
+        }
+
+        .km-sso-open-button {
+            margin-top: 10px;
+            font-size: 11px;
+        }
+
+        .km-sso-open-button:disabled {
+            cursor: not-allowed;
+            opacity: 0.55;
+            transform: none;
+        }
+
+        .km-sso-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-top: 10px;
+        }
+
+        .km-sso-company-row {
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr) auto;
+            align-items: center;
+            gap: 7px;
+            padding: 7px 8px;
+            border-radius: 10px;
+            background: rgba(90, 68, 44, 0.06);
+            font-size: 11px;
+        }
+
+        .km-sso-company-name {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .km-sso-company-status {
+            font-size: 10px;
+        }
+
+        .km-sso-company-row.is-closed .km-sso-company-status,
+        .km-sso-company-row.is-closed .km-sso-company-dot,
+        .km-status.is-error {
+            color: var(--km-danger);
+        }
+
+        .km-sso-company-row.is-open .km-sso-company-status,
+        .km-sso-company-row.is-open .km-sso-company-dot {
+            color: var(--km-accent);
+        }
         .km-progress-card {
             gap: 8px;
         }

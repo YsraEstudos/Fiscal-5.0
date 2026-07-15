@@ -12,6 +12,7 @@ import {
     renderTrilhaSection,
     renderWorkflowSection,
 } from './painel-sections.ts';
+import { ehPaginaSso, renderSsoEmpresasSection } from '../../sso/empresa-abas.ts';
 
 function renderSecaoColapsavel(estado: EstadoApp, chave: string, titulo: string, conteudoHtml: string): string {
     const secoes = (estado.painelSecoes as unknown as Record<string, boolean>) || {};
@@ -53,6 +54,7 @@ export function renderPainelShell(estado: EstadoApp, painelMinimizado: boolean):
                 ${renderSecaoColapsavel(estado, 'opcoes', 'Opções', renderOpcoesSection(estado))}
                 ${renderSecaoColapsavel(estado, 'fiscalHints', 'Dicas fiscais', renderFiscalHintsSection(estado))}
                 ${renderSecaoColapsavel(estado, 'json', 'JSON por Item', renderJsonSection(estado))}
+                ${ehPaginaSso() ? renderSsoEmpresasSection() : ''}
                 ${renderSecaoColapsavel(estado, 'progresso', 'Progresso', renderProgressoSection())}
                 ${renderSecaoColapsavel(estado, 'controle', 'Controle', renderControleSection(estado))}
                 ${renderSecaoColapsavel(estado, 'logs', 'Logs', renderLogsSection())}

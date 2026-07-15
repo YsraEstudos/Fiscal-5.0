@@ -36,13 +36,16 @@ import * as WorkflowExecutor from './workflow/executor.ts';
 
 // --- Fase 5: UI ---
 import * as UIManager from './ui/ui-manager.ts';
+import * as SsoEmpresaAbas from './sso/empresa-abas.ts';
 
 // ---------------------------------------------------------------------------
 // Ativar bypass de Trusted Types antes de qualquer manipulação DOM
 enableTrustedTypesBypass();
 
 // Inicializar hooks ASP.NET e interceptor de alertas NCM (Fase 4)
-WorkflowExecutor.inicializarHooks();
+if (!SsoEmpresaAbas.ehPaginaSso()) {
+    WorkflowExecutor.inicializarHooks();
+}
 
 // Registrar callback de interação no módulo Interacao (Fase 4 → Fase 3)
 Interacao.setRegistrarInteracao((acaoId: string) => {
@@ -59,6 +62,8 @@ if (typeof document !== 'undefined') {
         UIManager.inicializar();
     }
     // Inicializar AudioContext na primeira interação do usuário
+    if (SsoEmpresaAbas.ehPaginaSso()) SsoEmpresaAbas.iniciarMonitorSso();
+    else SsoEmpresaAbas.iniciarBatimentoAba();
     document.addEventListener('click', () => AudioManager.inicializar(), { once: true });
 }
 
