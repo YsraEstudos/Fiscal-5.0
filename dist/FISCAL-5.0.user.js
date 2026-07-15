@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         FISCAL 5.0 (Robust Robot)
 // @namespace    http://tampermonkey.net/
-// @version      5.2.0
+// @version      5.2.1
 // @author       System Admin
 // @description  Automação modular FISCAL 5.0 com controle individual de ações, inspeção de elementos, perfis e seletor robusto (ID + Texto).
 // @downloadURL  https://raw.githubusercontent.com/YsraEstudos/Fiscal-5.0/main/dist/FISCAL-5.0.user.js
@@ -5530,16 +5530,26 @@
     }
     return { normalizado, indices };
   }
+  function ehCaractereDePalavra(char) {
+    return Boolean(char && /[\p{L}\p{N}_]/u.test(char));
+  }
   function encontrarTermo(texto, termo) {
     const alvo = normalizarTermoFiscal(termo);
     if (!alvo) return null;
     const mapa = criarMapaNormalizado(texto);
-    const inicioNormalizado = mapa.normalizado.indexOf(alvo);
-    if (inicioNormalizado < 0) return null;
-    const inicio = mapa.indices[inicioNormalizado] ?? 0;
-    const fimIndiceNormalizado = inicioNormalizado + alvo.length - 1;
-    const fim = (mapa.indices[fimIndiceNormalizado] ?? inicio) + 1;
-    return { inicio, fim };
+    let inicioNormalizado = mapa.normalizado.indexOf(alvo);
+    while (inicioNormalizado >= 0) {
+      const fimNormalizado = inicioNormalizado + alvo.length;
+      const termoComecaNoLimite = !ehCaractereDePalavra(mapa.normalizado[inicioNormalizado - 1]);
+      const termoTerminaNoLimite = !ehCaractereDePalavra(mapa.normalizado[fimNormalizado]);
+      if (termoComecaNoLimite && termoTerminaNoLimite) {
+        const inicio = mapa.indices[inicioNormalizado] ?? 0;
+        const fim = (mapa.indices[fimNormalizado - 1] ?? inicio) + 1;
+        return { inicio, fim };
+      }
+      inicioNormalizado = mapa.normalizado.indexOf(alvo, inicioNormalizado + 1);
+    }
+    return null;
   }
   function obterDicasOrdenadas(dicas, empresaAtual) {
     const empNorm = empresaAtual ? empresaAtual.trim().toUpperCase() : null;
@@ -5746,23 +5756,37 @@
     if (!dicas.length) return '<div id="fiscalHintsLista" class="km-helper-text">Nenhuma dica cadastrada.</div>';
     return `
         <div id="fiscalHintsLista" class="km-fiscal-hint-list">
-            ${dicas.map(([id, dica]) => `
-                <div class="km-fiscal-hint-row" data-km-fiscal-id="${escapeHtml(id)}">
-                    <div class="km-fiscal-hint-row-copy">
-                        <strong>${escapeHtml(dica.termo || "")}</strong>
-                        <span>${escapeHtml([dica.ncm ? `NCM ${dica.ncm}` : "", dica.unspsc ? `UNSPSC ${dica.unspsc}` : ""].filter(Boolean).join(" / "))}</span>
+            ${dicas.map(([id, dica]) => {
+    const codigos = [dica.ncm ? `NCM ${dica.ncm}` : "", dica.unspsc ? `UNSPSC ${dica.unspsc}` : ""].filter(Boolean).join(" / ") || "Sem código informado";
+    const empresa = dica.empresa ? `Somente ${dica.empresa}` : "Todas as empresas";
+    return `
+                    <div class="km-fiscal-hint-row" data-km-fiscal-id="${escapeHtml(id)}">
+                        <div class="km-fiscal-hint-row-copy">
+                            <strong>${escapeHtml(dica.termo || "")}</strong>
+                            <span>${escapeHtml(`${codigos} · ${empresa}`)}</span>
+                        </div>
+                        <div class="km-fiscal-hint-row-actions">
+                            <button class="km-inline-button" type="button" data-km-fiscal-edit="${escapeHtml(id)}">Editar</button>
+                            <button class="km-inline-button km-inline-button--danger" type="button" data-km-fiscal-remove="${escapeHtml(id)}">Remover</button>
+                        </div>
                     </div>
-                    <button class="km-inline-button km-inline-button--danger" type="button" data-km-fiscal-remove="${escapeHtml(id)}">Remover</button>
-                </div>
-            `).join("")}
+                `;
+  }).join("")}
         </div>
     `;
   }
   function renderFiscalHintsSection(estado) {
-    const json = estado.fiscalHintsJson || exportarDicasFiscaisJson(estado.fiscalHints || {});
+    const dicas = estado.fiscalHints || {};
+    const json = estado.fiscalHintsJson || exportarDicasFiscaisJson(dicas);
+    const totalDicas = Object.keys(dicas).length;
     return `
         <section class="km-card">
-            <label class="km-section-label">Dicas fiscais</label>
+            <div class="km-card-head km-card-head--tight">
+                <label class="km-section-label">Dicas fiscais</label>
+                <button id="btnFiscalHintsGerenciar" class="km-action-button" type="button" aria-haspopup="dialog">
+                    Gerenciar <span data-km-fiscal-hints-count>${totalDicas}</span>
+                </button>
+            </div>
             <label class="km-checkline">
                 <input type="checkbox" id="chkFiscalHintsAtivo" ${estado.fiscalHintsAtivo !== false ? "checked" : ""}>
                 <span>Destacar termos na descrição</span>
@@ -6522,6 +6546,264 @@
             overflow-wrap: anywhere;
         }
 
+        .km-fiscal-hint-row-copy em {
+            color: var(--km-muted);
+            font-size: 9px;
+            font-style: normal;
+        }
+
+        .km-fiscal-hint-row-actions {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            gap: 4px;
+        }
+
+        .km-field-help {
+            color: var(--km-muted);
+            font-size: 9px;
+            line-height: 1.35;
+        }
+
+        #km-fiscal-hints-manager[hidden] {
+            display: none;
+        }
+
+        #km-fiscal-hints-manager {
+            position: fixed;
+            inset: 0;
+            z-index: 2147483647;
+            display: grid;
+            place-items: center;
+            box-sizing: border-box;
+            padding: 16px;
+            color: var(--km-text);
+            font-family: "Segoe UI", Tahoma, sans-serif;
+        }
+
+        .km-fiscal-hints-manager-backdrop {
+            position: absolute;
+            inset: 0;
+            background: rgba(24, 31, 26, 0.52);
+            backdrop-filter: blur(3px);
+        }
+
+        .km-fiscal-hints-manager-dialog {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            width: min(760px, calc(100vw - 24px));
+            max-height: min(720px, calc(100vh - 24px));
+            overflow: hidden;
+            border: 1px solid rgba(255, 250, 240, 0.3);
+            border-radius: 22px;
+            background: var(--km-bg);
+            box-shadow: 0 28px 70px rgba(15, 24, 18, 0.36);
+            animation: km-fiscal-hints-manager-enter 0.2s ease-out;
+        }
+
+        @keyframes km-fiscal-hints-manager-enter {
+            from { opacity: 0; transform: translateY(12px) scale(0.98); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        .km-fiscal-hints-manager-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 18px 20px;
+            background: linear-gradient(135deg, #153a2d 0%, #245847 100%);
+            color: #fffdf8;
+        }
+
+        .km-fiscal-hints-manager-header .km-kicker,
+        .km-fiscal-hints-manager-header .km-fiscal-hints-manager-subtitle {
+            color: rgba(255, 253, 248, 0.74);
+        }
+
+        .km-fiscal-hints-manager-title {
+            margin: 4px 0 0;
+            font-size: 18px;
+            line-height: 1.15;
+        }
+
+        .km-fiscal-hints-manager-subtitle {
+            max-width: 540px;
+            margin: 6px 0 0;
+            font-size: 11px;
+            line-height: 1.4;
+        }
+
+        .km-fiscal-hints-manager-close {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            flex: 0 0 auto;
+            border: 1px solid rgba(255, 255, 255, 0.22);
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.12);
+            color: #fff;
+            cursor: pointer;
+            font-size: 22px;
+            line-height: 1;
+        }
+
+        .km-fiscal-hints-manager-layout {
+            display: grid;
+            grid-template-columns: minmax(0, 1.12fr) minmax(260px, 0.88fr);
+            gap: 12px;
+            min-height: 0;
+            padding: 14px;
+            overflow: auto;
+        }
+
+        .km-fiscal-hints-manager-list-panel,
+        .km-fiscal-hints-manager-form {
+            min-width: 0;
+            padding: 12px;
+            border: 1px solid var(--km-border);
+            border-radius: 16px;
+            background: rgba(255, 250, 240, 0.72);
+        }
+
+        .km-fiscal-hints-manager-list-panel {
+            display: flex;
+            flex-direction: column;
+            min-height: 300px;
+        }
+
+        .km-fiscal-hints-manager-list-head,
+        .km-fiscal-hints-manager-form-actions {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .km-fiscal-hints-manager-count {
+            display: block;
+            margin-top: 3px;
+            color: var(--km-muted);
+            font-size: 9px;
+        }
+
+        .km-fiscal-hints-manager-search-field {
+            margin-top: 12px;
+        }
+
+        .km-fiscal-hints-manager-list,
+        .km-fiscal-hints-manager-form {
+            overflow-y: auto;
+            scrollbar-width: thin;
+        }
+
+        .km-fiscal-hints-manager-list {
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+            max-height: 420px;
+            margin-top: 8px;
+        }
+
+        .km-fiscal-hints-manager-item {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 8px;
+            padding: 9px;
+            border: 1px solid rgba(90, 68, 44, 0.1);
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.72);
+        }
+
+        .km-fiscal-hints-manager-item-copy {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            gap: 3px;
+            font-size: 10px;
+        }
+
+        .km-fiscal-hints-manager-item-copy strong,
+        .km-fiscal-hints-manager-item-copy span,
+        .km-fiscal-hints-manager-item-copy em {
+            overflow-wrap: anywhere;
+        }
+
+        .km-fiscal-hints-manager-item-copy span,
+        .km-fiscal-hints-manager-item-copy em {
+            color: var(--km-muted);
+            font-size: 9px;
+            font-style: normal;
+        }
+
+        .km-fiscal-hints-manager-item-actions {
+            display: flex;
+            flex: 0 0 auto;
+            gap: 4px;
+        }
+
+        .km-fiscal-hints-manager-empty {
+            padding: 24px 10px;
+            color: var(--km-muted);
+            font-size: 10px;
+            text-align: center;
+        }
+
+        .km-fiscal-hints-manager-form {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            overflow: visible;
+        }
+
+        .km-fiscal-hints-manager-form-head {
+            padding-bottom: 4px;
+            border-bottom: 1px solid rgba(90, 68, 44, 0.12);
+        }
+
+        .km-fiscal-hints-manager-form-title {
+            margin: 4px 0 0;
+            font-size: 15px;
+        }
+
+        .km-fiscal-hints-manager-form-actions {
+            align-items: stretch;
+            margin-top: auto;
+            padding-top: 4px;
+        }
+
+        .km-fiscal-hints-manager-submit {
+            width: auto;
+            flex: 1;
+        }
+
+        #km-fiscal-hints-manager input[type="text"],
+        #km-fiscal-hints-manager input[type="search"] {
+            width: 100%;
+            box-sizing: border-box;
+            border: 1px solid rgba(90, 68, 44, 0.18);
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.88);
+            color: var(--km-text);
+            padding: 8px 10px;
+            font-size: 11px;
+        }
+
+        #km-fiscal-hints-manager input[type="text"]:focus,
+        #km-fiscal-hints-manager input[type="search"]:focus,
+        #km-fiscal-hints-manager button:focus-visible {
+            outline: 2px solid rgba(14, 90, 72, 0.24);
+            outline-offset: 2px;
+        }
+
+        [data-km-fiscal-manager-status].is-error {
+            color: var(--km-danger);
+        }
+
         .km-fiscal-hint-mark {
             display: inline;
             border: 0;
@@ -6573,6 +6855,17 @@
         }
 
         @media (max-width: 640px) {
+            .km-fiscal-hints-manager-layout {
+                grid-template-columns: 1fr;
+            }
+
+            .km-fiscal-hints-manager-list-panel {
+                min-height: 0;
+            }
+
+            .km-fiscal-hints-manager-list {
+                max-height: 240px;
+            }
             #painel-robo-pro {
                 width: calc(100vw - 20px);
             }
@@ -6838,6 +7131,250 @@
       set$1(estado);
     }
   }
+  const FISCAL_HINTS_MANAGER_ID = "km-fiscal-hints-manager";
+  let modalAtual = null;
+  let callbacksAtivos = null;
+  function obterModal() {
+    if (modalAtual == null ? void 0 : modalAtual.isConnected) return modalAtual;
+    const modal = document.createElement("div");
+    modal.id = FISCAL_HINTS_MANAGER_ID;
+    modal.className = "km-fiscal-hints-manager";
+    modal.hidden = true;
+    modal.setAttribute("role", "dialog");
+    modal.setAttribute("aria-modal", "true");
+    modal.setAttribute("aria-labelledby", "kmFiscalHintsManagerTitle");
+    modal.innerHTML = `
+        <div class="km-fiscal-hints-manager-backdrop" data-km-fiscal-hints-close></div>
+        <section class="km-fiscal-hints-manager-dialog">
+            <header class="km-fiscal-hints-manager-header">
+                <div>
+                    <span class="km-kicker">Curadoria fiscal</span>
+                    <h2 id="kmFiscalHintsManagerTitle" class="km-fiscal-hints-manager-title">Gerenciar dicas fiscais</h2>
+                    <p class="km-fiscal-hints-manager-subtitle">Organize as dicas globais e defina em qual empresa cada uma deve aparecer.</p>
+                </div>
+                <button class="km-fiscal-hints-manager-close" type="button" data-km-fiscal-hints-close aria-label="Fechar gerenciador">×</button>
+            </header>
+            <div class="km-fiscal-hints-manager-layout">
+                <section class="km-fiscal-hints-manager-list-panel" aria-labelledby="kmFiscalHintsListTitle">
+                    <div class="km-fiscal-hints-manager-list-head">
+                        <div>
+                            <span class="km-section-label" id="kmFiscalHintsListTitle">Dicas cadastradas</span>
+                            <span class="km-fiscal-hints-manager-count" data-km-fiscal-manager-count></span>
+                        </div>
+                        <button type="button" class="km-action-button" data-km-fiscal-manager-new>Nova dica</button>
+                    </div>
+                    <div class="km-field km-fiscal-hints-manager-search-field">
+                        <label for="kmFiscalHintsManagerSearch">Filtrar dicas</label>
+                        <input id="kmFiscalHintsManagerSearch" type="search" data-km-fiscal-manager-search placeholder="Termo, código ou empresa">
+                    </div>
+                    <div class="km-fiscal-hints-manager-list" data-km-fiscal-manager-list></div>
+                </section>
+                <form id="kmFiscalHintsManagerForm" class="km-fiscal-hints-manager-form">
+                    <input id="kmFiscalHintsManagerId" type="hidden">
+                    <div class="km-fiscal-hints-manager-form-head">
+                        <span class="km-kicker">Edição</span>
+                        <h3 class="km-fiscal-hints-manager-form-title" data-km-fiscal-manager-form-title>Nova dica</h3>
+                    </div>
+                    <div class="km-field">
+                        <label for="kmFiscalHintsManagerTermo">Termo ou frase</label>
+                        <input id="kmFiscalHintsManagerTermo" type="text" required placeholder="APLICACAO: CAMINHAO">
+                    </div>
+                    <div class="km-field-grid">
+                        <div class="km-field">
+                            <label for="kmFiscalHintsManagerNcm">NCM</label>
+                            <input id="kmFiscalHintsManagerNcm" type="text" placeholder="8708.93.00">
+                        </div>
+                        <div class="km-field">
+                            <label for="kmFiscalHintsManagerUnspsc">UNSPSC / NSPSC</label>
+                            <input id="kmFiscalHintsManagerUnspsc" type="text" placeholder="25101929">
+                        </div>
+                    </div>
+                    <div class="km-field">
+                        <label for="kmFiscalHintsManagerEmpresa">Empresa</label>
+                        <input id="kmFiscalHintsManagerEmpresa" type="text" placeholder="Ex.: RODONAVES">
+                        <span class="km-field-help">Deixe vazio para a dica valer em todas as empresas.</span>
+                    </div>
+                    <div class="km-fiscal-hints-manager-form-actions">
+                        <button type="button" class="km-secondary-button" data-km-fiscal-manager-new>Limpar</button>
+                        <button type="submit" class="km-primary-button km-fiscal-hints-manager-submit" data-km-fiscal-manager-submit>Adicionar dica</button>
+                    </div>
+                    <div class="km-helper-text" data-km-fiscal-manager-status aria-live="polite"></div>
+                </form>
+            </div>
+        </section>
+    `;
+    modal.addEventListener("click", (event) => {
+      const target = event.target;
+      if (target.closest("[data-km-fiscal-hints-close]")) {
+        fecharGerenciadorDicasFiscais();
+        return;
+      }
+      const novo = target.closest("[data-km-fiscal-manager-new]");
+      if (novo) {
+        limparFormulario(modal);
+        return;
+      }
+      const editar = target.closest("[data-km-fiscal-manager-edit]");
+      if (editar) {
+        carregarDicaNoFormulario(modal, editar.dataset.kmFiscalManagerEdit || "");
+        return;
+      }
+      const remover = target.closest("[data-km-fiscal-manager-remove]");
+      if (remover) {
+        removerDica(modal, remover.dataset.kmFiscalManagerRemove || "");
+      }
+    });
+    modal.addEventListener("input", (event) => {
+      const target = event.target;
+      if (target.matches("[data-km-fiscal-manager-search]")) renderLista(modal);
+    });
+    modal.addEventListener("submit", (event) => {
+      if (!event.target.matches("#kmFiscalHintsManagerForm")) return;
+      event.preventDefault();
+      salvarDica(modal);
+    });
+    modal.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") fecharGerenciadorDicasFiscais();
+    });
+    document.body.appendChild(modal);
+    modalAtual = modal;
+    return modal;
+  }
+  function setStatus(modal, mensagem, tipo = "info") {
+    const status = modal.querySelector("[data-km-fiscal-manager-status]");
+    if (!status) return;
+    status.textContent = mensagem;
+    status.classList.toggle("is-error", tipo === "error");
+  }
+  function limparFormulario(modal) {
+    const form = modal.querySelector("#kmFiscalHintsManagerForm");
+    if (!form) return;
+    form.reset();
+    modal.querySelector("#kmFiscalHintsManagerId").value = "";
+    const title = modal.querySelector("[data-km-fiscal-manager-form-title]");
+    if (title) title.textContent = "Nova dica";
+    const submit = modal.querySelector("[data-km-fiscal-manager-submit]");
+    if (submit) submit.textContent = "Adicionar dica";
+    setStatus(modal, "");
+  }
+  function carregarDicaNoFormulario(modal, id) {
+    var _a;
+    const dica = (_a = callbacksAtivos == null ? void 0 : callbacksAtivos.getDicas()) == null ? void 0 : _a[id];
+    if (!dica) return;
+    modal.querySelector("#kmFiscalHintsManagerId").value = id;
+    modal.querySelector("#kmFiscalHintsManagerTermo").value = dica.termo || "";
+    modal.querySelector("#kmFiscalHintsManagerNcm").value = dica.ncm || "";
+    modal.querySelector("#kmFiscalHintsManagerUnspsc").value = dica.unspsc || "";
+    modal.querySelector("#kmFiscalHintsManagerEmpresa").value = dica.empresa || "";
+    const title = modal.querySelector("[data-km-fiscal-manager-form-title]");
+    if (title) title.textContent = "Editar dica";
+    const submit = modal.querySelector("[data-km-fiscal-manager-submit]");
+    if (submit) submit.textContent = "Salvar alterações";
+    setStatus(modal, `Editando “${dica.termo}”.`);
+    modal.querySelector("#kmFiscalHintsManagerTermo").focus();
+  }
+  function obterRegistros(dicas) {
+    return Object.entries(dicas || {}).map(([id, dica]) => ({
+      id,
+      termo: dica.termo,
+      ...dica.ncm ? { ncm: dica.ncm } : {},
+      ...dica.unspsc ? { unspsc: dica.unspsc } : {},
+      ...dica.empresa ? { empresa: dica.empresa } : {}
+    }));
+  }
+  function renderLista(modal) {
+    var _a;
+    const list = modal.querySelector("[data-km-fiscal-manager-list]");
+    if (!list || !callbacksAtivos) return;
+    const dicas = Object.entries(callbacksAtivos.getDicas() || {});
+    const query = (((_a = modal.querySelector("[data-km-fiscal-manager-search]")) == null ? void 0 : _a.value) || "").trim().toLocaleLowerCase();
+    const filtradas = dicas.filter(([, dica]) => !query || [dica.termo, dica.ncm, dica.unspsc, dica.empresa].filter(Boolean).join(" ").toLocaleLowerCase().includes(query));
+    const count = modal.querySelector("[data-km-fiscal-manager-count]");
+    if (count) count.textContent = `${dicas.length} ${dicas.length === 1 ? "dica" : "dicas"}`;
+    if (!filtradas.length) {
+      list.innerHTML = `<div class="km-fiscal-hints-manager-empty">${query ? "Nenhuma dica encontrada." : "Nenhuma dica cadastrada."}</div>`;
+      return;
+    }
+    list.innerHTML = filtradas.map(([id, dica]) => {
+      const codigos = [dica.ncm ? `NCM ${dica.ncm}` : "", dica.unspsc ? `UNSPSC ${dica.unspsc}` : ""].filter(Boolean).join(" · ") || "Sem código informado";
+      const empresa = dica.empresa ? `Somente ${dica.empresa}` : "Todas as empresas";
+      return `
+            <article class="km-fiscal-hints-manager-item">
+                <div class="km-fiscal-hints-manager-item-copy">
+                    <strong>${escapeHtml(dica.termo || "")}</strong>
+                    <span>${escapeHtml(codigos)}</span>
+                    <em>${escapeHtml(empresa)}</em>
+                </div>
+                <div class="km-fiscal-hints-manager-item-actions">
+                    <button type="button" class="km-inline-button" data-km-fiscal-manager-edit="${escapeHtml(id)}">Editar</button>
+                    <button type="button" class="km-inline-button km-inline-button--danger" data-km-fiscal-manager-remove="${escapeHtml(id)}">Remover</button>
+                </div>
+            </article>
+        `;
+    }).join("");
+  }
+  function salvarDica(modal) {
+    var _a;
+    if (!callbacksAtivos) return;
+    const id = modal.querySelector("#kmFiscalHintsManagerId").value.trim();
+    const termo = modal.querySelector("#kmFiscalHintsManagerTermo").value.trim();
+    const ncm2 = modal.querySelector("#kmFiscalHintsManagerNcm").value.trim();
+    const unspsc2 = modal.querySelector("#kmFiscalHintsManagerUnspsc").value.trim();
+    const empresa = modal.querySelector("#kmFiscalHintsManagerEmpresa").value.trim();
+    const registros = obterRegistros(callbacksAtivos.getDicas() || {});
+    const registro = {
+      ...id ? { id } : {},
+      termo,
+      ...ncm2 ? { ncm: ncm2 } : {},
+      ...unspsc2 ? { unspsc: unspsc2 } : {},
+      ...empresa ? { empresa } : {}
+    };
+    const indice = id ? registros.findIndex((item) => item.id === id) : -1;
+    if (indice >= 0) registros[indice] = registro;
+    else registros.push(registro);
+    const resultado2 = importarDicasFiscaisJson(JSON.stringify(registros));
+    if (!resultado2.ok) {
+      setStatus(modal, resultado2.erros.join(" | "), "error");
+      callbacksAtivos.setStatus(resultado2.erros.join(" | "), "error");
+      return;
+    }
+    callbacksAtivos.persist(resultado2.dicas, exportarDicasFiscaisJson(resultado2.dicas));
+    renderLista(modal);
+    limparFormulario(modal);
+    const mensagem = id ? "Dica atualizada." : "Dica adicionada.";
+    setStatus(modal, mensagem);
+    callbacksAtivos.setStatus(mensagem);
+    (_a = callbacksAtivos.log) == null ? void 0 : _a.call(callbacksAtivos, `🔎 ${mensagem}`);
+  }
+  function removerDica(modal, id) {
+    var _a, _b;
+    if (!callbacksAtivos) return;
+    const dica = (_a = callbacksAtivos.getDicas()) == null ? void 0 : _a[id];
+    if (!dica) return;
+    const confirmou = typeof window === "undefined" || typeof window.confirm !== "function" ? true : window.confirm(`Remover a dica “${dica.termo}”?`);
+    if (!confirmou) return;
+    const dicas = { ...callbacksAtivos.getDicas() || {} };
+    delete dicas[id];
+    callbacksAtivos.persist(dicas, exportarDicasFiscaisJson(dicas));
+    renderLista(modal);
+    limparFormulario(modal);
+    setStatus(modal, "Dica removida.");
+    callbacksAtivos.setStatus("Dica removida.");
+    (_b = callbacksAtivos.log) == null ? void 0 : _b.call(callbacksAtivos, "🔎 Dica fiscal removida");
+  }
+  function abrirGerenciadorDicasFiscais(callbacks, editarId) {
+    callbacksAtivos = callbacks;
+    const modal = obterModal();
+    modal.hidden = false;
+    renderLista(modal);
+    limparFormulario(modal);
+    if (editarId) carregarDicaNoFormulario(modal, editarId);
+    const foco = editarId ? modal.querySelector("#kmFiscalHintsManagerTermo") : modal.querySelector("#kmFiscalHintsManagerSearch");
+    foco == null ? void 0 : foco.focus();
+  }
+  function fecharGerenciadorDicasFiscais() {
+    if (modalAtual) modalAtual.hidden = true;
+  }
   const LOG_AREA_DEFAULT_HEIGHT = 110;
   const LOG_AREA_MIN_HEIGHT = 80;
   const LOG_AREA_MAX_HEIGHT = 520;
@@ -6970,8 +7507,10 @@
   }
   function atualizarListaDicasFiscais(estado) {
     const container = document.getElementById("fiscalHintsLista");
-    if (!container) return;
     const dicas = Object.entries(estado.fiscalHints || {});
+    const contador = document.querySelector("[data-km-fiscal-hints-count]");
+    if (contador) contador.textContent = String(dicas.length);
+    if (!container) return;
     container.className = dicas.length ? "km-fiscal-hint-list" : "km-helper-text";
     container.replaceChildren();
     if (!dicas.length) {
@@ -6987,16 +7526,36 @@
       const termo = document.createElement("strong");
       termo.textContent = dica.termo || "";
       const codigos = document.createElement("span");
-      codigos.textContent = [dica.ncm ? `NCM ${dica.ncm}` : "", dica.unspsc ? `UNSPSC ${dica.unspsc}` : ""].filter(Boolean).join(" / ");
-      copy.append(termo, codigos);
+      codigos.textContent = [dica.ncm ? `NCM ${dica.ncm}` : "", dica.unspsc ? `UNSPSC ${dica.unspsc}` : ""].filter(Boolean).join(" / ") || "Sem código informado";
+      const empresa = document.createElement("em");
+      empresa.textContent = dica.empresa ? `Somente ${dica.empresa}` : "Todas as empresas";
+      copy.append(termo, codigos, empresa);
+      const acoes = document.createElement("div");
+      acoes.className = "km-fiscal-hint-row-actions";
+      const editar = document.createElement("button");
+      editar.className = "km-inline-button";
+      editar.type = "button";
+      editar.dataset.kmFiscalEdit = id;
+      editar.textContent = "Editar";
       const remover = document.createElement("button");
       remover.className = "km-inline-button km-inline-button--danger";
       remover.type = "button";
       remover.dataset.kmFiscalRemove = id;
       remover.textContent = "Remover";
-      row.append(copy, remover);
+      acoes.append(editar, remover);
+      row.append(copy, acoes);
       container.appendChild(row);
     });
+  }
+  function abrirGerenciadorDicas(editarId) {
+    abrirGerenciadorDicasFiscais({
+      getDicas: () => get().fiscalHints || {},
+      persist: (dicas, json) => {
+        persistirDicasFiscais(dicas, json);
+      },
+      setStatus: setFiscalHintsStatus,
+      log: (mensagem) => log(mensagem, "info")
+    }, editarId);
   }
   function persistirDicasFiscais(dicas, json) {
     const estado = update((st) => {
@@ -7010,7 +7569,7 @@
     return estado;
   }
   function wireEvents(toggleMinimizar2) {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q;
     const estado = get();
     const fmtS = (ms) => `${(Number(ms || 0) / 1e3).toFixed(1)}s`;
     const painelConteudo = document.getElementById("painelConteudo");
@@ -7183,14 +7742,17 @@
     if (fiscalHintsTextarea && !fiscalHintsTextarea.value.trim()) {
       fiscalHintsTextarea.value = exportarDicasFiscaisJson(estado.fiscalHints || {});
     }
-    (_i = document.getElementById("chkFiscalHintsAtivo")) == null ? void 0 : _i.addEventListener("change", (e) => {
+    (_i = document.getElementById("btnFiscalHintsGerenciar")) == null ? void 0 : _i.addEventListener("click", () => {
+      abrirGerenciadorDicas();
+    });
+    (_j = document.getElementById("chkFiscalHintsAtivo")) == null ? void 0 : _j.addEventListener("change", (e) => {
       update((st) => {
         st.fiscalHintsAtivo = e.target.checked;
       });
       aplicarDicasFiscaisDoEstado();
       log(e.target.checked ? "🔎 Dicas fiscais ativadas" : "🔎 Dicas fiscais desativadas", "info");
     });
-    (_j = document.getElementById("btnFiscalHintAdicionar")) == null ? void 0 : _j.addEventListener("click", () => {
+    (_k = document.getElementById("btnFiscalHintAdicionar")) == null ? void 0 : _k.addEventListener("click", () => {
       var _a2, _b2, _c2;
       const termo = ((_a2 = document.getElementById("txtFiscalHintTermo")) == null ? void 0 : _a2.value) || "";
       const ncm2 = ((_b2 = document.getElementById("txtFiscalHintNcm")) == null ? void 0 : _b2.value) || "";
@@ -7209,7 +7771,7 @@
       setFiscalHintsStatus("Dica adicionada.");
       log(`🔎 Dica fiscal adicionada para: ${termo}`, "info");
     });
-    (_k = document.getElementById("btnFiscalHintsImportar")) == null ? void 0 : _k.addEventListener("click", () => {
+    (_l = document.getElementById("btnFiscalHintsImportar")) == null ? void 0 : _l.addEventListener("click", () => {
       const json = (fiscalHintsTextarea == null ? void 0 : fiscalHintsTextarea.value) || "";
       const resultado2 = importarDicasFiscaisJson(json);
       if (!resultado2.ok) {
@@ -7220,7 +7782,7 @@
       setFiscalHintsStatus("JSON aplicado.");
       log("🔎 JSON de dicas fiscais aplicado", "info");
     });
-    (_l = document.getElementById("btnFiscalHintsExportar")) == null ? void 0 : _l.addEventListener("click", () => {
+    (_m = document.getElementById("btnFiscalHintsExportar")) == null ? void 0 : _m.addEventListener("click", () => {
       const est = get();
       const json = exportarDicasFiscaisJson(est.fiscalHints || {});
       update((st) => {
@@ -7229,8 +7791,14 @@
       if (fiscalHintsTextarea) fiscalHintsTextarea.value = json;
       setFiscalHintsStatus("JSON atualizado.");
     });
-    (_m = document.getElementById("fiscalHintsLista")) == null ? void 0 : _m.addEventListener("click", (e) => {
-      const btn = e.target.closest("[data-km-fiscal-remove]");
+    (_n = document.getElementById("fiscalHintsLista")) == null ? void 0 : _n.addEventListener("click", (e) => {
+      const target = e.target;
+      const editar = target.closest("[data-km-fiscal-edit]");
+      if (editar) {
+        abrirGerenciadorDicas(editar.dataset.kmFiscalEdit || "");
+        return;
+      }
+      const btn = target.closest("[data-km-fiscal-remove]");
       if (!btn) return;
       const id = btn.dataset.kmFiscalRemove || "";
       const dicas = { ...get().fiscalHints || {} };
@@ -7239,7 +7807,7 @@
       setFiscalHintsStatus("Dica removida.");
     });
     const deb = (fn) => debounce(fn, 80);
-    (_n = document.getElementById("globalActionDelaySlider")) == null ? void 0 : _n.addEventListener("input", deb((e) => {
+    (_o = document.getElementById("globalActionDelaySlider")) == null ? void 0 : _o.addEventListener("input", deb((e) => {
       const valor = parseInt(e.target.value, 10);
       const label = document.getElementById("globalActionDelayLabel");
       if (label) label.textContent = fmtS(valor);
@@ -7247,7 +7815,7 @@
         st.globalActionDelayMs = valor;
       });
     }));
-    (_o = document.getElementById("clickCooldownSlider")) == null ? void 0 : _o.addEventListener("input", deb((e) => {
+    (_p = document.getElementById("clickCooldownSlider")) == null ? void 0 : _p.addEventListener("input", deb((e) => {
       const valor = parseInt(e.target.value, 10);
       const label = document.getElementById("clickCooldownLabel");
       if (label) label.textContent = fmtS(valor);
@@ -7255,7 +7823,7 @@
         st.clickCooldownMs = valor;
       });
     }));
-    (_p = document.getElementById("btnToggle")) == null ? void 0 : _p.addEventListener("click", () => {
+    (_q = document.getElementById("btnToggle")) == null ? void 0 : _q.addEventListener("click", () => {
       const est = get();
       if (est.pausado) togglePausar();
       else if (est.ativo) parar();

@@ -135,18 +135,32 @@ function criarMapaNormalizado(texto: string): { normalizado: string; indices: nu
     return { normalizado, indices };
 }
 
+function ehCaractereDePalavra(char: string | undefined): boolean {
+    return Boolean(char && /[\p{L}\p{N}_]/u.test(char));
+}
+
 function encontrarTermo(texto: string, termo: string): { inicio: number; fim: number } | null {
     const alvo = normalizarTermoFiscal(termo);
     if (!alvo) return null;
 
     const mapa = criarMapaNormalizado(texto);
-    const inicioNormalizado = mapa.normalizado.indexOf(alvo);
-    if (inicioNormalizado < 0) return null;
+    let inicioNormalizado = mapa.normalizado.indexOf(alvo);
 
-    const inicio = mapa.indices[inicioNormalizado] ?? 0;
-    const fimIndiceNormalizado = inicioNormalizado + alvo.length - 1;
-    const fim = (mapa.indices[fimIndiceNormalizado] ?? inicio) + 1;
-    return { inicio, fim };
+    while (inicioNormalizado >= 0) {
+        const fimNormalizado = inicioNormalizado + alvo.length;
+        const termoComecaNoLimite = !ehCaractereDePalavra(mapa.normalizado[inicioNormalizado - 1]);
+        const termoTerminaNoLimite = !ehCaractereDePalavra(mapa.normalizado[fimNormalizado]);
+
+        if (termoComecaNoLimite && termoTerminaNoLimite) {
+            const inicio = mapa.indices[inicioNormalizado] ?? 0;
+            const fim = (mapa.indices[fimNormalizado - 1] ?? inicio) + 1;
+            return { inicio, fim };
+        }
+
+        inicioNormalizado = mapa.normalizado.indexOf(alvo, inicioNormalizado + 1);
+    }
+
+    return null;
 }
 
 function obterDicasOrdenadas(dicas: Record<string, FiscalHint>, empresaAtual?: string | null): FiscalHint[] {

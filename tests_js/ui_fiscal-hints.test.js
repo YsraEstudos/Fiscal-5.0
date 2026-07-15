@@ -143,4 +143,37 @@ describe("ui/fiscal-hints", () => {
     destaque = document.querySelector(".km-fiscal-hint-mark");
     expect(destaque).not.toBeNull();
   });
+
+  it("destaca o termo somente quando ele está separado da palavra vizinha", () => {
+    const dica = {
+      aco: {
+        termo: "aco",
+        ncm: "7308.90.10",
+      },
+    };
+
+    document.body.innerHTML = `
+      <div id="divDescricaoCompleta">
+        <span class="descricao">trACO ACO traco</span>
+      </div>
+    `;
+
+    aplicarDicasFiscais({ ativo: true, dicas: dica });
+
+    let destaque = document.querySelector(".km-fiscal-hint-mark");
+    expect(destaque).not.toBeNull();
+    expect(destaque.textContent).toBe("ACO");
+    expect(document.querySelector(".descricao").textContent).toBe("trACO ACO traco");
+
+    document.body.innerHTML = `
+      <div id="divDescricaoCompleta">
+        <span class="descricao">trACO traco</span>
+      </div>
+    `;
+
+    aplicarDicasFiscais({ ativo: true, dicas: dica });
+
+    destaque = document.querySelector(".km-fiscal-hint-mark");
+    expect(destaque).toBeNull();
+  });
 });

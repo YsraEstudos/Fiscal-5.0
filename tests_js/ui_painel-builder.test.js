@@ -88,6 +88,7 @@ describe("ui/painel-builder", () => {
     expect(painel.innerHTML).toContain("FISCAL 5.0");
     expect(painel.innerHTML).toContain("Resumo da execução");
     expect(painel.innerHTML).toContain("Dicas fiscais");
+    expect(painel.innerHTML).toContain('btnFiscalHintsGerenciar');
   });
 
   it("construirListaAcoes constrói a lista baseada nas acoesOrdenadas", () => {

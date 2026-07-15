@@ -628,6 +628,264 @@ export function injetarEstilosPainel(): void {
             overflow-wrap: anywhere;
         }
 
+        .km-fiscal-hint-row-copy em {
+            color: var(--km-muted);
+            font-size: 9px;
+            font-style: normal;
+        }
+
+        .km-fiscal-hint-row-actions {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            gap: 4px;
+        }
+
+        .km-field-help {
+            color: var(--km-muted);
+            font-size: 9px;
+            line-height: 1.35;
+        }
+
+        #km-fiscal-hints-manager[hidden] {
+            display: none;
+        }
+
+        #km-fiscal-hints-manager {
+            position: fixed;
+            inset: 0;
+            z-index: 2147483647;
+            display: grid;
+            place-items: center;
+            box-sizing: border-box;
+            padding: 16px;
+            color: var(--km-text);
+            font-family: "Segoe UI", Tahoma, sans-serif;
+        }
+
+        .km-fiscal-hints-manager-backdrop {
+            position: absolute;
+            inset: 0;
+            background: rgba(24, 31, 26, 0.52);
+            backdrop-filter: blur(3px);
+        }
+
+        .km-fiscal-hints-manager-dialog {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            width: min(760px, calc(100vw - 24px));
+            max-height: min(720px, calc(100vh - 24px));
+            overflow: hidden;
+            border: 1px solid rgba(255, 250, 240, 0.3);
+            border-radius: 22px;
+            background: var(--km-bg);
+            box-shadow: 0 28px 70px rgba(15, 24, 18, 0.36);
+            animation: km-fiscal-hints-manager-enter 0.2s ease-out;
+        }
+
+        @keyframes km-fiscal-hints-manager-enter {
+            from { opacity: 0; transform: translateY(12px) scale(0.98); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        .km-fiscal-hints-manager-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 18px 20px;
+            background: linear-gradient(135deg, #153a2d 0%, #245847 100%);
+            color: #fffdf8;
+        }
+
+        .km-fiscal-hints-manager-header .km-kicker,
+        .km-fiscal-hints-manager-header .km-fiscal-hints-manager-subtitle {
+            color: rgba(255, 253, 248, 0.74);
+        }
+
+        .km-fiscal-hints-manager-title {
+            margin: 4px 0 0;
+            font-size: 18px;
+            line-height: 1.15;
+        }
+
+        .km-fiscal-hints-manager-subtitle {
+            max-width: 540px;
+            margin: 6px 0 0;
+            font-size: 11px;
+            line-height: 1.4;
+        }
+
+        .km-fiscal-hints-manager-close {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            flex: 0 0 auto;
+            border: 1px solid rgba(255, 255, 255, 0.22);
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.12);
+            color: #fff;
+            cursor: pointer;
+            font-size: 22px;
+            line-height: 1;
+        }
+
+        .km-fiscal-hints-manager-layout {
+            display: grid;
+            grid-template-columns: minmax(0, 1.12fr) minmax(260px, 0.88fr);
+            gap: 12px;
+            min-height: 0;
+            padding: 14px;
+            overflow: auto;
+        }
+
+        .km-fiscal-hints-manager-list-panel,
+        .km-fiscal-hints-manager-form {
+            min-width: 0;
+            padding: 12px;
+            border: 1px solid var(--km-border);
+            border-radius: 16px;
+            background: rgba(255, 250, 240, 0.72);
+        }
+
+        .km-fiscal-hints-manager-list-panel {
+            display: flex;
+            flex-direction: column;
+            min-height: 300px;
+        }
+
+        .km-fiscal-hints-manager-list-head,
+        .km-fiscal-hints-manager-form-actions {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .km-fiscal-hints-manager-count {
+            display: block;
+            margin-top: 3px;
+            color: var(--km-muted);
+            font-size: 9px;
+        }
+
+        .km-fiscal-hints-manager-search-field {
+            margin-top: 12px;
+        }
+
+        .km-fiscal-hints-manager-list,
+        .km-fiscal-hints-manager-form {
+            overflow-y: auto;
+            scrollbar-width: thin;
+        }
+
+        .km-fiscal-hints-manager-list {
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+            max-height: 420px;
+            margin-top: 8px;
+        }
+
+        .km-fiscal-hints-manager-item {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 8px;
+            padding: 9px;
+            border: 1px solid rgba(90, 68, 44, 0.1);
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.72);
+        }
+
+        .km-fiscal-hints-manager-item-copy {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            gap: 3px;
+            font-size: 10px;
+        }
+
+        .km-fiscal-hints-manager-item-copy strong,
+        .km-fiscal-hints-manager-item-copy span,
+        .km-fiscal-hints-manager-item-copy em {
+            overflow-wrap: anywhere;
+        }
+
+        .km-fiscal-hints-manager-item-copy span,
+        .km-fiscal-hints-manager-item-copy em {
+            color: var(--km-muted);
+            font-size: 9px;
+            font-style: normal;
+        }
+
+        .km-fiscal-hints-manager-item-actions {
+            display: flex;
+            flex: 0 0 auto;
+            gap: 4px;
+        }
+
+        .km-fiscal-hints-manager-empty {
+            padding: 24px 10px;
+            color: var(--km-muted);
+            font-size: 10px;
+            text-align: center;
+        }
+
+        .km-fiscal-hints-manager-form {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            overflow: visible;
+        }
+
+        .km-fiscal-hints-manager-form-head {
+            padding-bottom: 4px;
+            border-bottom: 1px solid rgba(90, 68, 44, 0.12);
+        }
+
+        .km-fiscal-hints-manager-form-title {
+            margin: 4px 0 0;
+            font-size: 15px;
+        }
+
+        .km-fiscal-hints-manager-form-actions {
+            align-items: stretch;
+            margin-top: auto;
+            padding-top: 4px;
+        }
+
+        .km-fiscal-hints-manager-submit {
+            width: auto;
+            flex: 1;
+        }
+
+        #km-fiscal-hints-manager input[type="text"],
+        #km-fiscal-hints-manager input[type="search"] {
+            width: 100%;
+            box-sizing: border-box;
+            border: 1px solid rgba(90, 68, 44, 0.18);
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.88);
+            color: var(--km-text);
+            padding: 8px 10px;
+            font-size: 11px;
+        }
+
+        #km-fiscal-hints-manager input[type="text"]:focus,
+        #km-fiscal-hints-manager input[type="search"]:focus,
+        #km-fiscal-hints-manager button:focus-visible {
+            outline: 2px solid rgba(14, 90, 72, 0.24);
+            outline-offset: 2px;
+        }
+
+        [data-km-fiscal-manager-status].is-error {
+            color: var(--km-danger);
+        }
+
         .km-fiscal-hint-mark {
             display: inline;
             border: 0;
@@ -679,6 +937,17 @@ export function injetarEstilosPainel(): void {
         }
 
         @media (max-width: 640px) {
+            .km-fiscal-hints-manager-layout {
+                grid-template-columns: 1fr;
+            }
+
+            .km-fiscal-hints-manager-list-panel {
+                min-height: 0;
+            }
+
+            .km-fiscal-hints-manager-list {
+                max-height: 240px;
+            }
             #painel-robo-pro {
                 width: calc(100vw - 20px);
             }

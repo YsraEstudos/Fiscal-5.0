@@ -123,24 +123,40 @@ function renderFiscalHintRows(estado: EstadoApp): string {
 
     return `
         <div id="fiscalHintsLista" class="km-fiscal-hint-list">
-            ${dicas.map(([id, dica]: [string, any]) => `
-                <div class="km-fiscal-hint-row" data-km-fiscal-id="${escapeHtml(id)}">
-                    <div class="km-fiscal-hint-row-copy">
-                        <strong>${escapeHtml(dica.termo || '')}</strong>
-                        <span>${escapeHtml([dica.ncm ? `NCM ${dica.ncm}` : '', dica.unspsc ? `UNSPSC ${dica.unspsc}` : ''].filter(Boolean).join(' / '))}</span>
+            ${dicas.map(([id, dica]: [string, any]) => {
+                const codigos = [dica.ncm ? `NCM ${dica.ncm}` : '', dica.unspsc ? `UNSPSC ${dica.unspsc}` : '']
+                    .filter(Boolean)
+                    .join(' / ') || 'Sem código informado';
+                const empresa = dica.empresa ? `Somente ${dica.empresa}` : 'Todas as empresas';
+                return `
+                    <div class="km-fiscal-hint-row" data-km-fiscal-id="${escapeHtml(id)}">
+                        <div class="km-fiscal-hint-row-copy">
+                            <strong>${escapeHtml(dica.termo || '')}</strong>
+                            <span>${escapeHtml(`${codigos} · ${empresa}`)}</span>
+                        </div>
+                        <div class="km-fiscal-hint-row-actions">
+                            <button class="km-inline-button" type="button" data-km-fiscal-edit="${escapeHtml(id)}">Editar</button>
+                            <button class="km-inline-button km-inline-button--danger" type="button" data-km-fiscal-remove="${escapeHtml(id)}">Remover</button>
+                        </div>
                     </div>
-                    <button class="km-inline-button km-inline-button--danger" type="button" data-km-fiscal-remove="${escapeHtml(id)}">Remover</button>
-                </div>
-            `).join('')}
+                `;
+            }).join('')}
         </div>
     `;
 }
 
 export function renderFiscalHintsSection(estado: EstadoApp): string {
-    const json = (estado as any).fiscalHintsJson || exportarDicasFiscaisJson((estado as any).fiscalHints || {});
+    const dicas = ((estado as any).fiscalHints || {}) as Record<string, any>;
+    const json = (estado as any).fiscalHintsJson || exportarDicasFiscaisJson(dicas);
+    const totalDicas = Object.keys(dicas).length;
     return `
         <section class="km-card">
-            <label class="km-section-label">Dicas fiscais</label>
+            <div class="km-card-head km-card-head--tight">
+                <label class="km-section-label">Dicas fiscais</label>
+                <button id="btnFiscalHintsGerenciar" class="km-action-button" type="button" aria-haspopup="dialog">
+                    Gerenciar <span data-km-fiscal-hints-count>${totalDicas}</span>
+                </button>
+            </div>
             <label class="km-checkline">
                 <input type="checkbox" id="chkFiscalHintsAtivo" ${(estado as any).fiscalHintsAtivo !== false ? 'checked' : ''}>
                 <span>Destacar termos na descrição</span>

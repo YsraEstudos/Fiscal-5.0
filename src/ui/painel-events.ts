@@ -17,6 +17,7 @@ import * as PerfilManager from './perfil-manager.js';
 import * as InspecaoManager from './inspecao-manager.ts';
 import { obterEmpresaAtual } from '../validation/empresa-json-requirements.ts';
 import * as FiscalHints from './fiscal-hints.ts';
+import { abrirGerenciadorDicasFiscais } from './fiscal-hints-manager.ts';
 import { construirListaAcoes } from './painel-builder.ts';
 import * as WorkflowExecutor from '../workflow/executor.ts';
 import type { EstadoApp } from '../core/estado-manager.ts';
@@ -184,8 +185,11 @@ function setFiscalHintsStatus(mensagem: string, tipo: 'info' | 'error' = 'info')
 
 function atualizarListaDicasFiscais(estado: EstadoApp): void {
     const container = document.getElementById('fiscalHintsLista');
-    if (!container) return;
     const dicas = Object.entries(((estado as any).fiscalHints || {}) as Record<string, FiscalHints.FiscalHint>);
+    const contador = document.querySelector('[data-km-fiscal-hints-count]');
+    if (contador) contador.textContent = String(dicas.length);
+    if (!container) return;
+
     container.className = dicas.length ? 'km-fiscal-hint-list' : 'km-helper-text';
     container.replaceChildren();
 
@@ -206,19 +210,37 @@ function atualizarListaDicasFiscais(estado: EstadoApp): void {
         const codigos = document.createElement('span');
         codigos.textContent = [dica.ncm ? `NCM ${dica.ncm}` : '', dica.unspsc ? `UNSPSC ${dica.unspsc}` : '']
             .filter(Boolean)
-            .join(' / ');
-        copy.append(termo, codigos);
+            .join(' / ') || 'Sem código informado';
+        const empresa = document.createElement('em');
+        empresa.textContent = dica.empresa ? `Somente ${dica.empresa}` : 'Todas as empresas';
+        copy.append(termo, codigos, empresa);
 
+        const acoes = document.createElement('div');
+        acoes.className = 'km-fiscal-hint-row-actions';
+        const editar = document.createElement('button');
+        editar.className = 'km-inline-button';
+        editar.type = 'button';
+        editar.dataset.kmFiscalEdit = id;
+        editar.textContent = 'Editar';
         const remover = document.createElement('button');
         remover.className = 'km-inline-button km-inline-button--danger';
         remover.type = 'button';
         remover.dataset.kmFiscalRemove = id;
         remover.textContent = 'Remover';
-        row.append(copy, remover);
+        acoes.append(editar, remover);
+        row.append(copy, acoes);
         container.appendChild(row);
     });
 }
 
+function abrirGerenciadorDicas(editarId?: string): void {
+    abrirGerenciadorDicasFiscais({
+        getDicas: () => (((EstadoManager.get() as any).fiscalHints || {}) as Record<string, FiscalHints.FiscalHint>),
+        persist: (dicas, json) => { persistirDicasFiscais(dicas, json); },
+        setStatus: setFiscalHintsStatus,
+        log: (mensagem) => log(mensagem, 'info'),
+    }, editarId);
+}
 function persistirDicasFiscais(dicas: Record<string, FiscalHints.FiscalHint>, json?: string): EstadoApp {
     const estado = EstadoManager.update((st: any) => {
         st.fiscalHints = dicas;
@@ -447,6 +469,9 @@ export function wireEvents(toggleMinimizar: () => void): void {
         fiscalHintsTextarea.value = FiscalHints.exportarDicasFiscaisJson(((estado as any).fiscalHints || {}) as Record<string, FiscalHints.FiscalHint>);
     }
 
+    document.getElementById('btnFiscalHintsGerenciar')?.addEventListener('click', () => {
+        abrirGerenciadorDicas();
+    });
     document.getElementById('chkFiscalHintsAtivo')?.addEventListener('change', (e: Event) => {
         EstadoManager.update((st: any) => { st.fiscalHintsAtivo = (e.target as HTMLInputElement).checked; });
         aplicarDicasFiscaisDoEstado();
@@ -493,7 +518,14 @@ export function wireEvents(toggleMinimizar: () => void): void {
     });
 
     document.getElementById('fiscalHintsLista')?.addEventListener('click', (e: Event) => {
-        const btn = (e.target as HTMLElement).closest('[data-km-fiscal-remove]') as HTMLElement | null;
+        const target = e.target as HTMLElement;
+        const editar = target.closest('[data-km-fiscal-edit]') as HTMLElement | null;
+        if (editar) {
+            abrirGerenciadorDicas(editar.dataset.kmFiscalEdit || '');
+            return;
+        }
+
+        const btn = target.closest('[data-km-fiscal-remove]') as HTMLElement | null;
         if (!btn) return;
         const id = btn.dataset.kmFiscalRemove || '';
         const dicas = { ...(((EstadoManager.get() as any).fiscalHints || {}) as Record<string, FiscalHints.FiscalHint>) };
@@ -501,7 +533,6 @@ export function wireEvents(toggleMinimizar: () => void): void {
         persistirDicasFiscais(dicas);
         setFiscalHintsStatus('Dica removida.');
     });
-
     // ---- Sliders de delay
     const deb = (fn: any) => debounce(fn, 80);
 
