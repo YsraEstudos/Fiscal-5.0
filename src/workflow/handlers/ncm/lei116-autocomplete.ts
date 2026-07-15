@@ -5,7 +5,7 @@ import { textoCombinaOpcaoLei116 } from './domain.ts';
 
 /**
  * Digita texto em um input simulando comportamento humano, mas omite o disparo final
- * do evento 'change' para evitar a validação prematura do Klassmatt.
+ * do evento 'change' para evitar a validação prematura da página.
  */
 export async function digitarSilencioso(elemento: HTMLElement, valor: unknown): Promise<void> {
     const proto = (elemento instanceof HTMLTextAreaElement)
@@ -75,7 +75,7 @@ function encontrarOpcaoAutocompleteLei116(container: HTMLElement, valorAlvo: str
 
 /**
  * Realiza a seleção de um item no dropdown de autocomplete.
- * Extrai o argumento real de sel(N) do Klassmatt quando possível.
+ * Extrai o argumento real de sel(N) da página quando possível.
  */
 export async function selecionarOpcaoAutocompleteLei116(campo: HTMLElement, valorAlvo: string, acaoId: string, timeoutMs: number = 3000): Promise<boolean> {
     const fim = Date.now() + timeoutMs;

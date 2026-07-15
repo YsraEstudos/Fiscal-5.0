@@ -7,7 +7,7 @@ const {
     campoLei116EhPlaceholder
 } = __test_ncm_internals__;
 
-describe('NCM Handler - Regras de Negócio Klassmatt', () => {
+describe('NCM Handler - Regras de Negócio', () => {
 
     describe('textoCombinaOpcaoLei116() - Agrupador Semântico de SubGrupos', () => {
         it('deve rejeitar "00. NAO APLICAVEL" false matches', () => {
@@ -25,7 +25,7 @@ describe('NCM Handler - Regras de Negócio Klassmatt', () => {
             expect(textoCombinaOpcaoLei116('07. Serviços relativos a engenharia...', '07')).toBe(true);
         });
 
-        it('deve fazer match do SubGrupo isolado contra strings da UI do Klassmatt', () => {
+        it('deve fazer match do SubGrupo isolado contra strings da UI', () => {
             // O caso principal do bug do loop infinito: buscar "02" na string "07.02. Execução..."
             expect(textoCombinaOpcaoLei116('07.02. Execução...', '02')).toBe(true);
             expect(textoCombinaOpcaoLei116('07.10. Limpeza, paisagismo...', '10')).toBe(true);

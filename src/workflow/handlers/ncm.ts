@@ -268,7 +268,7 @@ export async function lei116Servico(estado: EstadoApp, status: HTMLElement | nul
 
         // NÃO usamos Interacao.interagir() aqui!
         // O motivo: digitarHumano dispara 'change' event ao final, que aciona
-        // a validação nativa do Klassmatt ANTES do autocomplete aparecer,
+        // a validação nativa da página ANTES do autocomplete aparecer,
         // exibindo o alert "Verifique o preenchimento do campo LC 116 Grupo!"
         //
         // Estratégia: apenas dar foco no campo (onfocus=posiciona() carrega a lista inteira)
@@ -283,7 +283,7 @@ export async function lei116Servico(estado: EstadoApp, status: HTMLElement | nul
 
         const clicouGrupo = await selecionarOpcaoAutocompleteLei116(campoGrupo, lei116.grupo, 'lei116ServicoGrupoOpcao');
         if (clicouGrupo) {
-            // sel() já disparou — espera o postback interno do Klassmatt processar
+            // sel() já disparou — espera o postback interno da página processar
             await sleep(2000);
             executou = true;
         } else {

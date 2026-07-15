@@ -60,7 +60,7 @@ export function resolverOrigemValorFiscal(estado: EstadoApp, valorFiscal: unknow
 }
 
 /**
- * Compara o texto renderizado na opção do dropdown (Klassmatt) com o valor procurado.
+ * Compara o texto renderizado na opção do dropdown com o valor procurado.
  * Lida com formatação complexa ("00. NAO APLICAVEL", "07.02. Execução...") e garante
  * match exato da parte numérica decompondo em [grupo, subgrupo].
  */

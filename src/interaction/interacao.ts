@@ -154,7 +154,7 @@ export async function digitarSilencioso(elemento: HTMLInputElement | HTMLTextAre
             : Math.floor(Math.random() * (CONFIG.DELAYS.TYPING_MAX - CONFIG.DELAYS.TYPING_MIN)) + CONFIG.DELAYS.TYPING_MIN;
         await sleep(delay);
     }
-    // SEM CHANGE EVENT: Klassmatt valida ao 'change' e bloqueia antes de sel() rodar
+    // SEM CHANGE EVENT: a página valida ao 'change' e bloqueia antes de sel() rodar
 }
 
 // ---------------------------------------------------------------------------
