@@ -8,6 +8,7 @@ import * as AudioManager from '../interaction/audio-manager.ts';
 import * as WorkflowExecutor from '../workflow/executor.ts';
 import { obterResumoUI } from '../workflow/estimativa.ts';
 import { obterResumoTrilhaUI } from '../workflow/item-trace.ts';
+import { getTotalPlanejadoJson, sincronizarSnapshotLoteJson } from '../workflow/progress-totals.ts';
 import { escapeHtml } from '../utils/misc.ts';
 import { injetarEstilos, construirPainel, getPainelEl } from './painel-builder.ts';
 import * as FiscalHints from './fiscal-hints.ts';
@@ -121,7 +122,8 @@ export function atualizarIndicadorProgresso(): void {
         return;
     }
 
-    const total = Number((estado.progresso && estado.progresso.total) || resumo.totalPlanejado || 0);
+    const totalJson = getTotalPlanejadoJson(estado);
+    const total = Number((estado.progresso && estado.progresso.total) || totalJson || resumo.totalPlanejado || 0);
     const concluidos = Number((estado.progresso && estado.progresso.atual) || 0);
     const pct = total > 0 ? (concluidos / total) * 100 : 0;
 
@@ -271,6 +273,7 @@ function criarPainel(): void {
     if (getPainelEl()) return;
 
     const estado = EstadoManager.get() as EstadoApp;
+    if (sincronizarSnapshotLoteJson(estado)) EstadoManager.set(estado);
     _painelMinimizado = estado.minimizado ?? (typeof globalThis !== 'undefined' && globalThis.innerWidth < 640);
 
     injetarEstilos();

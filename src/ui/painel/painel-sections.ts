@@ -4,6 +4,7 @@ import { obterResumoUI } from '../../workflow/estimativa.ts';
 import { obterResumoTrilhaUI } from '../../workflow/item-trace.ts';
 import { exportarDicasFiscaisJson } from '../fiscal-hints.ts';
 import type { EstadoApp } from '../../core/estado-manager.ts';
+import { normalizarIntervaloDelay } from '../../core/estado/normalizers.ts';
 
 function formatarSegundos(ms: number | string | null | undefined): string {
     return `${(Number(ms || 0) / 1000).toFixed(1)}s`;
@@ -89,6 +90,12 @@ export function renderWorkflowSection(): string {
 }
 
 export function renderOpcoesSection(estado: EstadoApp): string {
+    const intervaloDelay = normalizarIntervaloDelay(
+        estado.globalActionDelayMinMs,
+        estado.globalActionDelayMaxMs,
+        estado.globalActionDelayMs ?? 1200,
+    );
+
     return `
         <section class="km-card">
             <label class="km-section-label">Opções</label>
@@ -107,8 +114,18 @@ export function renderOpcoesSection(estado: EstadoApp): string {
                 </label>
 
                 <div class="km-field">
-                    <label>Delay global entre ações <span id="globalActionDelayLabel">${formatarSegundos(estado.globalActionDelayMs ?? 1200)}</span></label>
-                    <input type="range" id="globalActionDelaySlider" min="200" max="60000" step="100" value="${Number(estado.globalActionDelayMs ?? 1200)}">
+                    <label>Delay global entre ações <span id="globalActionDelayLabel">${formatarSegundos(intervaloDelay.minimo)} – ${formatarSegundos(intervaloDelay.maximo)}</span></label>
+                    <div class="km-field-grid">
+                        <div class="km-field">
+                            <label for="globalActionDelayMinSlider">Mínimo <span id="globalActionDelayMinLabel">${formatarSegundos(intervaloDelay.minimo)}</span></label>
+                            <input type="range" id="globalActionDelayMinSlider" min="200" max="60000" step="100" value="${intervaloDelay.minimo}">
+                        </div>
+                        <div class="km-field">
+                            <label for="globalActionDelayMaxSlider">Máximo <span id="globalActionDelayMaxLabel">${formatarSegundos(intervaloDelay.maximo)}</span></label>
+                            <input type="range" id="globalActionDelayMaxSlider" min="200" max="60000" step="100" value="${intervaloDelay.maximo}">
+                        </div>
+                    </div>
+                    <div class="km-helper-text">Cada ação aguarda um tempo aleatório dentro desta faixa.</div>
                 </div>
 
                 <div class="km-field">

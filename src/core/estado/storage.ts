@@ -6,6 +6,7 @@ import { ESTADO_PADRAO } from './defaults.ts';
 import { garantirDefaultsEstado, migrarEstadoSalvo, type EstadoSalvoRaw } from './migrations.ts';
 import {
     normalizarEstimativa,
+    normalizarIntervaloDelay,
     normalizarLogAreaHeight,
     normalizarPainelPosicao,
     normalizarPainelScrollTop,
@@ -35,6 +36,14 @@ function carregarEstadoAtual(salvo: EstadoSalvoRaw): EstadoApp {
     estado.logAreaHeight = normalizarLogAreaHeight(salvo['logAreaHeight']);
     estado.estimativa = normalizarEstimativa(salvo['estimativa']);
     estado.trilhaExecucao = normalizarTrilhaExecucao(salvo['trilhaExecucao']);
+    const intervaloDelay = normalizarIntervaloDelay(
+        salvo['globalActionDelayMinMs'],
+        salvo['globalActionDelayMaxMs'],
+        salvo['globalActionDelayMs'],
+    );
+    estado.globalActionDelayMinMs = intervaloDelay.minimo;
+    estado.globalActionDelayMaxMs = intervaloDelay.maximo;
+    estado.globalActionDelayMs = intervaloDelay.maximo;
     estado.pausarEmReincidencia = salvo['pausarEmReincidencia'] !== undefined
         ? !!salvo['pausarEmReincidencia']
         : true;

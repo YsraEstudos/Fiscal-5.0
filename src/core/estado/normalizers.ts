@@ -54,6 +54,22 @@ export function normalizarNumeroInteiro(valor: unknown, fallback = 0): number {
     return Math.max(0, Math.floor(num));
 }
 
+export function normalizarIntervaloDelay(
+    minimo: unknown,
+    maximo: unknown,
+    legado: unknown = 1200,
+): { minimo: number; maximo: number } {
+    const fallback = normalizarNumeroInteiro(legado, 1200);
+    const temMinimo = minimo !== undefined && minimo !== null && minimo !== '';
+    const temMaximo = maximo !== undefined && maximo !== null && maximo !== '';
+    const valorMinimo = normalizarNumeroInteiro(temMinimo ? minimo : fallback, fallback);
+    const valorMaximo = normalizarNumeroInteiro(temMaximo ? maximo : fallback, fallback);
+
+    return valorMinimo <= valorMaximo
+        ? { minimo: valorMinimo, maximo: valorMaximo }
+        : { minimo: valorMaximo, maximo: valorMinimo };
+}
+
 function normalizarNumeroNullable(valor: unknown): number | null {
     if (valor == null || valor === '') return null;
     const num = Number(valor);
@@ -76,6 +92,7 @@ export function normalizarProgresso(progresso: unknown): ProgressoEstado {
         total: normalizarNumeroInteiro(src['total'], 0),
         ultimoProcessado: src['ultimoProcessado'] ? String(src['ultimoProcessado']).trim() : null,
         concluidosIds: normalizarConcluidosIds(src['concluidosIds']),
+        loteJsonAssinatura: src['loteJsonAssinatura'] ? String(src['loteJsonAssinatura']).trim() : null,
     };
 }
 

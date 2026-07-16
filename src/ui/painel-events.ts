@@ -482,12 +482,40 @@ export function wireEvents(toggleMinimizar: () => void): void {
     // ---- Sliders de delay
     const deb = (fn: any) => debounce(fn, 80);
 
-    document.getElementById('globalActionDelaySlider')?.addEventListener('input', deb((e: Event) => {
-        const valor = parseInt((e.target as HTMLInputElement).value, 10);
-        const label = document.getElementById('globalActionDelayLabel');
-        if (label) label.textContent = fmtS(valor);
-        EstadoManager.update((st: any) => { st.globalActionDelayMs = valor; });
-    }));
+    const atualizarIntervaloDelay = (alterado: 'min' | 'max'): void => {
+        const minimoEl = document.getElementById('globalActionDelayMinSlider') as HTMLInputElement | null;
+        const maximoEl = document.getElementById('globalActionDelayMaxSlider') as HTMLInputElement | null;
+        if (!minimoEl || !maximoEl) return;
+
+        let minimo = parseInt(minimoEl.value, 10);
+        let maximo = parseInt(maximoEl.value, 10);
+        if (!Number.isFinite(minimo)) minimo = 200;
+        if (!Number.isFinite(maximo)) maximo = minimo;
+
+        if (alterado === 'min' && minimo > maximo) {
+            maximo = minimo;
+            maximoEl.value = String(maximo);
+        } else if (alterado === 'max' && maximo < minimo) {
+            minimo = maximo;
+            minimoEl.value = String(minimo);
+        }
+
+        const faixaLabel = document.getElementById('globalActionDelayLabel');
+        const minimoLabel = document.getElementById('globalActionDelayMinLabel');
+        const maximoLabel = document.getElementById('globalActionDelayMaxLabel');
+        if (faixaLabel) faixaLabel.textContent = `${fmtS(minimo)} – ${fmtS(maximo)}`;
+        if (minimoLabel) minimoLabel.textContent = fmtS(minimo);
+        if (maximoLabel) maximoLabel.textContent = fmtS(maximo);
+
+        EstadoManager.update((st: any) => {
+            st.globalActionDelayMinMs = minimo;
+            st.globalActionDelayMaxMs = maximo;
+            st.globalActionDelayMs = maximo;
+        });
+    };
+
+    document.getElementById('globalActionDelayMinSlider')?.addEventListener('input', deb(() => atualizarIntervaloDelay('min')));
+    document.getElementById('globalActionDelayMaxSlider')?.addEventListener('input', deb(() => atualizarIntervaloDelay('max')));
 
     document.getElementById('clickCooldownSlider')?.addEventListener('input', deb((e: Event) => {
         const valor = parseInt((e.target as HTMLInputElement).value, 10);
@@ -495,7 +523,6 @@ export function wireEvents(toggleMinimizar: () => void): void {
         if (label) label.textContent = fmtS(valor);
         EstadoManager.update((st: any) => { st.clickCooldownMs = valor; });
     }));
-
 
     // ---- Botão toggle principal
     document.getElementById('btnToggle')?.addEventListener('click', () => {

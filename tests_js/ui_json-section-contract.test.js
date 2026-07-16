@@ -41,7 +41,7 @@ vi.mock("../src/utils/misc.ts", () => ({
   escapeHtml: (v) => String(v ?? ""),
 }));
 
-const { renderJsonSection } = await import("../src/ui/painel/painel-sections.ts");
+const { renderJsonSection, renderOpcoesSection } = await import("../src/ui/painel/painel-sections.ts");
 
 // -----------------------------------------------------------------------
 // Estado mínimo para renderizar a seção JSON
@@ -120,5 +120,18 @@ describe("contrato HTML: renderJsonSection", () => {
     for (const id of idsContrato) {
       expect(html).toContain(`id="${id}"`);
     }
+  });
+});
+
+describe("contrato HTML: intervalo aleatório de delay", () => {
+  it("gera controles de mínimo e máximo", () => {
+    const html = renderOpcoesSection(criarEstadoMinimo({
+      globalActionDelayMinMs: 1000,
+      globalActionDelayMaxMs: 20000,
+    }));
+
+    expect(html).toContain('id="globalActionDelayMinSlider"');
+    expect(html).toContain('id="globalActionDelayMaxSlider"');
+    expect(html).toContain('1.0s – 20.0s');
   });
 });

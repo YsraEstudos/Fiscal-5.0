@@ -17,6 +17,112 @@ export function getTotalPlanejadoJson(estado: EstadoApp): number {
     ).size;
 }
 
+function serializarValorLote(valor: unknown): unknown {
+    if (valor == null || typeof valor !== 'object') return valor ?? null;
+    if (Array.isArray(valor)) return valor.map(serializarValorLote);
+
+    return Object.fromEntries(
+        Object.entries(valor as Record<string, unknown>)
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([chave, item]) => [chave, serializarValorLote(item)])
+    );
+}
+
+function hashLote(texto: string): string {
+    let hash = 2166136261;
+    for (let i = 0; i < texto.length; i++) {
+        hash ^= texto.charCodeAt(i);
+        hash = Math.imul(hash, 16777619);
+    }
+    return (hash >>> 0).toString(36);
+}
+
+export function obterAssinaturaLoteJson(estado: EstadoApp): string | null {
+    if (!estado?.itemMapAtivo) return null;
+
+    const entradas = Object.entries(estado.itemMap || {})
+        .map(([id, valores]) => {
+            const idNormalizado = normalizarItemKey(id);
+            return idNormalizado ? [idNormalizado, serializarValorLote(valores)] as [string, unknown] : null;
+        })
+        .filter((entrada): entrada is [string, unknown] => entrada !== null)
+        .sort(([a], [b]) => a.localeCompare(b));
+
+    if (!entradas.length) return null;
+    return `json:${entradas.length}:${hashLote(JSON.stringify(entradas))}`;
+}
+
+export function sincronizarSnapshotLoteJson(
+    estado: EstadoApp,
+    { reiniciar = false }: { reiniciar?: boolean } = {}
+): boolean {
+    const assinatura = obterAssinaturaLoteJson(estado);
+    if (!assinatura) return false;
+
+    type EstadoAny = Record<string, unknown>;
+    const e = estado as unknown as EstadoAny;
+    const progresso = (e['progresso'] || {}) as EstadoAny;
+    const assinaturaAnterior = typeof progresso['loteJsonAssinatura'] === 'string'
+        ? progresso['loteJsonAssinatura']
+        : null;
+    const total = getTotalPlanejadoJson(estado);
+    const idsJson = new Set(Object.keys(estado.itemMap || {})
+        .map(normalizarItemKey)
+        .filter((id): id is string => id !== null));
+    const deveReiniciar = reiniciar || (!!assinaturaAnterior && assinaturaAnterior !== assinatura);
+    const concluidos = deveReiniciar
+        ? []
+        : [...obterConcluidosSet(estado)].filter((id) => idsJson.has(id));
+    const ultimoAnterior = normalizarItemKey(progresso['ultimoProcessado']);
+    const ultimoProcessado = deveReiniciar || !ultimoAnterior || !idsJson.has(ultimoAnterior)
+        ? null
+        : ultimoAnterior;
+    const concluidosSalvos = Array.isArray(progresso['concluidosIds'])
+        ? progresso['concluidosIds'].map((id) => String(id ?? '').trim()).filter(Boolean)
+        : [];
+    const restantes = Math.max(0, total - concluidos.length);
+    const estimativa = (e['estimativa'] || {}) as EstadoAny;
+    const mudou = deveReiniciar
+        || assinaturaAnterior !== assinatura
+        || Number(progresso['total'] || 0) !== total
+        || Number(progresso['atual'] || 0) !== concluidos.length
+        || JSON.stringify(concluidosSalvos) !== JSON.stringify(concluidos)
+        || String(progresso['ultimoProcessado'] || '') !== String(ultimoProcessado || '')
+        || Number(estimativa['totalPlanejado'] || 0) !== total
+        || estimativa['fonteTotal'] !== 'json'
+        || Number(estimativa['restantes'] || 0) !== restantes;
+
+    e['progresso'] = {
+        ...progresso,
+        atual: concluidos.length,
+        total,
+        ultimoProcessado,
+        concluidosIds: concluidos,
+        loteJsonAssinatura: assinatura,
+    };
+
+    e['estimativa'] = {
+        ...estimativa,
+        totalPlanejado: total,
+        fonteTotal: 'json',
+        restantes,
+        ...(deveReiniciar ? {
+            itemAtualId: null,
+            itemAtualInicioTs: null,
+            primeiroItemId: null,
+            primeiroItemDuracaoMs: null,
+            duracaoTotalConcluidosMs: 0,
+            duracaoAmostras: 0,
+            tempoMedioReferenciaMs: null,
+            etaRestanteMs: null,
+            previsaoTerminoTs: null,
+            ultimoItemConcluidoTs: null,
+        } : {}),
+    };
+
+    return mudou;
+}
+
 export function obterConcluidosSet(estado: EstadoApp): Set<string> {
     const prog = estado?.progresso as unknown as Record<string, unknown>;
     const raw = Array.isArray(prog?.['concluidosIds']) ? prog['concluidosIds'] as unknown[] : [];
@@ -104,7 +210,7 @@ export function aplicarTotaisDinamicosNoEstado(
 ): void {
     type EstadoAny = Record<string, unknown>;
     const e = estado as unknown as EstadoAny;
-    e['progresso'] = e['progresso'] || { atual: 0, total: 0, ultimoProcessado: null, concluidosIds: [] };
+    e['progresso'] = e['progresso'] || { atual: 0, total: 0, ultimoProcessado: null, concluidosIds: [], loteJsonAssinatura: null };
     (e['progresso'] as EstadoAny)['atual'] = totais.concluidosEfetivos;
     (e['progresso'] as EstadoAny)['total'] = totais.totalPlanejado;
 
@@ -131,6 +237,7 @@ export function atualizarTotaisLote(
     itensInfo: { elegiveis: Element[] } = { elegiveis: [] }
 ): void {
     EstadoManager.update((e: EstadoApp) => {
+        sincronizarSnapshotLoteJson(e);
         const concluidosSet = obterConcluidosSet(e);
         const totais = calcularTotaisDinamicos(e, itensInfo, concluidosSet);
         aplicarTotaisDinamicosNoEstado(e, totais, Date.now());

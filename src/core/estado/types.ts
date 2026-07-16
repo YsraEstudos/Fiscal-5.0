@@ -12,6 +12,8 @@ export interface ProgressoEstado {
     total: number;
     ultimoProcessado: string | null;
     concluidosIds: string[];
+    /** Assinatura do JSON que originou este lote de progresso. */
+    loteJsonAssinatura: string | null;
 }
 
 export interface EstimativaEstado {
@@ -65,7 +67,10 @@ export interface EstadoApp {
     minimizado: boolean;
     modoSimulacao: boolean;
     modoInspecao: boolean;
+    /** Compatibilidade com estados antigos; o scheduler usa o intervalo abaixo. */
     globalActionDelayMs: number;
+    globalActionDelayMinMs: number;
+    globalActionDelayMaxMs: number;
     clickCooldownMs: number;
     perfilAtivo: string;
     perfis: Record<string, Record<string, AcaoEstado>>;

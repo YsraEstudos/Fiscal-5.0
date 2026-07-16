@@ -40,6 +40,8 @@ describe("data/item-map-manager", () => {
       itemAtualKey: null,
       itemAtualTelaId: null,
       itemFlags: {},
+      progresso: { atual: 0, total: 0, ultimoProcessado: null, concluidosIds: [], loteJsonAssinatura: null },
+      estimativa: { totalPlanejado: 0, fonteTotal: null, restantes: 0 },
       acoes: {
         ncm: { valor: "8471.30.12", seletor: "#txtNCMTIPI" },
         cest: { valor: null, seletor: "#txtCest" },
@@ -234,7 +236,41 @@ describe("data/item-map-manager", () => {
     expect(out.ok).toBe(true);
     expect(state.itemMapAtivo).toBe(true);
     expect(Object.keys(state.itemMap)).toHaveLength(1);
+    expect(state.progresso.total).toBe(1);
+    expect(state.progresso.loteJsonAssinatura).toMatch(/^json:1:/);
+    expect(state.estimativa.totalPlanejado).toBe(1);
     expect(document.getElementById("itemMapStatus").textContent).toMatch(/JSON ativo/);
+  });
+
+  it("preserva o progresso ao reaplicar o mesmo JSON e reinicia ao trocar o lote", () => {
+    const primeiro = JSON.stringify({
+      A: { ncm: "8471.30.12" },
+      B: { ncm: "8471.30.12" },
+    });
+    mod.aplicarJson(primeiro);
+    state.progresso = {
+      ...state.progresso,
+      atual: 1,
+      ultimoProcessado: "A",
+      concluidosIds: ["A"],
+    };
+
+    mod.aplicarJson(JSON.stringify({
+      B: { ncm: "8471.30.12" },
+      A: { ncm: "8471.30.12" },
+    }));
+    expect(state.progresso.atual).toBe(1);
+    expect(state.progresso.concluidosIds).toEqual(["A"]);
+
+    mod.aplicarJson(JSON.stringify({
+      A: { ncm: "8471.30.12" },
+      B: { ncm: "9999.99.99" },
+      C: { ncm: "8708.29.99" },
+    }));
+    expect(state.progresso.atual).toBe(0);
+    expect(state.progresso.total).toBe(3);
+    expect(state.progresso.concluidosIds).toEqual([]);
+    expect(state.progresso.loteJsonAssinatura).toMatch(/^json:3:/);
   });
 
   it("aplicarParaItemAtual registra aplicação única por item", () => {

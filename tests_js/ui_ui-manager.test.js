@@ -139,6 +139,25 @@ describe("ui/ui-manager", () => {
     expect(progressText.textContent).not.toContain("de 10");
   });
 
+  it("exibe o total do JSON ativo mesmo antes do primeiro ciclo no detalhe", () => {
+    mockGetEstado.mockReturnValue({
+      ativo: true,
+      pausado: false,
+      progresso: { total: 0, atual: 0 },
+      itemMapAtivo: true,
+      itemMap: {
+        A: { ncm: "8471.30.12" },
+        B: { ncm: "8471.30.12" },
+        C: { ncm: "8471.30.12" },
+      },
+      painelScrollTop: 0,
+    });
+
+    mod.atualizarIndicadorProgresso();
+
+    expect(document.getElementById("progressText").textContent).toContain("Concluídos 0 de 3");
+  });
+
   it("atualizarBotaoToggle atualiza estilos pendendo estado", () => {
     // Estado Ativo não pausado
     mod.atualizarBotaoToggle();

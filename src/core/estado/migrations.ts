@@ -4,6 +4,7 @@ import { inicializarAcoes } from './actions.ts';
 import { ESTADO_PADRAO } from './defaults.ts';
 import {
     normalizarEstimativa,
+    normalizarIntervaloDelay,
     normalizarLogAreaHeight,
     normalizarNumeroInteiro,
     normalizarPainelPosicao,
@@ -66,6 +67,14 @@ export function garantirDefaultsEstado(estado: EstadoApp): EstadoApp {
     estado.logAreaHeight = normalizarLogAreaHeight(estado.logAreaHeight);
     estado.estimativa = normalizarEstimativa(estado.estimativa);
     estado.trilhaExecucao = normalizarTrilhaExecucao(estado.trilhaExecucao);
+    const intervaloDelay = normalizarIntervaloDelay(
+        estado.globalActionDelayMinMs,
+        estado.globalActionDelayMaxMs,
+        estado.globalActionDelayMs,
+    );
+    estado.globalActionDelayMinMs = intervaloDelay.minimo;
+    estado.globalActionDelayMaxMs = intervaloDelay.maximo;
+    estado.globalActionDelayMs = intervaloDelay.maximo;
 
     return estado;
 }
@@ -94,9 +103,15 @@ export function migrarEstadoSalvo(antigo: EstadoSalvoRaw, salvar: (estado: Estad
     novo.logAreaHeight = normalizarLogAreaHeight(antigo['logAreaHeight']);
     if (antigo['modoSimulacao'] !== undefined) novo.modoSimulacao = !!antigo['modoSimulacao'];
 
-    if (antigo['globalActionDelayMs'] !== undefined) novo.globalActionDelayMs = normalizarNumeroInteiro(antigo['globalActionDelayMs'], novo.globalActionDelayMs);
-    else if (antigo['actionDelayMs'] !== undefined) novo.globalActionDelayMs = normalizarNumeroInteiro(antigo['actionDelayMs'], novo.globalActionDelayMs);
-    else if (antigo['delayMs'] !== undefined) novo.globalActionDelayMs = normalizarNumeroInteiro(antigo['delayMs'], novo.globalActionDelayMs);
+    const delayLegado = antigo['globalActionDelayMs'] ?? antigo['actionDelayMs'] ?? antigo['delayMs'] ?? novo.globalActionDelayMs;
+    const intervaloDelay = normalizarIntervaloDelay(
+        antigo['globalActionDelayMinMs'],
+        antigo['globalActionDelayMaxMs'],
+        delayLegado,
+    );
+    novo.globalActionDelayMinMs = intervaloDelay.minimo;
+    novo.globalActionDelayMaxMs = intervaloDelay.maximo;
+    novo.globalActionDelayMs = intervaloDelay.maximo;
 
     if (antigo['clickCooldownMs'] !== undefined) novo.clickCooldownMs = normalizarNumeroInteiro(antigo['clickCooldownMs'], novo.clickCooldownMs);
     if (antigo['itemMapAtivo'] !== undefined) novo.itemMapAtivo = !!antigo['itemMapAtivo'];

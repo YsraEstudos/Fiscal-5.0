@@ -43,6 +43,7 @@ import * as EstadoManager from '../core/estado-manager.ts';
 import type { EstadoApp } from '../core/estado-manager.ts';
 import { log } from '../core/log-manager.ts';
 import * as AudioManager from '../interaction/audio-manager.ts';
+import { obterAssinaturaLoteJson, sincronizarSnapshotLoteJson } from '../workflow/progress-totals.ts';
 import {
     buscarElementoDeep,
     encontrarCampoLei116Grupo,
@@ -351,6 +352,7 @@ interface AplicarJsonOptions {
 
 export function aplicarJson(jsonText: string, { silent = false }: AplicarJsonOptions = {}): { ok: boolean; warnings?: string[]; error?: string } {
     const estado = EstadoManager.get();
+    const assinaturaAnterior = obterAssinaturaLoteJson(estado);
     const rawJson = String(jsonText ?? '');
     estado.itemMapJson = rawJson;
 
@@ -369,6 +371,8 @@ export function aplicarJson(jsonText: string, { silent = false }: AplicarJsonOpt
         estado.itemMap = {};
         estado.itemMapAtivo = false;
         estado.itemMapUltimoAplicadoId = null;
+        const progresso = estado.progresso as unknown as Record<string, unknown>;
+        progresso['loteJsonAssinatura'] = null;
         EstadoManager.set(estado);
         if (!silent) {
             log('🧹 JSON vazio: mapa limpo e desativado', 'info');
@@ -381,6 +385,8 @@ export function aplicarJson(jsonText: string, { silent = false }: AplicarJsonOpt
     estado.itemMap = parsed.map || {};
     estado.itemMapAtivo = true;
     estado.itemMapUltimoAplicadoId = null;
+    const assinaturaNova = obterAssinaturaLoteJson(estado);
+    sincronizarSnapshotLoteJson(estado, { reiniciar: assinaturaAnterior !== assinaturaNova });
     EstadoManager.set(estado);
 
     if (!silent) {

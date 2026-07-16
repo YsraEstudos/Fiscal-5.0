@@ -32,6 +32,8 @@ export const ESTADO_PADRAO: EstadoApp = {
     modoSimulacao: false,
     modoInspecao: false,
     globalActionDelayMs: 1200,
+    globalActionDelayMinMs: 1200,
+    globalActionDelayMaxMs: 1200,
     clickCooldownMs: 3000,
     perfilAtivo: 'default',
     perfis: {},

@@ -841,7 +841,7 @@ export function iniciar(): void {
     estado.ativo = true;
     estado.pausado = false;
     const estadoAny = estado as unknown as Record<string, unknown>;
-    estadoAny['progresso'] = { atual: 0, total: totalPlanejadoJson, ultimoProcessado: null, concluidosIds: [] };
+    estadoAny['progresso'] = { atual: 0, total: totalPlanejadoJson, ultimoProcessado: null, concluidosIds: [], loteJsonAssinatura: null };
     estadoAny['itemFlags'] = {};
     estadoAny['itemAtualKey'] = null;
     estadoAny['itemAtualTelaId'] = null;

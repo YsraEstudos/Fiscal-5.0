@@ -1,6 +1,17 @@
 import type { EstadoApp } from '../core/estado-manager.ts';
+import { normalizarIntervaloDelay } from '../core/estado/normalizers.ts';
 
 export const LOOP_TICK_MS = 300;
+
+function sortearDelay(estado: EstadoApp): number {
+    const intervalo = normalizarIntervaloDelay(
+        estado.globalActionDelayMinMs,
+        estado.globalActionDelayMaxMs,
+        estado.globalActionDelayMs,
+    );
+    if (intervalo.minimo === intervalo.maximo) return intervalo.minimo;
+    return intervalo.minimo + Math.floor(Math.random() * (intervalo.maximo - intervalo.minimo + 1));
+}
 
 export function createWorkflowScheduler(runCycle: (trigger: string) => void): {
     cancelarTimer: () => void;
@@ -42,7 +53,7 @@ export function createWorkflowScheduler(runCycle: (trigger: string) => void): {
     }
 
     function registrarInteracao(acaoId: string, estado: EstadoApp): string {
-        const delay = Math.max(0, Number(estado.globalActionDelayMs ?? 0));
+        const delay = sortearDelay(estado);
         nextAllowedActionAt = Date.now() + delay;
         return acaoId;
     }

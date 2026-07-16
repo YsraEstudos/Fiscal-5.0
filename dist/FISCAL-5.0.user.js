@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         FISCAL 5.0 (Robust Robot)
 // @namespace    http://tampermonkey.net/
-// @version      5.2.8
+// @version      5.2.9
 // @author       System Admin
 // @description  Automação modular FISCAL 5.0 com controle individual de ações, inspeção de elementos, perfis e seletor robusto (ID + Texto).
 // @downloadURL  https://raw.githubusercontent.com/YsraEstudos/Fiscal-5.0/main/dist/FISCAL-5.0.user.js
@@ -32,7 +32,7 @@
     }
   }
   const CONFIG = Object.freeze({
-    SCHEMA_VERSION: 12,
+    SCHEMA_VERSION: 13,
     LOG_MAX_ENTRIES: 100,
     STORAGE_KEY: "km_robo_state",
     RETRY: Object.freeze({
@@ -488,6 +488,14 @@
     if (!Number.isFinite(num)) return fallback;
     return Math.max(0, Math.floor(num));
   }
+  function normalizarIntervaloDelay(minimo, maximo, legado = 1200) {
+    const fallback = normalizarNumeroInteiro(legado, 1200);
+    const temMinimo = minimo !== void 0 && minimo !== null && minimo !== "";
+    const temMaximo = maximo !== void 0 && maximo !== null && maximo !== "";
+    const valorMinimo = normalizarNumeroInteiro(temMinimo ? minimo : fallback, fallback);
+    const valorMaximo = normalizarNumeroInteiro(temMaximo ? maximo : fallback, fallback);
+    return valorMinimo <= valorMaximo ? { minimo: valorMinimo, maximo: valorMaximo } : { minimo: valorMaximo, maximo: valorMinimo };
+  }
   function normalizarNumeroNullable(valor) {
     if (valor == null || valor === "") return null;
     const num = Number(valor);
@@ -505,7 +513,8 @@
       atual: normalizarNumeroInteiro(src["atual"], 0),
       total: normalizarNumeroInteiro(src["total"], 0),
       ultimoProcessado: src["ultimoProcessado"] ? String(src["ultimoProcessado"]).trim() : null,
-      concluidosIds: normalizarConcluidosIds(src["concluidosIds"])
+      concluidosIds: normalizarConcluidosIds(src["concluidosIds"]),
+      loteJsonAssinatura: src["loteJsonAssinatura"] ? String(src["loteJsonAssinatura"]).trim() : null
     };
   }
   function normalizarEstimativa(estimativa) {
@@ -565,6 +574,8 @@
     modoSimulacao: false,
     modoInspecao: false,
     globalActionDelayMs: 1200,
+    globalActionDelayMinMs: 1200,
+    globalActionDelayMaxMs: 1200,
     clickCooldownMs: 3e3,
     perfilAtivo: "default",
     perfis: {},
@@ -681,6 +692,14 @@
     estado.logAreaHeight = normalizarLogAreaHeight$1(estado.logAreaHeight);
     estado.estimativa = normalizarEstimativa(estado.estimativa);
     estado.trilhaExecucao = normalizarTrilhaExecucao(estado.trilhaExecucao);
+    const intervaloDelay = normalizarIntervaloDelay(
+      estado.globalActionDelayMinMs,
+      estado.globalActionDelayMaxMs,
+      estado.globalActionDelayMs
+    );
+    estado.globalActionDelayMinMs = intervaloDelay.minimo;
+    estado.globalActionDelayMaxMs = intervaloDelay.maximo;
+    estado.globalActionDelayMs = intervaloDelay.maximo;
     return estado;
   }
   function migrarEstadoSalvo(antigo, salvar) {
@@ -705,9 +724,15 @@
     novo.painelScrollTop = normalizarPainelScrollTop(antigo["painelScrollTop"]);
     novo.logAreaHeight = normalizarLogAreaHeight$1(antigo["logAreaHeight"]);
     if (antigo["modoSimulacao"] !== void 0) novo.modoSimulacao = !!antigo["modoSimulacao"];
-    if (antigo["globalActionDelayMs"] !== void 0) novo.globalActionDelayMs = normalizarNumeroInteiro(antigo["globalActionDelayMs"], novo.globalActionDelayMs);
-    else if (antigo["actionDelayMs"] !== void 0) novo.globalActionDelayMs = normalizarNumeroInteiro(antigo["actionDelayMs"], novo.globalActionDelayMs);
-    else if (antigo["delayMs"] !== void 0) novo.globalActionDelayMs = normalizarNumeroInteiro(antigo["delayMs"], novo.globalActionDelayMs);
+    const delayLegado = antigo["globalActionDelayMs"] ?? antigo["actionDelayMs"] ?? antigo["delayMs"] ?? novo.globalActionDelayMs;
+    const intervaloDelay = normalizarIntervaloDelay(
+      antigo["globalActionDelayMinMs"],
+      antigo["globalActionDelayMaxMs"],
+      delayLegado
+    );
+    novo.globalActionDelayMinMs = intervaloDelay.minimo;
+    novo.globalActionDelayMaxMs = intervaloDelay.maximo;
+    novo.globalActionDelayMs = intervaloDelay.maximo;
     if (antigo["clickCooldownMs"] !== void 0) novo.clickCooldownMs = normalizarNumeroInteiro(antigo["clickCooldownMs"], novo.clickCooldownMs);
     if (antigo["itemMapAtivo"] !== void 0) novo.itemMapAtivo = !!antigo["itemMapAtivo"];
     if (antigo["itemMapJson"]) novo.itemMapJson = normalizarStringOuVazio(antigo["itemMapJson"]);
@@ -745,6 +770,14 @@
     estado.logAreaHeight = normalizarLogAreaHeight$1(salvo["logAreaHeight"]);
     estado.estimativa = normalizarEstimativa(salvo["estimativa"]);
     estado.trilhaExecucao = normalizarTrilhaExecucao(salvo["trilhaExecucao"]);
+    const intervaloDelay = normalizarIntervaloDelay(
+      salvo["globalActionDelayMinMs"],
+      salvo["globalActionDelayMaxMs"],
+      salvo["globalActionDelayMs"]
+    );
+    estado.globalActionDelayMinMs = intervaloDelay.minimo;
+    estado.globalActionDelayMaxMs = intervaloDelay.maximo;
+    estado.globalActionDelayMs = intervaloDelay.maximo;
     estado.pausarEmReincidencia = salvo["pausarEmReincidencia"] !== void 0 ? !!salvo["pausarEmReincidencia"] : true;
     const pausaAcompanhamentoSalva = salvo["pausarAcompanhamento"] ?? salvo["pausarNcmAcompanhamento"];
     estado.pausarAcompanhamento = pausaAcompanhamentoSalva !== void 0 ? !!pausaAcompanhamentoSalva : true;
@@ -1739,6 +1772,170 @@
     }
     return null;
   }
+  function normalizarItemKey(itemKey) {
+    const key = String(itemKey ?? "").trim();
+    return key || null;
+  }
+  function getTotalPlanejadoJson(estado) {
+    if (!(estado == null ? void 0 : estado.itemMapAtivo)) return 0;
+    return new Set(
+      Object.keys(estado.itemMap || {}).map(normalizarItemKey).filter((k) => k !== null)
+    ).size;
+  }
+  function serializarValorLote(valor) {
+    if (valor == null || typeof valor !== "object") return valor ?? null;
+    if (Array.isArray(valor)) return valor.map(serializarValorLote);
+    return Object.fromEntries(
+      Object.entries(valor).sort(([a], [b]) => a.localeCompare(b)).map(([chave, item]) => [chave, serializarValorLote(item)])
+    );
+  }
+  function hashLote(texto) {
+    let hash = 2166136261;
+    for (let i = 0; i < texto.length; i++) {
+      hash ^= texto.charCodeAt(i);
+      hash = Math.imul(hash, 16777619);
+    }
+    return (hash >>> 0).toString(36);
+  }
+  function obterAssinaturaLoteJson(estado) {
+    if (!(estado == null ? void 0 : estado.itemMapAtivo)) return null;
+    const entradas = Object.entries(estado.itemMap || {}).map(([id, valores]) => {
+      const idNormalizado = normalizarItemKey(id);
+      return idNormalizado ? [idNormalizado, serializarValorLote(valores)] : null;
+    }).filter((entrada) => entrada !== null).sort(([a], [b]) => a.localeCompare(b));
+    if (!entradas.length) return null;
+    return `json:${entradas.length}:${hashLote(JSON.stringify(entradas))}`;
+  }
+  function sincronizarSnapshotLoteJson(estado, { reiniciar = false } = {}) {
+    const assinatura = obterAssinaturaLoteJson(estado);
+    if (!assinatura) return false;
+    const e = estado;
+    const progresso = e["progresso"] || {};
+    const assinaturaAnterior = typeof progresso["loteJsonAssinatura"] === "string" ? progresso["loteJsonAssinatura"] : null;
+    const total = getTotalPlanejadoJson(estado);
+    const idsJson = new Set(Object.keys(estado.itemMap || {}).map(normalizarItemKey).filter((id) => id !== null));
+    const deveReiniciar = reiniciar || !!assinaturaAnterior && assinaturaAnterior !== assinatura;
+    const concluidos = deveReiniciar ? [] : [...obterConcluidosSet(estado)].filter((id) => idsJson.has(id));
+    const ultimoAnterior = normalizarItemKey(progresso["ultimoProcessado"]);
+    const ultimoProcessado = deveReiniciar || !ultimoAnterior || !idsJson.has(ultimoAnterior) ? null : ultimoAnterior;
+    const concluidosSalvos = Array.isArray(progresso["concluidosIds"]) ? progresso["concluidosIds"].map((id) => String(id ?? "").trim()).filter(Boolean) : [];
+    const restantes = Math.max(0, total - concluidos.length);
+    const estimativa = e["estimativa"] || {};
+    const mudou = deveReiniciar || assinaturaAnterior !== assinatura || Number(progresso["total"] || 0) !== total || Number(progresso["atual"] || 0) !== concluidos.length || JSON.stringify(concluidosSalvos) !== JSON.stringify(concluidos) || String(progresso["ultimoProcessado"] || "") !== String(ultimoProcessado || "") || Number(estimativa["totalPlanejado"] || 0) !== total || estimativa["fonteTotal"] !== "json" || Number(estimativa["restantes"] || 0) !== restantes;
+    e["progresso"] = {
+      ...progresso,
+      atual: concluidos.length,
+      total,
+      ultimoProcessado,
+      concluidosIds: concluidos,
+      loteJsonAssinatura: assinatura
+    };
+    e["estimativa"] = {
+      ...estimativa,
+      totalPlanejado: total,
+      fonteTotal: "json",
+      restantes,
+      ...deveReiniciar ? {
+        itemAtualId: null,
+        itemAtualInicioTs: null,
+        primeiroItemId: null,
+        primeiroItemDuracaoMs: null,
+        duracaoTotalConcluidosMs: 0,
+        duracaoAmostras: 0,
+        tempoMedioReferenciaMs: null,
+        etaRestanteMs: null,
+        previsaoTerminoTs: null,
+        ultimoItemConcluidoTs: null
+      } : {}
+    };
+    return mudou;
+  }
+  function obterConcluidosSet(estado) {
+    const prog = estado == null ? void 0 : estado.progresso;
+    const raw = Array.isArray(prog == null ? void 0 : prog["concluidosIds"]) ? prog["concluidosIds"] : [];
+    return new Set(raw.map(normalizarItemKey).filter((k) => k !== null));
+  }
+  function contarConcluidosEfetivos(estado, concluidosSet = obterConcluidosSet(estado)) {
+    if (!(estado == null ? void 0 : estado.itemMapAtivo)) return concluidosSet.size;
+    const idsJson = new Set(Object.keys(estado.itemMap || {}).map(normalizarItemKey).filter((k) => k !== null));
+    let count = 0;
+    for (const key of concluidosSet) {
+      if (idsJson.has(key)) count++;
+    }
+    return count;
+  }
+  function obterTotalConhecido(estado) {
+    var _a, _b;
+    return Math.max(
+      0,
+      Number(((_a = estado == null ? void 0 : estado.progresso) == null ? void 0 : _a.total) || 0),
+      Number(((_b = estado == null ? void 0 : estado.estimativa) == null ? void 0 : _b.totalPlanejado) || 0)
+    );
+  }
+  function ehPaginaDetalheItem() {
+    if (typeof window === "undefined") return false;
+    try {
+      const pathname = new URL(window.location.href).pathname;
+      return /\/(?:SIN_Item_Resultante|SIN_Item|ITEM_Edita)\.aspx$/i.test(pathname);
+    } catch {
+      return false;
+    }
+  }
+  function calcularTotaisDinamicos(estado, itensInfo = { elegiveis: [] }, concluidosSet = obterConcluidosSet(estado)) {
+    var _a;
+    const totalAnterior = obterTotalConhecido(estado);
+    const resumoServidor = obterResumoPendentesServidor();
+    const pendentesFallback = Math.max(0, Number(((_a = itensInfo == null ? void 0 : itensInfo.elegiveis) == null ? void 0 : _a.length) || 0));
+    const possuiItensVisiveis = Number((itensInfo == null ? void 0 : itensInfo.totalVisiveis) || 0) > 0 || pendentesFallback > 0;
+    const detalheSemLista = ehPaginaDetalheItem() && !possuiItensVisiveis && !document.querySelector("#DIVResultado");
+    if (estado == null ? void 0 : estado.itemMapAtivo) {
+      const totalJson = getTotalPlanejadoJson(estado);
+      const concluidosFallback = contarConcluidosEfetivos(estado, concluidosSet);
+      const totalPlanejado2 = totalJson > 0 ? totalJson : detalheSemLista && totalAnterior > 0 ? Math.max(totalAnterior, concluidosFallback) : concluidosFallback;
+      if (totalJson > 0 && Number.isFinite(resumoServidor == null ? void 0 : resumoServidor.total)) {
+        const pendentesServidor3 = Math.min(totalJson, Math.max(0, Number(resumoServidor == null ? void 0 : resumoServidor.total)));
+        const concluidosEfetivos2 = Math.max(0, totalJson - pendentesServidor3);
+        return { totalPlanejado: totalJson, concluidosEfetivos: concluidosEfetivos2, pendentesServidor: pendentesServidor3, fonteTotal: "json" };
+      }
+      const pendentesServidor2 = Math.max(0, totalPlanejado2 - concluidosFallback);
+      return { totalPlanejado: totalPlanejado2, concluidosEfetivos: concluidosFallback, pendentesServidor: pendentesServidor2, fonteTotal: "json" };
+    }
+    const concluidosEfetivos = contarConcluidosEfetivos(estado, concluidosSet);
+    const semInformacaoDeLista = !Number.isFinite(resumoServidor == null ? void 0 : resumoServidor.total) && !possuiItensVisiveis;
+    const preservarSnapshot = (semInformacaoDeLista || detalheSemLista) && totalAnterior > 0;
+    const totalPlanejado = preservarSnapshot ? Math.max(totalAnterior, concluidosEfetivos) : concluidosEfetivos + (Number.isFinite(resumoServidor == null ? void 0 : resumoServidor.total) ? Math.max(0, resumoServidor.total) : pendentesFallback);
+    const pendentesServidor = Math.max(0, totalPlanejado - concluidosEfetivos);
+    return { totalPlanejado, concluidosEfetivos, pendentesServidor, fonteTotal: "fila" };
+  }
+  function aplicarTotaisDinamicosNoEstado(estado, totais, now = Date.now()) {
+    const e = estado;
+    e["progresso"] = e["progresso"] || { atual: 0, total: 0, ultimoProcessado: null, concluidosIds: [], loteJsonAssinatura: null };
+    e["progresso"]["atual"] = totais.concluidosEfetivos;
+    e["progresso"]["total"] = totais.totalPlanejado;
+    e["estatisticas"] = e["estatisticas"] || { processados: 0, erros: 0, ultimoErro: null };
+    e["estatisticas"]["processados"] = totais.concluidosEfetivos;
+    e["estimativa"] = e["estimativa"] || {};
+    const est = e["estimativa"];
+    est["totalPlanejado"] = totais.totalPlanejado;
+    est["fonteTotal"] = totais.fonteTotal;
+    est["restantes"] = Math.max(0, totais.totalPlanejado - totais.concluidosEfetivos);
+    const tempoMedio = Number(est["tempoMedioReferenciaMs"]);
+    if (Number.isFinite(tempoMedio) && tempoMedio != null) {
+      est["etaRestanteMs"] = tempoMedio * Number(est["restantes"]);
+      est["previsaoTerminoTs"] = now + Number(est["etaRestanteMs"]);
+    } else {
+      est["etaRestanteMs"] = null;
+      est["previsaoTerminoTs"] = null;
+    }
+  }
+  function atualizarTotaisLote(estado, itensInfo = { elegiveis: [] }) {
+    update((e) => {
+      sincronizarSnapshotLoteJson(e);
+      const concluidosSet = obterConcluidosSet(e);
+      const totais = calcularTotaisDinamicos(e, itensInfo, concluidosSet);
+      aplicarTotaisDinamicosNoEstado(e, totais, Date.now());
+    });
+  }
   function normalizarId(id) {
     const s = String(id ?? "").trim();
     return s || null;
@@ -1941,6 +2138,7 @@
   function aplicarJson(jsonText, { silent = false } = {}) {
     var _a;
     const estado = get();
+    const assinaturaAnterior = obterAssinaturaLoteJson(estado);
     const rawJson = String(jsonText ?? "");
     estado.itemMapJson = rawJson;
     const parsed = parseJsonParaMapa(rawJson);
@@ -1957,6 +2155,8 @@
       estado.itemMap = {};
       estado.itemMapAtivo = false;
       estado.itemMapUltimoAplicadoId = null;
+      const progresso = estado.progresso;
+      progresso["loteJsonAssinatura"] = null;
       set$1(estado);
       if (!silent) {
         log("🧹 JSON vazio: mapa limpo e desativado", "info");
@@ -1968,6 +2168,8 @@
     estado.itemMap = parsed.map || {};
     estado.itemMapAtivo = true;
     estado.itemMapUltimoAplicadoId = null;
+    const assinaturaNova = obterAssinaturaLoteJson(estado);
+    sincronizarSnapshotLoteJson(estado, { reiniciar: assinaturaAnterior !== assinaturaNova });
     set$1(estado);
     if (!silent) {
       const total = Object.keys(estado.itemMap).length;
@@ -3200,101 +3402,6 @@
       return `[State: fases=${[...this.faseCompleta].join(",") || "∅"} | valorDigitado=${this.unspscValorDigitado} | pesquisado=${this.unspscPesquisado} | selecionado=${this.unspscSelecionado}]`;
     }
   };
-  function normalizarItemKey(itemKey) {
-    const key = String(itemKey ?? "").trim();
-    return key || null;
-  }
-  function getTotalPlanejadoJson(estado) {
-    if (!(estado == null ? void 0 : estado.itemMapAtivo)) return 0;
-    return new Set(
-      Object.keys(estado.itemMap || {}).map(normalizarItemKey).filter((k) => k !== null)
-    ).size;
-  }
-  function obterConcluidosSet(estado) {
-    const prog = estado == null ? void 0 : estado.progresso;
-    const raw = Array.isArray(prog == null ? void 0 : prog["concluidosIds"]) ? prog["concluidosIds"] : [];
-    return new Set(raw.map(normalizarItemKey).filter((k) => k !== null));
-  }
-  function contarConcluidosEfetivos(estado, concluidosSet = obterConcluidosSet(estado)) {
-    if (!(estado == null ? void 0 : estado.itemMapAtivo)) return concluidosSet.size;
-    const idsJson = new Set(Object.keys(estado.itemMap || {}).map(normalizarItemKey).filter((k) => k !== null));
-    let count = 0;
-    for (const key of concluidosSet) {
-      if (idsJson.has(key)) count++;
-    }
-    return count;
-  }
-  function obterTotalConhecido(estado) {
-    var _a, _b;
-    return Math.max(
-      0,
-      Number(((_a = estado == null ? void 0 : estado.progresso) == null ? void 0 : _a.total) || 0),
-      Number(((_b = estado == null ? void 0 : estado.estimativa) == null ? void 0 : _b.totalPlanejado) || 0)
-    );
-  }
-  function ehPaginaDetalheItem() {
-    if (typeof window === "undefined") return false;
-    try {
-      const pathname = new URL(window.location.href).pathname;
-      return /\/(?:SIN_Item_Resultante|SIN_Item|ITEM_Edita)\.aspx$/i.test(pathname);
-    } catch {
-      return false;
-    }
-  }
-  function calcularTotaisDinamicos(estado, itensInfo = { elegiveis: [] }, concluidosSet = obterConcluidosSet(estado)) {
-    var _a;
-    const totalAnterior = obterTotalConhecido(estado);
-    const resumoServidor = obterResumoPendentesServidor();
-    const pendentesFallback = Math.max(0, Number(((_a = itensInfo == null ? void 0 : itensInfo.elegiveis) == null ? void 0 : _a.length) || 0));
-    const possuiItensVisiveis = Number((itensInfo == null ? void 0 : itensInfo.totalVisiveis) || 0) > 0 || pendentesFallback > 0;
-    const detalheSemLista = ehPaginaDetalheItem() && !possuiItensVisiveis && !document.querySelector("#DIVResultado");
-    if (estado == null ? void 0 : estado.itemMapAtivo) {
-      const totalJson = getTotalPlanejadoJson(estado);
-      const concluidosFallback = contarConcluidosEfetivos(estado, concluidosSet);
-      const totalPlanejado2 = totalJson > 0 ? totalJson : detalheSemLista && totalAnterior > 0 ? Math.max(totalAnterior, concluidosFallback) : concluidosFallback;
-      if (totalJson > 0 && Number.isFinite(resumoServidor == null ? void 0 : resumoServidor.total)) {
-        const pendentesServidor3 = Math.min(totalJson, Math.max(0, Number(resumoServidor == null ? void 0 : resumoServidor.total)));
-        const concluidosEfetivos2 = Math.max(0, totalJson - pendentesServidor3);
-        return { totalPlanejado: totalJson, concluidosEfetivos: concluidosEfetivos2, pendentesServidor: pendentesServidor3, fonteTotal: "json" };
-      }
-      const pendentesServidor2 = Math.max(0, totalPlanejado2 - concluidosFallback);
-      return { totalPlanejado: totalPlanejado2, concluidosEfetivos: concluidosFallback, pendentesServidor: pendentesServidor2, fonteTotal: "json" };
-    }
-    const concluidosEfetivos = contarConcluidosEfetivos(estado, concluidosSet);
-    const semInformacaoDeLista = !Number.isFinite(resumoServidor == null ? void 0 : resumoServidor.total) && !possuiItensVisiveis;
-    const preservarSnapshot = (semInformacaoDeLista || detalheSemLista) && totalAnterior > 0;
-    const totalPlanejado = preservarSnapshot ? Math.max(totalAnterior, concluidosEfetivos) : concluidosEfetivos + (Number.isFinite(resumoServidor == null ? void 0 : resumoServidor.total) ? Math.max(0, resumoServidor.total) : pendentesFallback);
-    const pendentesServidor = Math.max(0, totalPlanejado - concluidosEfetivos);
-    return { totalPlanejado, concluidosEfetivos, pendentesServidor, fonteTotal: "fila" };
-  }
-  function aplicarTotaisDinamicosNoEstado(estado, totais, now = Date.now()) {
-    const e = estado;
-    e["progresso"] = e["progresso"] || { atual: 0, total: 0, ultimoProcessado: null, concluidosIds: [] };
-    e["progresso"]["atual"] = totais.concluidosEfetivos;
-    e["progresso"]["total"] = totais.totalPlanejado;
-    e["estatisticas"] = e["estatisticas"] || { processados: 0, erros: 0, ultimoErro: null };
-    e["estatisticas"]["processados"] = totais.concluidosEfetivos;
-    e["estimativa"] = e["estimativa"] || {};
-    const est = e["estimativa"];
-    est["totalPlanejado"] = totais.totalPlanejado;
-    est["fonteTotal"] = totais.fonteTotal;
-    est["restantes"] = Math.max(0, totais.totalPlanejado - totais.concluidosEfetivos);
-    const tempoMedio = Number(est["tempoMedioReferenciaMs"]);
-    if (Number.isFinite(tempoMedio) && tempoMedio != null) {
-      est["etaRestanteMs"] = tempoMedio * Number(est["restantes"]);
-      est["previsaoTerminoTs"] = now + Number(est["etaRestanteMs"]);
-    } else {
-      est["etaRestanteMs"] = null;
-      est["previsaoTerminoTs"] = null;
-    }
-  }
-  function atualizarTotaisLote(estado, itensInfo = { elegiveis: [] }) {
-    update((e) => {
-      const concluidosSet = obterConcluidosSet(e);
-      const totais = calcularTotaisDinamicos(e, itensInfo, concluidosSet);
-      aplicarTotaisDinamicosNoEstado(e, totais, Date.now());
-    });
-  }
   function estaNaTelaListaItens() {
     const temFiltroLista = !!document.querySelector("#ddlOpcao");
     const temContainerResultado = !!document.querySelector("#DIVResultado");
@@ -3735,6 +3842,15 @@
     limparTimer();
   }
   const LOOP_TICK_MS = 300;
+  function sortearDelay(estado) {
+    const intervalo = normalizarIntervaloDelay(
+      estado.globalActionDelayMinMs,
+      estado.globalActionDelayMaxMs,
+      estado.globalActionDelayMs
+    );
+    if (intervalo.minimo === intervalo.maximo) return intervalo.minimo;
+    return intervalo.minimo + Math.floor(Math.random() * (intervalo.maximo - intervalo.minimo + 1));
+  }
   function createWorkflowScheduler(runCycle) {
     let cicloTimeoutId = null;
     let nextRunAt = 0;
@@ -3763,7 +3879,7 @@
       }, delayFinal);
     }
     function registrarInteracao2(acaoId, estado) {
-      const delay = Math.max(0, Number(estado.globalActionDelayMs ?? 0));
+      const delay = sortearDelay(estado);
       nextAllowedActionAt = Date.now() + delay;
       return acaoId;
     }
@@ -5429,7 +5545,7 @@
     estado.ativo = true;
     estado.pausado = false;
     const estadoAny = estado;
-    estadoAny["progresso"] = { atual: 0, total: totalPlanejadoJson, ultimoProcessado: null, concluidosIds: [] };
+    estadoAny["progresso"] = { atual: 0, total: totalPlanejadoJson, ultimoProcessado: null, concluidosIds: [], loteJsonAssinatura: null };
     estadoAny["itemFlags"] = {};
     estadoAny["itemAtualKey"] = null;
     estadoAny["itemAtualTelaId"] = null;
@@ -5855,6 +5971,11 @@
     `;
   }
   function renderOpcoesSection(estado) {
+    const intervaloDelay = normalizarIntervaloDelay(
+      estado.globalActionDelayMinMs,
+      estado.globalActionDelayMaxMs,
+      estado.globalActionDelayMs ?? 1200
+    );
     return `
         <section class="km-card">
             <label class="km-section-label">Opções</label>
@@ -5873,8 +5994,18 @@
                 </label>
 
                 <div class="km-field">
-                    <label>Delay global entre ações <span id="globalActionDelayLabel">${formatarSegundos(estado.globalActionDelayMs ?? 1200)}</span></label>
-                    <input type="range" id="globalActionDelaySlider" min="200" max="60000" step="100" value="${Number(estado.globalActionDelayMs ?? 1200)}">
+                    <label>Delay global entre ações <span id="globalActionDelayLabel">${formatarSegundos(intervaloDelay.minimo)} – ${formatarSegundos(intervaloDelay.maximo)}</span></label>
+                    <div class="km-field-grid">
+                        <div class="km-field">
+                            <label for="globalActionDelayMinSlider">Mínimo <span id="globalActionDelayMinLabel">${formatarSegundos(intervaloDelay.minimo)}</span></label>
+                            <input type="range" id="globalActionDelayMinSlider" min="200" max="60000" step="100" value="${intervaloDelay.minimo}">
+                        </div>
+                        <div class="km-field">
+                            <label for="globalActionDelayMaxSlider">Máximo <span id="globalActionDelayMaxLabel">${formatarSegundos(intervaloDelay.maximo)}</span></label>
+                            <input type="range" id="globalActionDelayMaxSlider" min="200" max="60000" step="100" value="${intervaloDelay.maximo}">
+                        </div>
+                    </div>
+                    <div class="km-helper-text">Cada ação aguarda um tempo aleatório dentro desta faixa.</div>
                 </div>
 
                 <div class="km-field">
@@ -7986,7 +8117,7 @@ RODONAVES - PRD">${escapeHtml(empresas.map((empresa) => empresa.nome).join("\n")
     return estado;
   }
   function wireEvents(toggleMinimizar2) {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u;
     const estado = get();
     inicializar$1();
     const fmtS = (ms) => `${(Number(ms || 0) / 1e3).toFixed(1)}s`;
@@ -8213,15 +8344,36 @@ RODONAVES - PRD">${escapeHtml(empresas.map((empresa) => empresa.nome).join("\n")
       setFiscalHintsStatus("JSON atualizado.");
     });
     const deb = (fn) => debounce(fn, 80);
-    (_o = document.getElementById("globalActionDelaySlider")) == null ? void 0 : _o.addEventListener("input", deb((e) => {
-      const valor = parseInt(e.target.value, 10);
-      const label = document.getElementById("globalActionDelayLabel");
-      if (label) label.textContent = fmtS(valor);
+    const atualizarIntervaloDelay = (alterado) => {
+      const minimoEl = document.getElementById("globalActionDelayMinSlider");
+      const maximoEl = document.getElementById("globalActionDelayMaxSlider");
+      if (!minimoEl || !maximoEl) return;
+      let minimo = parseInt(minimoEl.value, 10);
+      let maximo = parseInt(maximoEl.value, 10);
+      if (!Number.isFinite(minimo)) minimo = 200;
+      if (!Number.isFinite(maximo)) maximo = minimo;
+      if (alterado === "min" && minimo > maximo) {
+        maximo = minimo;
+        maximoEl.value = String(maximo);
+      } else if (alterado === "max" && maximo < minimo) {
+        minimo = maximo;
+        minimoEl.value = String(minimo);
+      }
+      const faixaLabel = document.getElementById("globalActionDelayLabel");
+      const minimoLabel = document.getElementById("globalActionDelayMinLabel");
+      const maximoLabel = document.getElementById("globalActionDelayMaxLabel");
+      if (faixaLabel) faixaLabel.textContent = `${fmtS(minimo)} – ${fmtS(maximo)}`;
+      if (minimoLabel) minimoLabel.textContent = fmtS(minimo);
+      if (maximoLabel) maximoLabel.textContent = fmtS(maximo);
       update((st) => {
-        st.globalActionDelayMs = valor;
+        st.globalActionDelayMinMs = minimo;
+        st.globalActionDelayMaxMs = maximo;
+        st.globalActionDelayMs = maximo;
       });
-    }));
-    (_p = document.getElementById("clickCooldownSlider")) == null ? void 0 : _p.addEventListener("input", deb((e) => {
+    };
+    (_o = document.getElementById("globalActionDelayMinSlider")) == null ? void 0 : _o.addEventListener("input", deb(() => atualizarIntervaloDelay("min")));
+    (_p = document.getElementById("globalActionDelayMaxSlider")) == null ? void 0 : _p.addEventListener("input", deb(() => atualizarIntervaloDelay("max")));
+    (_q = document.getElementById("clickCooldownSlider")) == null ? void 0 : _q.addEventListener("input", deb((e) => {
       const valor = parseInt(e.target.value, 10);
       const label = document.getElementById("clickCooldownLabel");
       if (label) label.textContent = fmtS(valor);
@@ -8229,25 +8381,25 @@ RODONAVES - PRD">${escapeHtml(empresas.map((empresa) => empresa.nome).join("\n")
         st.clickCooldownMs = valor;
       });
     }));
-    (_q = document.getElementById("btnToggle")) == null ? void 0 : _q.addEventListener("click", () => {
+    (_r = document.getElementById("btnToggle")) == null ? void 0 : _r.addEventListener("click", () => {
       const est = get();
       if (est.pausado) togglePausar();
       else if (est.ativo) parar();
       else iniciar();
     });
     atualizarStatusUI(get());
-    (_r = document.getElementById("btnSsoEmpresasSalvar")) == null ? void 0 : _r.addEventListener("click", () => {
+    (_s = document.getElementById("btnSsoEmpresasSalvar")) == null ? void 0 : _s.addEventListener("click", () => {
       const textarea = document.getElementById("kmSsoEmpresasInput");
       const empresas = salvarEmpresasMonitoradas((textarea == null ? void 0 : textarea.value) || "");
       definirMensagemMonitorSSO(empresas.length + " empresa(s) salvas.");
       atualizarPainelSso();
       log("💾 Lista de empresas do SSO salva", "info");
     });
-    (_s = document.getElementById("btnSsoEmpresasAtualizar")) == null ? void 0 : _s.addEventListener("click", () => {
+    (_t = document.getElementById("btnSsoEmpresasAtualizar")) == null ? void 0 : _t.addEventListener("click", () => {
       atualizarPainelSso();
       definirMensagemMonitorSSO("Status das abas atualizado.");
     });
-    (_t = document.getElementById("btnSsoEmpresasAbrir")) == null ? void 0 : _t.addEventListener("click", () => {
+    (_u = document.getElementById("btnSsoEmpresasAbrir")) == null ? void 0 : _u.addEventListener("click", () => {
       const resultado2 = abrirEmpresasFaltantes();
       const mensagem = resultado2.semLink > 0 ? resultado2.abertas + " empresa(s) enviadas para abertura; " + resultado2.semLink + " sem cartão encontrado." : resultado2.abertas + " empresa(s) enviadas para abertura.";
       definirMensagemMonitorSSO(mensagem, resultado2.semLink > 0);
@@ -8342,7 +8494,8 @@ RODONAVES - PRD">${escapeHtml(empresas.map((empresa) => empresa.nome).join("\n")
       container.style.display = "none";
       return;
     }
-    const total = Number(estado.progresso && estado.progresso.total || resumo.totalPlanejado || 0);
+    const totalJson = getTotalPlanejadoJson(estado);
+    const total = Number(estado.progresso && estado.progresso.total || totalJson || resumo.totalPlanejado || 0);
     const concluidos = Number(estado.progresso && estado.progresso.atual || 0);
     const pct = total > 0 ? concluidos / total * 100 : 0;
     container.style.display = "block";
@@ -8465,6 +8618,7 @@ RODONAVES - PRD">${escapeHtml(empresas.map((empresa) => empresa.nome).join("\n")
   function criarPainel() {
     if (getPainelEl()) return;
     const estado = get();
+    if (sincronizarSnapshotLoteJson(estado)) set$1(estado);
     _painelMinimizado = estado.minimizado ?? (typeof globalThis !== "undefined" && globalThis.innerWidth < 640);
     injetarEstilos();
     const div = construirPainel(_painelMinimizado);

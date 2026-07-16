@@ -87,6 +87,8 @@ describe("core/estado-manager", () => {
     const estado = get();
     expect(estado.schemaVersion).toBe(CONFIG.SCHEMA_VERSION);
     expect(estado.globalActionDelayMs).toBe(2222);
+    expect(estado.globalActionDelayMinMs).toBe(2222);
+    expect(estado.globalActionDelayMaxMs).toBe(2222);
     expect(estado.acoes.ncm.valor).toBe("1234.56.78");
     expect(estado.acoes.unspsc.valor).toBe("12345678");
     expect(estado.acoes.unspsc.seletor).toContain("#txtCodigoUnspsc");
@@ -162,6 +164,18 @@ describe("core/estado-manager", () => {
     expect(estado.acoes.confirmar.ativo).toBe(false);
   });
 
+  it("normaliza uma faixa de delay salva fora de ordem", () => {
+    localStorage.setItem(CONFIG.STORAGE_KEY, JSON.stringify({
+      schemaVersion: CONFIG.SCHEMA_VERSION,
+      globalActionDelayMinMs: 20000,
+      globalActionDelayMaxMs: 1000,
+    }));
+
+    const estado = get();
+
+    expect(estado.globalActionDelayMinMs).toBe(1000);
+    expect(estado.globalActionDelayMaxMs).toBe(20000);
+  });
   it("update persiste mudanças e set aplica schema atual", () => {
     set({
       ...ESTADO_PADRAO,
