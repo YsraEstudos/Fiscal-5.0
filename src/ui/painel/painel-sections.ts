@@ -4,7 +4,10 @@ import { obterResumoUI } from '../../workflow/estimativa.ts';
 import { obterResumoTrilhaUI } from '../../workflow/item-trace.ts';
 import { exportarDicasFiscaisJson } from '../fiscal-hints.ts';
 import type { EstadoApp } from '../../core/estado-manager.ts';
-import { normalizarIntervaloDelay } from '../../core/estado/normalizers.ts';
+import {
+    normalizarIntervaloDelay,
+    normalizarTempoDesativacaoChecks,
+} from '../../core/estado/normalizers.ts';
 
 function formatarSegundos(ms: number | string | null | undefined): string {
     return `${(Number(ms || 0) / 1000).toFixed(1)}s`;
@@ -95,6 +98,7 @@ export function renderOpcoesSection(estado: EstadoApp): string {
         estado.globalActionDelayMaxMs,
         estado.globalActionDelayMs ?? 1200,
     );
+    const tempoDesativacaoChecksMinutos = normalizarTempoDesativacaoChecks(estado.tempoDesativacaoChecksMinutos);
 
     return `
         <section class="km-card">
@@ -104,14 +108,19 @@ export function renderOpcoesSection(estado: EstadoApp): string {
                     <input type="checkbox" id="chkSimulacao" ${estado.modoSimulacao ? 'checked' : ''}>
                     <span>Modo simulação</span>
                 </label>
-                <label class="km-checkline">
+                <label class="km-checkline" title="Marcado = segurança ativa. Desmarcado = segurança desativada temporariamente.">
                     <input type="checkbox" id="chkPausarReincidencia" ${estado.pausarEmReincidencia !== false ? 'checked' : ''}>
                     <span>Pausar ao detectar 2ª passagem na etapa</span>
                 </label>
-                <label class="km-checkline" title="Ao desativar, a opção volta automaticamente após 10 minutos.">
+                <label class="km-checkline" title="Marcado = segurança ativa. Desmarcado = segurança desativada temporariamente.">
                     <input type="checkbox" id="chkPausarAcompanhamento" ${estado.pausarAcompanhamento !== false ? 'checked' : ''}>
                     <span>Pausar ao detectar alertas no acompanhamento</span>
                 </label>
+                <div class="km-field">
+                    <label for="tempoDesativacaoChecksMinutos">Tempo máximo com os checks de segurança desativados</label>
+                    <input type="number" id="tempoDesativacaoChecksMinutos" min="1" max="99" step="1" value="${tempoDesativacaoChecksMinutos}">
+                    <div class="km-helper-text">De 1 a 99 minutos. Ao atingir esse tempo, o check volta marcado automaticamente.</div>
+                </div>
 
                 <div class="km-field">
                     <label>Delay global entre ações <span id="globalActionDelayLabel">${formatarSegundos(intervaloDelay.minimo)} – ${formatarSegundos(intervaloDelay.maximo)}</span></label>

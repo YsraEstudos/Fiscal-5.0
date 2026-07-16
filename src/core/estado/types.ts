@@ -62,8 +62,10 @@ export interface EstadoApp {
     ativo: boolean;
     pausado: boolean;
     pausarEmReincidencia: boolean;
+    pausarEmReincidenciaReativarEm: number | null;
     pausarAcompanhamento: boolean;
     pausarAcompanhamentoReativarEm: number | null;
+    tempoDesativacaoChecksMinutos: number;
     minimizado: boolean;
     modoSimulacao: boolean;
     modoInspecao: boolean;

@@ -9,6 +9,7 @@ const mockTocar = vi.fn();
 const mockValidar = vi.fn();
 const mockAplicarVisual = vi.fn();
 const mockConfigurarPausaAcompanhamento = vi.fn();
+const mockConfigurarPausaReincidencia = vi.fn();
 const mockInicializarPausaAcompanhamento = vi.fn();
 
 vi.mock("../src/config/constants.ts", () => ({
@@ -71,6 +72,7 @@ vi.mock("../src/ui/painel-builder.ts", () => ({
 
 vi.mock("../src/workflow/acompanhamento-pause-control.ts", () => ({
   configurar: mockConfigurarPausaAcompanhamento,
+  configurarReincidencia: mockConfigurarPausaReincidencia,
   inicializar: mockInicializarPausaAcompanhamento,
 }));
 
@@ -111,7 +113,9 @@ describe("ui/painel-events", () => {
         </div>
       </div>
       <input type="checkbox" id="chkSimulacao">
+      <input type="checkbox" id="chkPausarReincidencia">
       <input type="checkbox" id="chkPausarAcompanhamento">
+      <input type="number" id="tempoDesativacaoChecksMinutos" value="10">
       <button id="drawerToggle"></button>
     `;
 
@@ -150,6 +154,14 @@ describe("ui/painel-events", () => {
     expect(st.modoSimulacao).toBe(true);
   });
 
+  it("checkbox de reincidência usa a pausa temporária", () => {
+    mod.wireEvents(vi.fn());
+    const chk = document.getElementById("chkPausarReincidencia");
+    chk.checked = false;
+    chk.dispatchEvent(new Event("change"));
+
+    expect(mockConfigurarPausaReincidencia).toHaveBeenCalledWith(false);
+  });
   it("checkbox de alerta no acompanhamento usa a pausa temporária", () => {
     mod.wireEvents(vi.fn());
     const chk = document.getElementById("chkPausarAcompanhamento");
@@ -157,6 +169,18 @@ describe("ui/painel-events", () => {
     chk.dispatchEvent(new Event("change"));
 
     expect(mockConfigurarPausaAcompanhamento).toHaveBeenCalledWith(false);
+  });
+  it("salva o limite dos checks entre 1 e 99 minutos", () => {
+    mod.wireEvents(vi.fn());
+    const input = document.getElementById("tempoDesativacaoChecksMinutos");
+    input.value = "120";
+    input.dispatchEvent(new Event("change"));
+
+    expect(mockUpdateEstado).toHaveBeenCalled();
+    const st = {};
+    mockUpdateFn(st);
+    expect(st.tempoDesativacaoChecksMinutos).toBe(99);
+    expect(input.value).toBe("99");
   });
   it("checkbox de ação chk_acao1 salva valor no estado e persiste", () => {
     mod.wireEvents(vi.fn());

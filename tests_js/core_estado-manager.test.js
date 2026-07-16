@@ -8,6 +8,7 @@ import {
   normalizarLogAreaHeight,
   normalizarPainelScrollTop,
   normalizarPainelSecoes,
+  normalizarTempoDesativacaoChecks,
   persistirAcoes,
   set,
   update,
@@ -19,6 +20,14 @@ describe("core/estado-manager", () => {
     invalidar();
   });
 
+
+  it("normaliza o limite dos checks entre 1 e 99 minutos", () => {
+    expect(normalizarTempoDesativacaoChecks("10")).toBe(10);
+    expect(normalizarTempoDesativacaoChecks("0")).toBe(1);
+    expect(normalizarTempoDesativacaoChecks("120")).toBe(99);
+    expect(normalizarTempoDesativacaoChecks("")).toBe(10);
+    expect(normalizarTempoDesativacaoChecks("abc")).toBe(10);
+  });
 
   it("normaliza configurações de seções do painel e scroll interno", () => {
     const secoes = normalizarPainelSecoes({ resumo: false, logs: true, inexistente: true });
@@ -326,6 +335,21 @@ describe("core/estado-manager", () => {
     const estado = get();
     expect(estado.pausarAcompanhamento).toBe(false);
     expect(estado.pausarAcompanhamentoReativarEm).toBe(prazo);
+  });
+  it("carrega o limite e o prazo de reativação salvos", () => {
+    const prazo = Date.now() + 600000;
+    localStorage.setItem(CONFIG.STORAGE_KEY, JSON.stringify({
+      ...ESTADO_PADRAO,
+      schemaVersion: CONFIG.SCHEMA_VERSION,
+      pausarEmReincidencia: false,
+      pausarEmReincidenciaReativarEm: String(prazo + 0.9),
+      tempoDesativacaoChecksMinutos: "120",
+    }));
+
+    const estado = get();
+    expect(estado.tempoDesativacaoChecksMinutos).toBe(99);
+    expect(estado.pausarEmReincidencia).toBe(false);
+    expect(estado.pausarEmReincidenciaReativarEm).toBe(Math.floor(prazo));
   });
   it("mantém a flag pausarEmReincidencia ao carregar estado salvo", () => {
     localStorage.setItem(CONFIG.STORAGE_KEY, JSON.stringify({

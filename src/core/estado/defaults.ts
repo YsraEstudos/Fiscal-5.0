@@ -1,6 +1,11 @@
 import { CONFIG } from '../../config/constants.ts';
 import { normalizarTrilhaExecucao, TRILHA_EXECUCAO_PADRAO } from '../../workflow/item-trace.ts';
-import { normalizarEstimativa, normalizarPainelSecoes, normalizarProgresso } from './normalizers.ts';
+import {
+    normalizarEstimativa,
+    normalizarPainelSecoes,
+    normalizarProgresso,
+    TEMPO_DESATIVACAO_CHECKS_PADRAO_MINUTOS,
+} from './normalizers.ts';
 import type { EstadoApp, EstimativaEstado } from './types.ts';
 
 export const ESTIMATIVA_PADRAO: Readonly<EstimativaEstado> = Object.freeze({
@@ -26,8 +31,10 @@ export const ESTADO_PADRAO: EstadoApp = {
     ativo: false,
     pausado: false,
     pausarEmReincidencia: true,
+    pausarEmReincidenciaReativarEm: null,
     pausarAcompanhamento: true,
     pausarAcompanhamentoReativarEm: null,
+    tempoDesativacaoChecksMinutos: TEMPO_DESATIVACAO_CHECKS_PADRAO_MINUTOS,
     minimizado: true,
     modoSimulacao: false,
     modoInspecao: false,

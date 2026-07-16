@@ -15,6 +15,10 @@ export const PAINEL_SECOES_PADRAO: Readonly<PainelSecoes> = Object.freeze({
     fiscalHints: true,
 });
 
+export const TEMPO_DESATIVACAO_CHECKS_PADRAO_MINUTOS = 10;
+export const TEMPO_DESATIVACAO_CHECKS_MIN_MINUTOS = 1;
+export const TEMPO_DESATIVACAO_CHECKS_MAX_MINUTOS = 99;
+
 function asObject(valor: unknown): RawObject {
     return valor && typeof valor === 'object' ? valor as RawObject : {};
 }
@@ -52,6 +56,22 @@ export function normalizarNumeroInteiro(valor: unknown, fallback = 0): number {
     const num = Number(valor);
     if (!Number.isFinite(num)) return fallback;
     return Math.max(0, Math.floor(num));
+}
+
+export function normalizarTempoDesativacaoChecks(valor: unknown): number {
+    if (valor == null || valor === '') return TEMPO_DESATIVACAO_CHECKS_PADRAO_MINUTOS;
+    const num = Number(valor);
+    if (!Number.isFinite(num)) return TEMPO_DESATIVACAO_CHECKS_PADRAO_MINUTOS;
+    return Math.max(
+        TEMPO_DESATIVACAO_CHECKS_MIN_MINUTOS,
+        Math.min(TEMPO_DESATIVACAO_CHECKS_MAX_MINUTOS, Math.floor(num)),
+    );
+}
+
+export function normalizarPrazoReativacao(valor: unknown): number | null {
+    if (valor == null || valor === '') return null;
+    const num = Number(valor);
+    return Number.isFinite(num) && num > 0 ? Math.floor(num) : null;
 }
 
 export function normalizarIntervaloDelay(

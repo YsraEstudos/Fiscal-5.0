@@ -90,6 +90,8 @@ describe("ui/painel-builder", () => {
     expect(painel.innerHTML).toContain("Dicas fiscais");
     expect(painel.innerHTML).toContain('btnFiscalHintsGerenciar');
     expect(painel.innerHTML).toContain('chkPausarAcompanhamento');
+    expect(painel.innerHTML).toContain('tempoDesativacaoChecksMinutos');
+    expect(painel.querySelector('#tempoDesativacaoChecksMinutos').value).toBe('10');
     expect(painel.innerHTML).not.toContain('fiscalHintsLista');
     expect(painel.innerHTML).not.toContain('km-fiscal-hint-row');
   });

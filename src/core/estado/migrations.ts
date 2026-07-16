@@ -10,7 +10,9 @@ import {
     normalizarPainelPosicao,
     normalizarPainelScrollTop,
     normalizarPainelSecoes,
+    normalizarPrazoReativacao,
     normalizarProgresso,
+    normalizarTempoDesativacaoChecks,
 } from './normalizers.ts';
 import type { AcaoEstado, EstadoApp } from './types.ts';
 
@@ -86,12 +88,17 @@ export function migrarEstadoSalvo(antigo: EstadoSalvoRaw, salvar: (estado: Estad
     if (antigo['ativo'] !== undefined) novo.ativo = !!antigo['ativo'];
     if (antigo['pausado'] !== undefined) novo.pausado = !!antigo['pausado'];
     if (antigo['pausarEmReincidencia'] !== undefined) novo.pausarEmReincidencia = !!antigo['pausarEmReincidencia'];
+    if (antigo['pausarEmReincidenciaReativarEm'] !== undefined) {
+        novo.pausarEmReincidenciaReativarEm = normalizarPrazoReativacao(antigo['pausarEmReincidenciaReativarEm']);
+    }
     const pausaAcompanhamentoSalva = antigo['pausarAcompanhamento'] ?? antigo['pausarNcmAcompanhamento'];
     if (pausaAcompanhamentoSalva !== undefined) novo.pausarAcompanhamento = !!pausaAcompanhamentoSalva;
     const prazoPausaAcompanhamento = antigo['pausarAcompanhamentoReativarEm'] ?? antigo['pausarNcmAcompanhamentoReativarEm'];
     if (prazoPausaAcompanhamento !== undefined) {
-        const prazo = Number(prazoPausaAcompanhamento);
-        novo.pausarAcompanhamentoReativarEm = Number.isFinite(prazo) && prazo > 0 ? Math.floor(prazo) : null;
+        novo.pausarAcompanhamentoReativarEm = normalizarPrazoReativacao(prazoPausaAcompanhamento);
+    }
+    if (antigo['tempoDesativacaoChecksMinutos'] !== undefined) {
+        novo.tempoDesativacaoChecksMinutos = normalizarTempoDesativacaoChecks(antigo['tempoDesativacaoChecksMinutos']);
     }
     if (antigo['minimizado'] !== undefined) novo.minimizado = !!antigo['minimizado'];
     if (Array.isArray(antigo['logs'])) novo.logs = antigo['logs'] as typeof novo.logs;

@@ -1,101 +1,172 @@
 import * as EstadoManager from '../core/estado-manager.ts';
 import type { EstadoApp } from '../core/estado-manager.ts';
 import { log } from '../core/log-manager.ts';
+import { normalizarTempoDesativacaoChecks } from '../core/estado/normalizers.ts';
 
 export const ACOMPANHAMENTO_REATIVACAO_MS = 10 * 60 * 1000;
 
-type EstadoPausaAcompanhamento = Pick<
+type CheckKey = 'reincidencia' | 'acompanhamento';
+type CheckFlag = 'pausarEmReincidencia' | 'pausarAcompanhamento';
+type CheckDeadline = 'pausarEmReincidenciaReativarEm' | 'pausarAcompanhamentoReativarEm';
+
+type CheckConfig = {
+    flag: CheckFlag;
+    deadline: CheckDeadline;
+    checkboxId: string;
+    label: string;
+};
+
+type EstadoPausaChecks = Pick<
     EstadoApp,
-    'pausarAcompanhamento' | 'pausarAcompanhamentoReativarEm'
+    | 'pausarEmReincidencia'
+    | 'pausarEmReincidenciaReativarEm'
+    | 'pausarAcompanhamento'
+    | 'pausarAcompanhamentoReativarEm'
+    | 'tempoDesativacaoChecksMinutos'
 >;
 
-let reativacaoTimer: ReturnType<typeof setTimeout> | null = null;
+const CHECK_KEYS: readonly CheckKey[] = ['reincidencia', 'acompanhamento'];
 
-function limparTimer(): void {
-    if (reativacaoTimer != null) {
-        clearTimeout(reativacaoTimer);
-        reativacaoTimer = null;
+const CHECK_CONFIGS: Record<CheckKey, CheckConfig> = {
+    reincidencia: {
+        flag: 'pausarEmReincidencia',
+        deadline: 'pausarEmReincidenciaReativarEm',
+        checkboxId: 'chkPausarReincidencia',
+        label: 'contra reincidência',
+    },
+    acompanhamento: {
+        flag: 'pausarAcompanhamento',
+        deadline: 'pausarAcompanhamentoReativarEm',
+        checkboxId: 'chkPausarAcompanhamento',
+        label: 'contra alertas no acompanhamento',
+    },
+};
+
+const reativacaoTimers: Record<CheckKey, ReturnType<typeof setTimeout> | null> = {
+    reincidencia: null,
+    acompanhamento: null,
+};
+
+function limparTimer(check: CheckKey): void {
+    const timer = reativacaoTimers[check];
+    if (timer != null) {
+        clearTimeout(timer);
+        reativacaoTimers[check] = null;
     }
 }
 
-function atualizarCheckbox(ativo: boolean): void {
+function obterConfig(check: CheckKey): CheckConfig {
+    return CHECK_CONFIGS[check];
+}
+
+function obterPrazo(estado: EstadoPausaChecks, check: CheckKey): number | null {
+    const prazo = Number(estado[obterConfig(check).deadline]);
+    return Number.isFinite(prazo) && prazo > 0 ? Math.floor(prazo) : null;
+}
+
+function obterDuracaoMs(estado: EstadoPausaChecks): number {
+    return normalizarTempoDesativacaoChecks(estado.tempoDesativacaoChecksMinutos) * 60 * 1000;
+}
+
+function atualizarCheckbox(check: CheckKey, ativo: boolean): void {
     if (typeof document === 'undefined') return;
-    const checkbox = document.getElementById('chkPausarAcompanhamento') as HTMLInputElement | null;
+    const checkbox = document.getElementById(obterConfig(check).checkboxId) as HTMLInputElement | null;
     if (checkbox) checkbox.checked = ativo;
 }
 
-function obterPrazo(estado: EstadoPausaAcompanhamento): number | null {
-    const prazo = Number(estado.pausarAcompanhamentoReativarEm);
-    return Number.isFinite(prazo) && prazo > 0 ? prazo : null;
+function agendarReativacao(check: CheckKey, prazo: number): void {
+    limparTimer(check);
+    reativacaoTimers[check] = setTimeout(
+        () => reativarAutomaticamente(check),
+        Math.max(0, prazo - Date.now()),
+    );
 }
 
-function reativarAutomaticamente(): void {
-    reativacaoTimer = null;
-    const estado = EstadoManager.get() as EstadoPausaAcompanhamento;
-    if (estado.pausarAcompanhamento !== false) return;
+function reativarAutomaticamente(check: CheckKey): void {
+    reativacaoTimers[check] = null;
+    const config = obterConfig(check);
+    const estado = EstadoManager.get() as EstadoPausaChecks;
+    if (estado[config.flag] !== false) return;
 
-    const prazo = obterPrazo(estado);
+    const prazo = obterPrazo(estado, check);
     if (prazo != null && prazo > Date.now()) {
-        agendarReativacao(prazo);
+        agendarReativacao(check, prazo);
         return;
     }
 
     EstadoManager.update((e: EstadoApp) => {
-        e.pausarAcompanhamento = true;
-        e.pausarAcompanhamentoReativarEm = null;
+        e[config.flag] = true;
+        e[config.deadline] = null;
     });
-    atualizarCheckbox(true);
-    log('⏱️ Pausa por alerta do acompanhamento reativada automaticamente após 10 minutos.', 'info');
+    atualizarCheckbox(check, true);
+    const minutos = normalizarTempoDesativacaoChecks(estado.tempoDesativacaoChecksMinutos);
+    log(
+        '⏱️ Segurança ' + config.label + ' reativada automaticamente após ' + minutos + ' minuto' + (minutos === 1 ? '' : 's') + '.',
+        'info',
+    );
 }
 
-function agendarReativacao(prazo: number): void {
-    limparTimer();
-    reativacaoTimer = setTimeout(reativarAutomaticamente, Math.max(0, prazo - Date.now()));
-}
+function inicializarCheck(check: CheckKey): void {
+    limparTimer(check);
+    const config = obterConfig(check);
+    const estado = EstadoManager.get() as EstadoPausaChecks;
+    if (estado[config.flag] !== false) return;
 
-export function inicializar(): void {
-    limparTimer();
-    const estado = EstadoManager.get() as EstadoPausaAcompanhamento;
-    if (estado.pausarAcompanhamento !== false) return;
-
-    const prazo = obterPrazo(estado);
+    const prazo = obterPrazo(estado, check);
     if (prazo == null) {
-        const novoPrazo = Date.now() + ACOMPANHAMENTO_REATIVACAO_MS;
+        const novoPrazo = Date.now() + obterDuracaoMs(estado);
         EstadoManager.update((e: EstadoApp) => {
-            e.pausarAcompanhamentoReativarEm = novoPrazo;
+            e[config.deadline] = novoPrazo;
         });
-        agendarReativacao(novoPrazo);
+        agendarReativacao(check, novoPrazo);
         return;
     }
 
     if (prazo <= Date.now()) {
-        reativarAutomaticamente();
+        reativarAutomaticamente(check);
         return;
     }
 
-    agendarReativacao(prazo);
+    agendarReativacao(check, prazo);
+}
+
+export function inicializar(): void {
+    CHECK_KEYS.forEach(inicializarCheck);
+}
+
+export function configurarCheck(check: CheckKey, ativo: boolean): void {
+    limparTimer(check);
+    const config = obterConfig(check);
+    const estado = EstadoManager.get() as EstadoPausaChecks;
+    const minutos = normalizarTempoDesativacaoChecks(estado.tempoDesativacaoChecksMinutos);
+    const reativarEm = ativo ? null : Date.now() + minutos * 60 * 1000;
+
+    EstadoManager.update((e: EstadoApp) => {
+        e[config.flag] = ativo;
+        e[config.deadline] = reativarEm;
+    });
+
+    atualizarCheckbox(check, ativo);
+    if (ativo) {
+        log('🛡️ Segurança ' + config.label + ' ATIVADA.', 'info');
+        return;
+    }
+
+    agendarReativacao(check, reativarEm as number);
+    log(
+        '🔓 Segurança ' + config.label + ' DESATIVADA por ' + minutos + ' minuto' + (minutos === 1 ? '' : 's') + '.',
+        'info',
+    );
+}
+
+export function configurarReincidencia(ativo: boolean): void {
+    configurarCheck('reincidencia', ativo);
 }
 
 export function configurar(ativo: boolean): void {
-    limparTimer();
-    const agora = Date.now();
-    const reativarEm = ativo ? null : agora + ACOMPANHAMENTO_REATIVACAO_MS;
-
-    EstadoManager.update((e: EstadoApp) => {
-        e.pausarAcompanhamento = ativo;
-        e.pausarAcompanhamentoReativarEm = reativarEm;
-    });
-
-    atualizarCheckbox(ativo);
-    if (ativo) {
-        log('⛔ Pausa por alerta do acompanhamento ATIVADA', 'info');
-        return;
-    }
-
-    agendarReativacao(reativarEm as number);
-    log('✅ Pausa por alerta do acompanhamento DESATIVADA por 10 minutos.', 'info');
+    configurarCheck('acompanhamento', ativo);
 }
 
 export function limpar(): void {
-    limparTimer();
+    CHECK_KEYS.forEach(limparTimer);
 }

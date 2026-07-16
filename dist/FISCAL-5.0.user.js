@@ -32,7 +32,7 @@
     }
   }
   const CONFIG = Object.freeze({
-    SCHEMA_VERSION: 13,
+    SCHEMA_VERSION: 14,
     LOG_MAX_ENTRIES: 100,
     STORAGE_KEY: "km_robo_state",
     RETRY: Object.freeze({
@@ -455,6 +455,9 @@
     progresso: true,
     fiscalHints: true
   });
+  const TEMPO_DESATIVACAO_CHECKS_PADRAO_MINUTOS = 10;
+  const TEMPO_DESATIVACAO_CHECKS_MIN_MINUTOS = 1;
+  const TEMPO_DESATIVACAO_CHECKS_MAX_MINUTOS = 99;
   function asObject(valor) {
     return valor && typeof valor === "object" ? valor : {};
   }
@@ -487,6 +490,20 @@
     const num = Number(valor);
     if (!Number.isFinite(num)) return fallback;
     return Math.max(0, Math.floor(num));
+  }
+  function normalizarTempoDesativacaoChecks(valor) {
+    if (valor == null || valor === "") return TEMPO_DESATIVACAO_CHECKS_PADRAO_MINUTOS;
+    const num = Number(valor);
+    if (!Number.isFinite(num)) return TEMPO_DESATIVACAO_CHECKS_PADRAO_MINUTOS;
+    return Math.max(
+      TEMPO_DESATIVACAO_CHECKS_MIN_MINUTOS,
+      Math.min(TEMPO_DESATIVACAO_CHECKS_MAX_MINUTOS, Math.floor(num))
+    );
+  }
+  function normalizarPrazoReativacao(valor) {
+    if (valor == null || valor === "") return null;
+    const num = Number(valor);
+    return Number.isFinite(num) && num > 0 ? Math.floor(num) : null;
   }
   function normalizarIntervaloDelay(minimo, maximo, legado = 1200) {
     const fallback = normalizarNumeroInteiro(legado, 1200);
@@ -568,8 +585,10 @@
     ativo: false,
     pausado: false,
     pausarEmReincidencia: true,
+    pausarEmReincidenciaReativarEm: null,
     pausarAcompanhamento: true,
     pausarAcompanhamentoReativarEm: null,
+    tempoDesativacaoChecksMinutos: TEMPO_DESATIVACAO_CHECKS_PADRAO_MINUTOS,
     minimizado: true,
     modoSimulacao: false,
     modoInspecao: false,
@@ -708,12 +727,17 @@
     if (antigo["ativo"] !== void 0) novo.ativo = !!antigo["ativo"];
     if (antigo["pausado"] !== void 0) novo.pausado = !!antigo["pausado"];
     if (antigo["pausarEmReincidencia"] !== void 0) novo.pausarEmReincidencia = !!antigo["pausarEmReincidencia"];
+    if (antigo["pausarEmReincidenciaReativarEm"] !== void 0) {
+      novo.pausarEmReincidenciaReativarEm = normalizarPrazoReativacao(antigo["pausarEmReincidenciaReativarEm"]);
+    }
     const pausaAcompanhamentoSalva = antigo["pausarAcompanhamento"] ?? antigo["pausarNcmAcompanhamento"];
     if (pausaAcompanhamentoSalva !== void 0) novo.pausarAcompanhamento = !!pausaAcompanhamentoSalva;
     const prazoPausaAcompanhamento = antigo["pausarAcompanhamentoReativarEm"] ?? antigo["pausarNcmAcompanhamentoReativarEm"];
     if (prazoPausaAcompanhamento !== void 0) {
-      const prazo = Number(prazoPausaAcompanhamento);
-      novo.pausarAcompanhamentoReativarEm = Number.isFinite(prazo) && prazo > 0 ? Math.floor(prazo) : null;
+      novo.pausarAcompanhamentoReativarEm = normalizarPrazoReativacao(prazoPausaAcompanhamento);
+    }
+    if (antigo["tempoDesativacaoChecksMinutos"] !== void 0) {
+      novo.tempoDesativacaoChecksMinutos = normalizarTempoDesativacaoChecks(antigo["tempoDesativacaoChecksMinutos"]);
     }
     if (antigo["minimizado"] !== void 0) novo.minimizado = !!antigo["minimizado"];
     if (Array.isArray(antigo["logs"])) novo.logs = antigo["logs"];
@@ -778,13 +802,16 @@
     estado.globalActionDelayMinMs = intervaloDelay.minimo;
     estado.globalActionDelayMaxMs = intervaloDelay.maximo;
     estado.globalActionDelayMs = intervaloDelay.maximo;
+    estado.tempoDesativacaoChecksMinutos = normalizarTempoDesativacaoChecks(salvo["tempoDesativacaoChecksMinutos"]);
     estado.pausarEmReincidencia = salvo["pausarEmReincidencia"] !== void 0 ? !!salvo["pausarEmReincidencia"] : true;
+    const prazoPausaReincidencia = normalizarPrazoReativacao(salvo["pausarEmReincidenciaReativarEm"]);
+    estado.pausarEmReincidenciaReativarEm = estado.pausarEmReincidencia ? null : prazoPausaReincidencia;
     const pausaAcompanhamentoSalva = salvo["pausarAcompanhamento"] ?? salvo["pausarNcmAcompanhamento"];
     estado.pausarAcompanhamento = pausaAcompanhamentoSalva !== void 0 ? !!pausaAcompanhamentoSalva : true;
-    const prazoPausaAcompanhamento = Number(
+    const prazoPausaAcompanhamento = normalizarPrazoReativacao(
       salvo["pausarAcompanhamentoReativarEm"] ?? salvo["pausarNcmAcompanhamentoReativarEm"]
     );
-    estado.pausarAcompanhamentoReativarEm = estado.pausarAcompanhamento ? null : Number.isFinite(prazoPausaAcompanhamento) && prazoPausaAcompanhamento > 0 ? Math.floor(prazoPausaAcompanhamento) : null;
+    estado.pausarAcompanhamentoReativarEm = estado.pausarAcompanhamento ? null : prazoPausaAcompanhamento;
     estado = inicializarAcoes(estado);
     return garantirDefaultsEstado(estado);
   }
@@ -3766,80 +3793,127 @@
     }
     return { status: "ready", alert: null };
   }
-  const ACOMPANHAMENTO_REATIVACAO_MS = 10 * 60 * 1e3;
-  let reativacaoTimer = null;
-  function limparTimer() {
-    if (reativacaoTimer != null) {
-      clearTimeout(reativacaoTimer);
-      reativacaoTimer = null;
+  const CHECK_KEYS = ["reincidencia", "acompanhamento"];
+  const CHECK_CONFIGS = {
+    reincidencia: {
+      flag: "pausarEmReincidencia",
+      deadline: "pausarEmReincidenciaReativarEm",
+      checkboxId: "chkPausarReincidencia",
+      label: "contra reincidência"
+    },
+    acompanhamento: {
+      flag: "pausarAcompanhamento",
+      deadline: "pausarAcompanhamentoReativarEm",
+      checkboxId: "chkPausarAcompanhamento",
+      label: "contra alertas no acompanhamento"
+    }
+  };
+  const reativacaoTimers = {
+    reincidencia: null,
+    acompanhamento: null
+  };
+  function limparTimer(check) {
+    const timer = reativacaoTimers[check];
+    if (timer != null) {
+      clearTimeout(timer);
+      reativacaoTimers[check] = null;
     }
   }
-  function atualizarCheckbox(ativo) {
+  function obterConfig(check) {
+    return CHECK_CONFIGS[check];
+  }
+  function obterPrazo(estado, check) {
+    const prazo = Number(estado[obterConfig(check).deadline]);
+    return Number.isFinite(prazo) && prazo > 0 ? Math.floor(prazo) : null;
+  }
+  function obterDuracaoMs(estado) {
+    return normalizarTempoDesativacaoChecks(estado.tempoDesativacaoChecksMinutos) * 60 * 1e3;
+  }
+  function atualizarCheckbox(check, ativo) {
     if (typeof document === "undefined") return;
-    const checkbox = document.getElementById("chkPausarAcompanhamento");
+    const checkbox = document.getElementById(obterConfig(check).checkboxId);
     if (checkbox) checkbox.checked = ativo;
   }
-  function obterPrazo(estado) {
-    const prazo = Number(estado.pausarAcompanhamentoReativarEm);
-    return Number.isFinite(prazo) && prazo > 0 ? prazo : null;
+  function agendarReativacao(check, prazo) {
+    limparTimer(check);
+    reativacaoTimers[check] = setTimeout(
+      () => reativarAutomaticamente(check),
+      Math.max(0, prazo - Date.now())
+    );
   }
-  function reativarAutomaticamente() {
-    reativacaoTimer = null;
+  function reativarAutomaticamente(check) {
+    reativacaoTimers[check] = null;
+    const config = obterConfig(check);
     const estado = get();
-    if (estado.pausarAcompanhamento !== false) return;
-    const prazo = obterPrazo(estado);
+    if (estado[config.flag] !== false) return;
+    const prazo = obterPrazo(estado, check);
     if (prazo != null && prazo > Date.now()) {
-      agendarReativacao(prazo);
+      agendarReativacao(check, prazo);
       return;
     }
     update((e) => {
-      e.pausarAcompanhamento = true;
-      e.pausarAcompanhamentoReativarEm = null;
+      e[config.flag] = true;
+      e[config.deadline] = null;
     });
-    atualizarCheckbox(true);
-    log("⏱️ Pausa por alerta do acompanhamento reativada automaticamente após 10 minutos.", "info");
+    atualizarCheckbox(check, true);
+    const minutos = normalizarTempoDesativacaoChecks(estado.tempoDesativacaoChecksMinutos);
+    log(
+      "⏱️ Segurança " + config.label + " reativada automaticamente após " + minutos + " minuto" + (minutos === 1 ? "" : "s") + ".",
+      "info"
+    );
   }
-  function agendarReativacao(prazo) {
-    limparTimer();
-    reativacaoTimer = setTimeout(reativarAutomaticamente, Math.max(0, prazo - Date.now()));
-  }
-  function inicializar$1() {
-    limparTimer();
+  function inicializarCheck(check) {
+    limparTimer(check);
+    const config = obterConfig(check);
     const estado = get();
-    if (estado.pausarAcompanhamento !== false) return;
-    const prazo = obterPrazo(estado);
+    if (estado[config.flag] !== false) return;
+    const prazo = obterPrazo(estado, check);
     if (prazo == null) {
-      const novoPrazo = Date.now() + ACOMPANHAMENTO_REATIVACAO_MS;
+      const novoPrazo = Date.now() + obterDuracaoMs(estado);
       update((e) => {
-        e.pausarAcompanhamentoReativarEm = novoPrazo;
+        e[config.deadline] = novoPrazo;
       });
-      agendarReativacao(novoPrazo);
+      agendarReativacao(check, novoPrazo);
       return;
     }
     if (prazo <= Date.now()) {
-      reativarAutomaticamente();
+      reativarAutomaticamente(check);
       return;
     }
-    agendarReativacao(prazo);
+    agendarReativacao(check, prazo);
+  }
+  function inicializar$1() {
+    CHECK_KEYS.forEach(inicializarCheck);
+  }
+  function configurarCheck(check, ativo) {
+    limparTimer(check);
+    const config = obterConfig(check);
+    const estado = get();
+    const minutos = normalizarTempoDesativacaoChecks(estado.tempoDesativacaoChecksMinutos);
+    const reativarEm = ativo ? null : Date.now() + minutos * 60 * 1e3;
+    update((e) => {
+      e[config.flag] = ativo;
+      e[config.deadline] = reativarEm;
+    });
+    atualizarCheckbox(check, ativo);
+    if (ativo) {
+      log("🛡️ Segurança " + config.label + " ATIVADA.", "info");
+      return;
+    }
+    agendarReativacao(check, reativarEm);
+    log(
+      "🔓 Segurança " + config.label + " DESATIVADA por " + minutos + " minuto" + (minutos === 1 ? "" : "s") + ".",
+      "info"
+    );
+  }
+  function configurarReincidencia(ativo) {
+    configurarCheck("reincidencia", ativo);
   }
   function configurar(ativo) {
-    limparTimer();
-    const agora = Date.now();
-    const reativarEm = ativo ? null : agora + ACOMPANHAMENTO_REATIVACAO_MS;
-    update((e) => {
-      e.pausarAcompanhamento = ativo;
-      e.pausarAcompanhamentoReativarEm = reativarEm;
-    });
-    atualizarCheckbox(ativo);
-    if (ativo) {
-      log("⛔ Pausa por alerta do acompanhamento ATIVADA", "info");
-      return;
-    }
-    agendarReativacao(reativarEm);
-    log("✅ Pausa por alerta do acompanhamento DESATIVADA por 10 minutos.", "info");
+    configurarCheck("acompanhamento", ativo);
   }
   function limpar$1() {
-    limparTimer();
+    CHECK_KEYS.forEach(limparTimer);
   }
   const LOOP_TICK_MS = 300;
   function sortearDelay(estado) {
@@ -5976,6 +6050,7 @@
       estado.globalActionDelayMaxMs,
       estado.globalActionDelayMs ?? 1200
     );
+    const tempoDesativacaoChecksMinutos = normalizarTempoDesativacaoChecks(estado.tempoDesativacaoChecksMinutos);
     return `
         <section class="km-card">
             <label class="km-section-label">Opções</label>
@@ -5984,14 +6059,19 @@
                     <input type="checkbox" id="chkSimulacao" ${estado.modoSimulacao ? "checked" : ""}>
                     <span>Modo simulação</span>
                 </label>
-                <label class="km-checkline">
+                <label class="km-checkline" title="Marcado = segurança ativa. Desmarcado = segurança desativada temporariamente.">
                     <input type="checkbox" id="chkPausarReincidencia" ${estado.pausarEmReincidencia !== false ? "checked" : ""}>
                     <span>Pausar ao detectar 2ª passagem na etapa</span>
                 </label>
-                <label class="km-checkline" title="Ao desativar, a opção volta automaticamente após 10 minutos.">
+                <label class="km-checkline" title="Marcado = segurança ativa. Desmarcado = segurança desativada temporariamente.">
                     <input type="checkbox" id="chkPausarAcompanhamento" ${estado.pausarAcompanhamento !== false ? "checked" : ""}>
                     <span>Pausar ao detectar alertas no acompanhamento</span>
                 </label>
+                <div class="km-field">
+                    <label for="tempoDesativacaoChecksMinutos">Tempo máximo com os checks de segurança desativados</label>
+                    <input type="number" id="tempoDesativacaoChecksMinutos" min="1" max="99" step="1" value="${tempoDesativacaoChecksMinutos}">
+                    <div class="km-helper-text">De 1 a 99 minutos. Ao atingir esse tempo, o check volta marcado automaticamente.</div>
+                </div>
 
                 <div class="km-field">
                     <label>Delay global entre ações <span id="globalActionDelayLabel">${formatarSegundos(intervaloDelay.minimo)} – ${formatarSegundos(intervaloDelay.maximo)}</span></label>
@@ -8117,7 +8197,7 @@ RODONAVES - PRD">${escapeHtml(empresas.map((empresa) => empresa.nome).join("\n")
     return estado;
   }
   function wireEvents(toggleMinimizar2) {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v;
     const estado = get();
     inicializar$1();
     const fmtS = (ms) => `${(Number(ms || 0) / 1e3).toFixed(1)}s`;
@@ -8265,18 +8345,23 @@ RODONAVES - PRD">${escapeHtml(empresas.map((empresa) => empresa.nome).join("\n")
       log(novoEstado.modoSimulacao ? "🧪 Modo simulação ATIVADO" : "▶️ Modo simulação desativado", "info");
     });
     (_e = document.getElementById("chkPausarReincidencia")) == null ? void 0 : _e.addEventListener("change", (e) => {
-      const ativo = !!e.target.checked;
-      update((st) => {
-        st.pausarEmReincidencia = ativo;
-      });
-      log(ativo ? "⛔ Pausa por reincidência ATIVADA" : "✅ Pausa por reincidência DESATIVADA", "info");
+      configurarReincidencia(!!e.target.checked);
     });
     (_f = document.getElementById("chkPausarAcompanhamento")) == null ? void 0 : _f.addEventListener("change", (e) => {
       configurar(!!e.target.checked);
     });
+    (_g = document.getElementById("tempoDesativacaoChecksMinutos")) == null ? void 0 : _g.addEventListener("change", (e) => {
+      const input = e.target;
+      const minutos = normalizarTempoDesativacaoChecks(input.value);
+      input.value = String(minutos);
+      update((st) => {
+        st.tempoDesativacaoChecksMinutos = minutos;
+      });
+      log("⏱️ Tempo máximo dos checks desativados definido para " + minutos + " minuto" + (minutos === 1 ? "" : "s") + ".", "info");
+    });
     const itemMapTextarea = document.getElementById("itemMapJson");
     if (itemMapTextarea) itemMapTextarea.value = estado.itemMapJson || "";
-    (_g = document.getElementById("chkItemMapAtivo")) == null ? void 0 : _g.addEventListener("change", (e) => {
+    (_h = document.getElementById("chkItemMapAtivo")) == null ? void 0 : _h.addEventListener("change", (e) => {
       update((st) => {
         st.itemMapAtivo = e.target.checked;
       });
@@ -8284,27 +8369,27 @@ RODONAVES - PRD">${escapeHtml(empresas.map((empresa) => empresa.nome).join("\n")
       log(novoEstado.itemMapAtivo ? "🧾 JSON por item ATIVADO" : "🧾 JSON por item DESATIVADO", "info");
       atualizarStatusUI(novoEstado);
     });
-    (_h = document.getElementById("btnItemMapAplicar")) == null ? void 0 : _h.addEventListener("click", () => {
+    (_i = document.getElementById("btnItemMapAplicar")) == null ? void 0 : _i.addEventListener("click", () => {
       aplicarJson((itemMapTextarea == null ? void 0 : itemMapTextarea.value) || "");
     });
-    (_i = document.getElementById("btnItemMapCriar")) == null ? void 0 : _i.addEventListener("click", () => {
+    (_j = document.getElementById("btnItemMapCriar")) == null ? void 0 : _j.addEventListener("click", () => {
       gerarJsonDoItemAtual(itemMapTextarea);
     });
     const fiscalHintsTextarea = document.getElementById("fiscalHintsJson");
     if (fiscalHintsTextarea && !fiscalHintsTextarea.value.trim()) {
       fiscalHintsTextarea.value = exportarDicasFiscaisJson(estado.fiscalHints || {});
     }
-    (_j = document.getElementById("btnFiscalHintsGerenciar")) == null ? void 0 : _j.addEventListener("click", () => {
+    (_k = document.getElementById("btnFiscalHintsGerenciar")) == null ? void 0 : _k.addEventListener("click", () => {
       abrirGerenciadorDicas();
     });
-    (_k = document.getElementById("chkFiscalHintsAtivo")) == null ? void 0 : _k.addEventListener("change", (e) => {
+    (_l = document.getElementById("chkFiscalHintsAtivo")) == null ? void 0 : _l.addEventListener("change", (e) => {
       update((st) => {
         st.fiscalHintsAtivo = e.target.checked;
       });
       aplicarDicasFiscaisDoEstado();
       log(e.target.checked ? "🔎 Dicas fiscais ativadas" : "🔎 Dicas fiscais desativadas", "info");
     });
-    (_l = document.getElementById("btnFiscalHintAdicionar")) == null ? void 0 : _l.addEventListener("click", () => {
+    (_m = document.getElementById("btnFiscalHintAdicionar")) == null ? void 0 : _m.addEventListener("click", () => {
       var _a2, _b2, _c2;
       const termo = ((_a2 = document.getElementById("txtFiscalHintTermo")) == null ? void 0 : _a2.value) || "";
       const ncm2 = ((_b2 = document.getElementById("txtFiscalHintNcm")) == null ? void 0 : _b2.value) || "";
@@ -8323,7 +8408,7 @@ RODONAVES - PRD">${escapeHtml(empresas.map((empresa) => empresa.nome).join("\n")
       setFiscalHintsStatus("Dica adicionada.");
       log(`🔎 Dica fiscal adicionada para: ${termo}`, "info");
     });
-    (_m = document.getElementById("btnFiscalHintsImportar")) == null ? void 0 : _m.addEventListener("click", () => {
+    (_n = document.getElementById("btnFiscalHintsImportar")) == null ? void 0 : _n.addEventListener("click", () => {
       const json = (fiscalHintsTextarea == null ? void 0 : fiscalHintsTextarea.value) || "";
       const resultado2 = importarDicasFiscaisJson(json);
       if (!resultado2.ok) {
@@ -8334,7 +8419,7 @@ RODONAVES - PRD">${escapeHtml(empresas.map((empresa) => empresa.nome).join("\n")
       setFiscalHintsStatus("JSON aplicado.");
       log("🔎 JSON de dicas fiscais aplicado", "info");
     });
-    (_n = document.getElementById("btnFiscalHintsExportar")) == null ? void 0 : _n.addEventListener("click", () => {
+    (_o = document.getElementById("btnFiscalHintsExportar")) == null ? void 0 : _o.addEventListener("click", () => {
       const est = get();
       const json = exportarDicasFiscaisJson(est.fiscalHints || {});
       update((st) => {
@@ -8371,9 +8456,9 @@ RODONAVES - PRD">${escapeHtml(empresas.map((empresa) => empresa.nome).join("\n")
         st.globalActionDelayMs = maximo;
       });
     };
-    (_o = document.getElementById("globalActionDelayMinSlider")) == null ? void 0 : _o.addEventListener("input", deb(() => atualizarIntervaloDelay("min")));
-    (_p = document.getElementById("globalActionDelayMaxSlider")) == null ? void 0 : _p.addEventListener("input", deb(() => atualizarIntervaloDelay("max")));
-    (_q = document.getElementById("clickCooldownSlider")) == null ? void 0 : _q.addEventListener("input", deb((e) => {
+    (_p = document.getElementById("globalActionDelayMinSlider")) == null ? void 0 : _p.addEventListener("input", deb(() => atualizarIntervaloDelay("min")));
+    (_q = document.getElementById("globalActionDelayMaxSlider")) == null ? void 0 : _q.addEventListener("input", deb(() => atualizarIntervaloDelay("max")));
+    (_r = document.getElementById("clickCooldownSlider")) == null ? void 0 : _r.addEventListener("input", deb((e) => {
       const valor = parseInt(e.target.value, 10);
       const label = document.getElementById("clickCooldownLabel");
       if (label) label.textContent = fmtS(valor);
@@ -8381,25 +8466,25 @@ RODONAVES - PRD">${escapeHtml(empresas.map((empresa) => empresa.nome).join("\n")
         st.clickCooldownMs = valor;
       });
     }));
-    (_r = document.getElementById("btnToggle")) == null ? void 0 : _r.addEventListener("click", () => {
+    (_s = document.getElementById("btnToggle")) == null ? void 0 : _s.addEventListener("click", () => {
       const est = get();
       if (est.pausado) togglePausar();
       else if (est.ativo) parar();
       else iniciar();
     });
     atualizarStatusUI(get());
-    (_s = document.getElementById("btnSsoEmpresasSalvar")) == null ? void 0 : _s.addEventListener("click", () => {
+    (_t = document.getElementById("btnSsoEmpresasSalvar")) == null ? void 0 : _t.addEventListener("click", () => {
       const textarea = document.getElementById("kmSsoEmpresasInput");
       const empresas = salvarEmpresasMonitoradas((textarea == null ? void 0 : textarea.value) || "");
       definirMensagemMonitorSSO(empresas.length + " empresa(s) salvas.");
       atualizarPainelSso();
       log("💾 Lista de empresas do SSO salva", "info");
     });
-    (_t = document.getElementById("btnSsoEmpresasAtualizar")) == null ? void 0 : _t.addEventListener("click", () => {
+    (_u = document.getElementById("btnSsoEmpresasAtualizar")) == null ? void 0 : _u.addEventListener("click", () => {
       atualizarPainelSso();
       definirMensagemMonitorSSO("Status das abas atualizado.");
     });
-    (_u = document.getElementById("btnSsoEmpresasAbrir")) == null ? void 0 : _u.addEventListener("click", () => {
+    (_v = document.getElementById("btnSsoEmpresasAbrir")) == null ? void 0 : _v.addEventListener("click", () => {
       const resultado2 = abrirEmpresasFaltantes();
       const mensagem = resultado2.semLink > 0 ? resultado2.abertas + " empresa(s) enviadas para abertura; " + resultado2.semLink + " sem cartão encontrado." : resultado2.abertas + " empresa(s) enviadas para abertura.";
       definirMensagemMonitorSSO(mensagem, resultado2.semLink > 0);

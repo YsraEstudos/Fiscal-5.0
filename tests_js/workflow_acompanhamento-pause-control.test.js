@@ -21,8 +21,11 @@ const mod = await import("../src/workflow/acompanhamento-pause-control.ts");
 
 function buildState(overrides = {}) {
   return {
+    pausarEmReincidencia: true,
+    pausarEmReincidenciaReativarEm: null,
     pausarAcompanhamento: true,
     pausarAcompanhamentoReativarEm: null,
+    tempoDesativacaoChecksMinutos: 10,
     ...overrides,
   };
 }
@@ -58,6 +61,24 @@ describe("workflow/acompanhamento-pause-control", () => {
     expect(checkbox.checked).toBe(true);
     expect(state.pausarAcompanhamento).toBe(true);
     expect(state.pausarAcompanhamentoReativarEm).toBeNull();
+  });
+
+  it("desativa a segurança de reincidência pelo prazo configurado e reativa o check", () => {
+    document.body.innerHTML = '<input type="checkbox" id="chkPausarReincidencia">';
+    const checkbox = document.getElementById("chkPausarReincidencia");
+    state.tempoDesativacaoChecksMinutos = 2;
+    const inicio = Date.now();
+
+    mod.configurarReincidencia(false);
+
+    expect(state.pausarEmReincidencia).toBe(false);
+    expect(state.pausarEmReincidenciaReativarEm).toBe(inicio + 2 * 60 * 1000);
+
+    vi.advanceTimersByTime(2 * 60 * 1000);
+
+    expect(checkbox.checked).toBe(true);
+    expect(state.pausarEmReincidencia).toBe(true);
+    expect(state.pausarEmReincidenciaReativarEm).toBeNull();
   });
 
   it("retoma o prazo salvo e corrige uma desativação expirada ao inicializar", () => {

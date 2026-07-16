@@ -45,7 +45,7 @@ interface AppConfig {
 }
 
 export const CONFIG: AppConfig = Object.freeze({
-    SCHEMA_VERSION: 13,
+    SCHEMA_VERSION: 14,
     LOG_MAX_ENTRIES: 100,
     STORAGE_KEY: 'km_robo_state',
 

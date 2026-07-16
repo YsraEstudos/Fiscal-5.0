@@ -26,6 +26,8 @@ export {
     normalizarPainelPosicao,
     normalizarPainelScrollTop,
     normalizarPainelSecoes,
+    normalizarPrazoReativacao,
+    normalizarTempoDesativacaoChecks,
 } from './estado/normalizers.ts';
 
 export {

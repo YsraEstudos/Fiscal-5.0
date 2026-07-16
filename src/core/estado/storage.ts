@@ -11,7 +11,9 @@ import {
     normalizarPainelPosicao,
     normalizarPainelScrollTop,
     normalizarPainelSecoes,
+    normalizarPrazoReativacao,
     normalizarProgresso,
+    normalizarTempoDesativacaoChecks,
 } from './normalizers.ts';
 import type { AcaoEstado, EstadoApp } from './types.ts';
 
@@ -44,21 +46,24 @@ function carregarEstadoAtual(salvo: EstadoSalvoRaw): EstadoApp {
     estado.globalActionDelayMinMs = intervaloDelay.minimo;
     estado.globalActionDelayMaxMs = intervaloDelay.maximo;
     estado.globalActionDelayMs = intervaloDelay.maximo;
+    estado.tempoDesativacaoChecksMinutos = normalizarTempoDesativacaoChecks(salvo['tempoDesativacaoChecksMinutos']);
     estado.pausarEmReincidencia = salvo['pausarEmReincidencia'] !== undefined
         ? !!salvo['pausarEmReincidencia']
         : true;
+    const prazoPausaReincidencia = normalizarPrazoReativacao(salvo['pausarEmReincidenciaReativarEm']);
+    estado.pausarEmReincidenciaReativarEm = estado.pausarEmReincidencia
+        ? null
+        : prazoPausaReincidencia;
     const pausaAcompanhamentoSalva = salvo['pausarAcompanhamento'] ?? salvo['pausarNcmAcompanhamento'];
     estado.pausarAcompanhamento = pausaAcompanhamentoSalva !== undefined
         ? !!pausaAcompanhamentoSalva
         : true;
-    const prazoPausaAcompanhamento = Number(
+    const prazoPausaAcompanhamento = normalizarPrazoReativacao(
         salvo['pausarAcompanhamentoReativarEm'] ?? salvo['pausarNcmAcompanhamentoReativarEm']
     );
     estado.pausarAcompanhamentoReativarEm = estado.pausarAcompanhamento
         ? null
-        : Number.isFinite(prazoPausaAcompanhamento) && prazoPausaAcompanhamento > 0
-            ? Math.floor(prazoPausaAcompanhamento)
-            : null;
+        : prazoPausaAcompanhamento;
     estado = inicializarAcoes(estado);
     return garantirDefaultsEstado(estado);
 }

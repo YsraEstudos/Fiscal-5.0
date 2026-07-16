@@ -13,6 +13,7 @@ import * as Interacao from '../interaction/interacao.ts';
 import * as ItemMapManager from '../data/item-map-manager.ts';
 import * as Validador from '../validation/validador.ts';
 import { debounce, clone } from '../utils/misc.ts';
+import { normalizarTempoDesativacaoChecks } from '../core/estado/normalizers.ts';
 import * as PerfilManager from './perfil-manager.js';
 import * as InspecaoManager from './inspecao-manager.ts';
 import { obterEmpresaAtual } from '../validation/empresa-json-requirements.ts';
@@ -391,12 +392,17 @@ export function wireEvents(toggleMinimizar: () => void): void {
         log(novoEstado.modoSimulacao ? '🧪 Modo simulação ATIVADO' : '▶️ Modo simulação desativado', 'info');
     });
     document.getElementById('chkPausarReincidencia')?.addEventListener('change', (e: Event) => {
-        const ativo = !!(e.target as HTMLInputElement).checked;
-        EstadoManager.update((st: any) => { st.pausarEmReincidencia = ativo; });
-        log(ativo ? '⛔ Pausa por reincidência ATIVADA' : '✅ Pausa por reincidência DESATIVADA', 'info');
+        AcompanhamentoPauseControl.configurarReincidencia(!!(e.target as HTMLInputElement).checked);
     });
     document.getElementById('chkPausarAcompanhamento')?.addEventListener('change', (e: Event) => {
         AcompanhamentoPauseControl.configurar(!!(e.target as HTMLInputElement).checked);
+    });
+    document.getElementById('tempoDesativacaoChecksMinutos')?.addEventListener('change', (e: Event) => {
+        const input = e.target as HTMLInputElement;
+        const minutos = normalizarTempoDesativacaoChecks(input.value);
+        input.value = String(minutos);
+        EstadoManager.update((st: any) => { st.tempoDesativacaoChecksMinutos = minutos; });
+        log('⏱️ Tempo máximo dos checks desativados definido para ' + minutos + ' minuto' + (minutos === 1 ? '' : 's') + '.', 'info');
     });
 
     // ---- ItemMap
