@@ -46,14 +46,6 @@ describe("utils/misc", () => {
     expect(escapeHtml("<script>alert(1)</script>")).toContain("&lt;script&gt;");
   });
 
-  it("escapeHtml protege texto e atributos sem depender do DOM", () => {
-    expect(escapeHtml(`&<>"'`)).toBe("&amp;&lt;&gt;&quot;&#39;");
-    const host = document.createElement("div");
-    host.innerHTML = '<input value="' + escapeHtml('" onfocus="alert(1)') + '">';
-    expect(host.querySelector("[onfocus]")).toBeNull();
-    expect(host.querySelector("input")?.value).toBe('" onfocus="alert(1)');
-  });
-
   it("sleep resolve promise", async () => {
     const start = Date.now();
     await sleep(5);

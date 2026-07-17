@@ -261,16 +261,3 @@ export function renderLogsSection(): string {
         </section>
     `;
 }
-
-export function renderHabitosSection(estado: EstadoApp): string {
-    return `
-        <section class="km-card">
-            <label class="km-section-label">Hábitos & Consistência</label>
-            <p class="km-helper-text" style="margin-bottom: 8px;">Acompanhe o seu desafio de 67 dias e suas consequências operacionais.</p>
-            <button id="btnAbrirHabitos" class="km-secondary-button" type="button" style="width: 100%;">
-                Abrir Dashboard de Hábitos
-            </button>
-        </section>
-    `;
-}
-

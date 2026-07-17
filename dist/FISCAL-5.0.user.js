@@ -87,16 +87,10 @@
     }
     return JSON.parse(JSON.stringify(obj));
   }
-  const HTML_ESCAPE_RE = /[&<>"']/g;
-  const HTML_ESCAPE_MAP = {
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&#39;"
-  };
   function escapeHtml(str) {
-    return String(str ?? "").replace(HTML_ESCAPE_RE, (char) => HTML_ESCAPE_MAP[char]);
+    const div = document.createElement("div");
+    div.textContent = str ?? "";
+    return div.innerHTML;
   }
   function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
@@ -908,48 +902,26 @@
   }
   const log = adicionar;
   const cooldowns = /* @__PURE__ */ new Map();
-  const PRUNE_INTERVAL_MS = 3e4;
-  let proximaLimpeza = 0;
-  function limparExpirados(now = Date.now()) {
-    if (now < proximaLimpeza) return;
-    proximaLimpeza = now + PRUNE_INTERVAL_MS;
-    for (const [key, expira] of cooldowns) {
-      if (expira <= now) cooldowns.delete(key);
-    }
-  }
   function set(key, duracao) {
-    const now = Date.now();
-    limparExpirados(now);
-    cooldowns.set(key, now + duracao);
+    cooldowns.set(key, Date.now() + duracao);
   }
   function isAtivo(key) {
-    const now = Date.now();
-    limparExpirados(now);
     const expira = cooldowns.get(key);
     if (!expira) return false;
-    if (now >= expira) {
+    if (Date.now() >= expira) {
       cooldowns.delete(key);
       return false;
     }
     return true;
   }
   function tempoRestante(key) {
-    const now = Date.now();
-    limparExpirados(now);
     const expira = cooldowns.get(key);
     if (!expira) return 0;
-    if (now >= expira) {
-      cooldowns.delete(key);
-      return 0;
-    }
-    return expira - now;
+    return Math.max(0, expira - Date.now());
   }
   function limpar$2(key) {
     if (key) cooldowns.delete(key);
-    else {
-      cooldowns.clear();
-      proximaLimpeza = 0;
-    }
+    else cooldowns.clear();
   }
   function normalizarTexto(s) {
     return String(s ?? "").replace(/\s+/g, " ").trim().toLowerCase();
@@ -1009,13 +981,11 @@
     const scored = [];
     const elementsArray = Array.from(elements);
     for (const el of elementsArray) {
+      if (!elementoVisivel(el)) continue;
       const t = normalizarTexto(getTextoElemento(el));
       if (!t) continue;
-      let score = 0;
-      if (t === wanted) score = 100;
-      else if (t.includes(wanted)) score = 50;
-      if (score === 0 || !elementoVisivel(el)) continue;
-      scored.push({ score, el });
+      if (t === wanted) scored.push({ score: 100, el });
+      else if (t.includes(wanted)) scored.push({ score: 50, el });
     }
     scored.sort((a, b) => b.score - a.score);
     return scored.map((x) => x.el);
@@ -5884,9 +5854,10 @@
   function ehCaractereDePalavra(char) {
     return Boolean(char && /[\p{L}\p{N}_]/u.test(char));
   }
-  function encontrarTermo(texto, termo, mapa = criarMapaNormalizado(texto)) {
+  function encontrarTermo(texto, termo) {
     const alvo = normalizarTermoFiscal(termo);
     if (!alvo) return null;
+    const mapa = criarMapaNormalizado(texto);
     let inicioNormalizado = mapa.normalizado.indexOf(alvo);
     while (inicioNormalizado >= 0) {
       const fimNormalizado = inicioNormalizado + alvo.length;
@@ -5972,8 +5943,7 @@
   }
   function destacarDescricao(el, dicas) {
     const texto = restaurarDescricao(el);
-    const mapa = criarMapaNormalizado(texto);
-    const match = dicas.map((dica) => ({ dica, pos: encontrarTermo(texto, dica.termo, mapa) })).find((entry) => entry.pos);
+    const match = dicas.map((dica) => ({ dica, pos: encontrarTermo(texto, dica.termo) })).find((entry) => entry.pos);
     if (!(match == null ? void 0 : match.pos)) return;
     const antes = texto.slice(0, match.pos.inicio);
     const trecho = texto.slice(match.pos.inicio, match.pos.fim);
@@ -6221,17 +6191,6 @@
                 <div class="km-log-resize-handle" data-log-resize-handle title="Arraste para redimensionar logs"></div>
             </div>
             <div class="km-shortcuts">F7 abre/fecha • F8 pausa • ESC para tudo</div>
-        </section>
-    `;
-  }
-  function renderHabitosSection(estado) {
-    return `
-        <section class="km-card">
-            <label class="km-section-label">Hábitos & Consistência</label>
-            <p class="km-helper-text" style="margin-bottom: 8px;">Acompanhe o seu desafio de 67 dias e suas consequências operacionais.</p>
-            <button id="btnAbrirHabitos" class="km-secondary-button" type="button" style="width: 100%;">
-                Abrir Dashboard de Hábitos
-            </button>
         </section>
     `;
   }
@@ -6603,7 +6562,6 @@ RODONAVES - PRD">${escapeHtml(empresas.map((empresa) => empresa.nome).join("\n")
                 ${renderSecaoColapsavel(estado, "opcoes", "Opções", renderOpcoesSection(estado))}
                 ${renderSecaoColapsavel(estado, "fiscalHints", "Dicas fiscais", renderFiscalHintsSection(estado))}
                 ${renderSecaoColapsavel(estado, "json", "JSON por Item", renderJsonSection(estado))}
-                ${renderSecaoColapsavel(estado, "habitos", "Hábitos & Consistência", renderHabitosSection())}
                 ${ehPaginaSso() ? renderSsoEmpresasSection() : ""}
                 ${renderSecaoColapsavel(estado, "progresso", "Progresso", renderProgressoSection())}
                 ${renderSecaoColapsavel(estado, "controle", "Controle", renderControleSection(estado))}
@@ -8087,12 +8045,6 @@ RODONAVES - PRD">${escapeHtml(empresas.map((empresa) => empresa.nome).join("\n")
   const LOG_AREA_MAX_HEIGHT = 520;
   function setupDragAndDrop(container) {
     let draggedElement = null;
-    let dragOverElement = null;
-    const limparDragOver = () => {
-      if (!dragOverElement) return;
-      dragOverElement.classList.remove("drag-over");
-      dragOverElement = null;
-    };
     container.addEventListener("dragstart", (e) => {
       const item = e.target.closest(".acao-item");
       if (!item || !e.dataTransfer) return;
@@ -8105,30 +8057,25 @@ RODONAVES - PRD">${escapeHtml(empresas.map((empresa) => empresa.nome).join("\n")
       if (!item) return;
       item.classList.remove("dragging");
       draggedElement = null;
-      limparDragOver();
+      container.querySelectorAll(".acao-item").forEach((i) => i.classList.remove("drag-over"));
     });
     container.addEventListener("dragover", (e) => {
       e.preventDefault();
       const item = e.target.closest(".acao-item");
       if (!item || item === draggedElement || !e.dataTransfer) return;
-      if (item === dragOverElement) {
-        e.dataTransfer.dropEffect = "move";
-        return;
-      }
-      limparDragOver();
+      container.querySelectorAll(".acao-item").forEach((i) => i.classList.remove("drag-over"));
       item.classList.add("drag-over");
-      dragOverElement = item;
       e.dataTransfer.dropEffect = "move";
     });
     container.addEventListener("dragleave", (e) => {
       const item = e.target.closest(".acao-item");
-      if (item === dragOverElement) limparDragOver();
+      if (item) item.classList.remove("drag-over");
     });
     container.addEventListener("drop", (e) => {
       e.preventDefault();
       const targetItem = e.target.closest(".acao-item");
       if (!targetItem || !draggedElement || targetItem === draggedElement) return;
-      if (targetItem === dragOverElement) limparDragOver();
+      targetItem.classList.remove("drag-over");
       const items = Array.from(container.querySelectorAll(".acao-item"));
       const draggedIndex = items.indexOf(draggedElement);
       const targetIndex = items.indexOf(targetItem);
@@ -8187,26 +8134,6 @@ RODONAVES - PRD">${escapeHtml(empresas.map((empresa) => empresa.nome).join("\n")
     let resizing = false;
     let startY = 0;
     let startHeight = 0;
-    let pendingHeight = null;
-    let resizeFramePending = false;
-    const aplicarAlturaPendente = () => {
-      if (pendingHeight == null) return;
-      logArea.style.height = `${pendingHeight}px`;
-      pendingHeight = null;
-    };
-    const agendarAltura = () => {
-      if (resizeFramePending) return;
-      resizeFramePending = true;
-      const atualizar = () => {
-        resizeFramePending = false;
-        if (resizing) aplicarAlturaPendente();
-      };
-      if (typeof globalThis.requestAnimationFrame === "function") {
-        globalThis.requestAnimationFrame(atualizar);
-      } else {
-        globalThis.setTimeout(atualizar, 0);
-      }
-    };
     handle.addEventListener("mousedown", (e) => {
       resizing = true;
       startY = e.clientY;
@@ -8215,12 +8142,11 @@ RODONAVES - PRD">${escapeHtml(empresas.map((empresa) => empresa.nome).join("\n")
     });
     document.addEventListener("mousemove", (e) => {
       if (!resizing) return;
-      pendingHeight = normalizarLogAreaHeight(startHeight + (e.clientY - startY));
-      agendarAltura();
+      const nextHeight = normalizarLogAreaHeight(startHeight + (e.clientY - startY));
+      logArea.style.height = `${nextHeight}px`;
     });
     document.addEventListener("mouseup", () => {
       if (!resizing) return;
-      aplicarAlturaPendente();
       resizing = false;
       const nextHeight = normalizarLogAreaHeight(parseFloat(logArea.style.height));
       logArea.style.height = `${nextHeight}px`;
@@ -8271,7 +8197,7 @@ RODONAVES - PRD">${escapeHtml(empresas.map((empresa) => empresa.nome).join("\n")
     return estado;
   }
   function wireEvents(toggleMinimizar2) {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v, _w;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v;
     const estado = get();
     inicializar$1();
     const fmtS = (ms) => `${(Number(ms || 0) / 1e3).toFixed(1)}s`;
@@ -8564,9 +8490,6 @@ RODONAVES - PRD">${escapeHtml(empresas.map((empresa) => empresa.nome).join("\n")
       definirMensagemMonitorSSO(mensagem, resultado2.semLink > 0);
       log("🚀 Abertura automática do SSO solicitada", "info");
     });
-    (_w = document.getElementById("btnAbrirHabitos")) == null ? void 0 : _w.addEventListener("click", () => {
-      window.open("http://localhost:5173/habits/index.html", "_blank");
-    });
     atualizarPainelSso();
     atualizarListaDicasFiscais(estado);
     aplicarDicasFiscaisDoEstado();
@@ -8700,30 +8623,8 @@ RODONAVES - PRD">${escapeHtml(empresas.map((empresa) => empresa.nome).join("\n")
     let isDragging = false;
     let startY = 0;
     let startTop = 0;
-    let pendingTop = null;
-    let dragFramePending = false;
     const controller = new AbortController();
     handle.style.cursor = "move";
-    const aplicarPosicaoPendente = () => {
-      if (pendingTop == null) return;
-      elemento.style.left = `${SAFE_MARGIN}px`;
-      elemento.style.top = `${pendingTop}px`;
-      elemento.style.right = "auto";
-      pendingTop = null;
-    };
-    const agendarPosicao = () => {
-      if (dragFramePending) return;
-      dragFramePending = true;
-      const atualizar = () => {
-        dragFramePending = false;
-        if (isDragging) aplicarPosicaoPendente();
-      };
-      if (typeof globalThis.requestAnimationFrame === "function") {
-        globalThis.requestAnimationFrame(atualizar);
-      } else {
-        globalThis.setTimeout(atualizar, 0);
-      }
-    };
     handle.addEventListener("mousedown", (e) => {
       const target = e.target;
       if (["INPUT", "BUTTON", "SELECT", "TEXTAREA"].includes(target.tagName)) return;
@@ -8734,12 +8635,12 @@ RODONAVES - PRD">${escapeHtml(empresas.map((empresa) => empresa.nome).join("\n")
     }, { signal: controller.signal });
     document.addEventListener("mousemove", (e) => {
       if (!isDragging) return;
-      pendingTop = startTop + (e.clientY - startY);
-      agendarPosicao();
+      elemento.style.left = `${SAFE_MARGIN}px`;
+      elemento.style.top = `${startTop + (e.clientY - startY)}px`;
+      elemento.style.right = "auto";
     }, { signal: controller.signal });
     document.addEventListener("mouseup", () => {
       if (!isDragging) return;
-      aplicarPosicaoPendente();
       isDragging = false;
       manterPainelVisivel(elemento);
     }, { signal: controller.signal });

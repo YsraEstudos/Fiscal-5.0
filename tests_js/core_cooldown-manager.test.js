@@ -31,14 +31,6 @@ describe("core/cooldown-manager", () => {
     expect(tempoRestante("k2")).toBe(3800);
   });
 
-  it("faz pruning lazy de entradas expiradas em nova escrita", () => {
-    set("antiga", 1000);
-    vi.advanceTimersByTime(30001);
-    set("nova", 1000);
-    expect(tempoRestante("antiga")).toBe(0);
-    expect(tempoRestante("nova")).toBe(1000);
-  });
-
   it("limpar remove chave específica e limpar() remove todas", () => {
     set("a", 1000);
     set("b", 1000);

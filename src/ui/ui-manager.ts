@@ -175,34 +175,9 @@ function tornarArrastavel(elemento: HTMLElement & { _dragController?: AbortContr
     let isDragging = false;
     let startY = 0;
     let startTop = 0;
-    let pendingTop: number | null = null;
-    let dragFramePending = false;
     const controller = new AbortController();
 
     handle.style.cursor = 'move';
-
-    const aplicarPosicaoPendente = (): void => {
-        if (pendingTop == null) return;
-        elemento.style.left = `${SAFE_MARGIN}px`;
-        elemento.style.top = `${pendingTop}px`;
-        elemento.style.right = 'auto';
-        pendingTop = null;
-    };
-
-    const agendarPosicao = (): void => {
-        if (dragFramePending) return;
-        dragFramePending = true;
-        const atualizar = (): void => {
-            dragFramePending = false;
-            if (isDragging) aplicarPosicaoPendente();
-        };
-
-        if (typeof globalThis.requestAnimationFrame === 'function') {
-            globalThis.requestAnimationFrame(atualizar);
-        } else {
-            globalThis.setTimeout(atualizar, 0);
-        }
-    };
 
     handle.addEventListener('mousedown', (e: MouseEvent) => {
         const target = e.target as HTMLElement;
@@ -215,13 +190,13 @@ function tornarArrastavel(elemento: HTMLElement & { _dragController?: AbortContr
 
     document.addEventListener('mousemove', (e: MouseEvent) => {
         if (!isDragging) return;
-        pendingTop = startTop + (e.clientY - startY);
-        agendarPosicao();
+        elemento.style.left = `${SAFE_MARGIN}px`;
+        elemento.style.top = `${startTop + (e.clientY - startY)}px`;
+        elemento.style.right = 'auto';
     }, { signal: controller.signal });
 
     document.addEventListener('mouseup', () => {
         if (!isDragging) return;
-        aplicarPosicaoPendente();
         isDragging = false;
         manterPainelVisivel(elemento);
     }, { signal: controller.signal });
