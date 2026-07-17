@@ -4,6 +4,7 @@ import {
     renderControleSection,
     renderJsonSection,
     renderFiscalHintsSection,
+    renderHabitosSection,
     renderLogsSection,
     renderOpcoesSection,
     renderPerfilSection,
@@ -54,6 +55,7 @@ export function renderPainelShell(estado: EstadoApp, painelMinimizado: boolean):
                 ${renderSecaoColapsavel(estado, 'opcoes', 'Opções', renderOpcoesSection(estado))}
                 ${renderSecaoColapsavel(estado, 'fiscalHints', 'Dicas fiscais', renderFiscalHintsSection(estado))}
                 ${renderSecaoColapsavel(estado, 'json', 'JSON por Item', renderJsonSection(estado))}
+                ${renderSecaoColapsavel(estado, 'habitos', 'Hábitos & Consistência', renderHabitosSection(estado))}
                 ${ehPaginaSso() ? renderSsoEmpresasSection() : ''}
                 ${renderSecaoColapsavel(estado, 'progresso', 'Progresso', renderProgressoSection())}
                 ${renderSecaoColapsavel(estado, 'controle', 'Controle', renderControleSection(estado))}

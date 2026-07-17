@@ -139,11 +139,14 @@ function ehCaractereDePalavra(char: string | undefined): boolean {
     return Boolean(char && /[\p{L}\p{N}_]/u.test(char));
 }
 
-function encontrarTermo(texto: string, termo: string): { inicio: number; fim: number } | null {
+function encontrarTermo(
+    texto: string,
+    termo: string,
+    mapa = criarMapaNormalizado(texto),
+): { inicio: number; fim: number } | null {
     const alvo = normalizarTermoFiscal(termo);
     if (!alvo) return null;
 
-    const mapa = criarMapaNormalizado(texto);
     let inicioNormalizado = mapa.normalizado.indexOf(alvo);
 
     while (inicioNormalizado >= 0) {
@@ -244,8 +247,9 @@ function restaurarDescricao(el: HTMLElement): string {
 
 function destacarDescricao(el: HTMLElement, dicas: FiscalHint[]): void {
     const texto = restaurarDescricao(el);
+    const mapa = criarMapaNormalizado(texto);
     const match = dicas
-        .map((dica) => ({ dica, pos: encontrarTermo(texto, dica.termo) }))
+        .map((dica) => ({ dica, pos: encontrarTermo(texto, dica.termo, mapa) }))
         .find((entry) => entry.pos);
 
     if (!match?.pos) return;

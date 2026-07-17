@@ -34,6 +34,13 @@ const LOG_AREA_MAX_HEIGHT = 520;
 // ---------------------------------------------------------------------------
 export function setupDragAndDrop(container: HTMLElement): void {
     let draggedElement: HTMLElement | null = null;
+    let dragOverElement: HTMLElement | null = null;
+
+    const limparDragOver = (): void => {
+        if (!dragOverElement) return;
+        dragOverElement.classList.remove('drag-over');
+        dragOverElement = null;
+    };
 
     container.addEventListener('dragstart', (e: DragEvent) => {
         const item = (e.target as HTMLElement).closest('.acao-item') as HTMLElement;
@@ -48,21 +55,26 @@ export function setupDragAndDrop(container: HTMLElement): void {
         if (!item) return;
         item.classList.remove('dragging');
         draggedElement = null;
-        container.querySelectorAll('.acao-item').forEach((i) => i.classList.remove('drag-over'));
+        limparDragOver();
     });
 
     container.addEventListener('dragover', (e: DragEvent) => {
         e.preventDefault();
         const item = (e.target as HTMLElement).closest('.acao-item') as HTMLElement;
         if (!item || item === draggedElement || !e.dataTransfer) return;
-        container.querySelectorAll('.acao-item').forEach((i) => i.classList.remove('drag-over'));
+        if (item === dragOverElement) {
+            e.dataTransfer.dropEffect = 'move';
+            return;
+        }
+        limparDragOver();
         item.classList.add('drag-over');
+        dragOverElement = item;
         e.dataTransfer.dropEffect = 'move';
     });
 
     container.addEventListener('dragleave', (e: Event) => {
         const item = (e.target as HTMLElement).closest('.acao-item');
-        if (item) item.classList.remove('drag-over');
+        if (item === dragOverElement) limparDragOver();
     });
 
     container.addEventListener('drop', (e: DragEvent) => {
@@ -70,7 +82,7 @@ export function setupDragAndDrop(container: HTMLElement): void {
         const targetItem = (e.target as HTMLElement).closest('.acao-item') as HTMLElement;
         if (!targetItem || !draggedElement || targetItem === draggedElement) return;
 
-        targetItem.classList.remove('drag-over');
+        if (targetItem === dragOverElement) limparDragOver();
 
         const items = Array.from(container.querySelectorAll('.acao-item'));
         const draggedIndex = items.indexOf(draggedElement);
@@ -145,6 +157,29 @@ function setupLogResize(estado: EstadoApp): void {
     let resizing = false;
     let startY = 0;
     let startHeight = 0;
+    let pendingHeight: number | null = null;
+    let resizeFramePending = false;
+
+    const aplicarAlturaPendente = (): void => {
+        if (pendingHeight == null) return;
+        logArea.style.height = `${pendingHeight}px`;
+        pendingHeight = null;
+    };
+
+    const agendarAltura = (): void => {
+        if (resizeFramePending) return;
+        resizeFramePending = true;
+        const atualizar = (): void => {
+            resizeFramePending = false;
+            if (resizing) aplicarAlturaPendente();
+        };
+
+        if (typeof globalThis.requestAnimationFrame === 'function') {
+            globalThis.requestAnimationFrame(atualizar);
+        } else {
+            globalThis.setTimeout(atualizar, 0);
+        }
+    };
 
     handle.addEventListener('mousedown', (e: MouseEvent) => {
         resizing = true;
@@ -155,12 +190,13 @@ function setupLogResize(estado: EstadoApp): void {
 
     document.addEventListener('mousemove', (e: MouseEvent) => {
         if (!resizing) return;
-        const nextHeight = normalizarLogAreaHeight(startHeight + (e.clientY - startY));
-        logArea.style.height = `${nextHeight}px`;
+        pendingHeight = normalizarLogAreaHeight(startHeight + (e.clientY - startY));
+        agendarAltura();
     });
 
     document.addEventListener('mouseup', () => {
         if (!resizing) return;
+        aplicarAlturaPendente();
         resizing = false;
         const nextHeight = normalizarLogAreaHeight(parseFloat(logArea.style.height));
         logArea.style.height = `${nextHeight}px`;
@@ -561,8 +597,13 @@ export function wireEvents(toggleMinimizar: () => void): void {
         log('🚀 Abertura automática do SSO solicitada', 'info');
     });
 
+    document.getElementById('btnAbrirHabitos')?.addEventListener('click', () => {
+        window.open('http://localhost:5173/habits/index.html', '_blank');
+    });
+
     SsoEmpresaAbas.atualizarPainelSso();
     atualizarListaDicasFiscais(estado);
     aplicarDicasFiscaisDoEstado();
     if (container) setupDragAndDrop(container);
 }
+

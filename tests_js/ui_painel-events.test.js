@@ -196,4 +196,25 @@ describe("ui/painel-events", () => {
     expect(mockPersistirAcoes).toHaveBeenCalledWith(st);
   });
 
+  it("dragover não reaplica classes quando o item sob o cursor não muda", () => {
+    const container = document.createElement("div");
+    const first = document.createElement("div");
+    const second = document.createElement("div");
+    first.className = "acao-item";
+    second.className = "acao-item";
+    container.append(first, second);
+    document.body.appendChild(container);
+    const queryAllSpy = vi.spyOn(container, "querySelectorAll");
+    mod.setupDragAndDrop(container);
+
+    const dispatchDragOver = () => {
+      const event = new Event("dragover", { bubbles: true, cancelable: true });
+      Object.defineProperty(event, "dataTransfer", { value: { dropEffect: "" } });
+      first.dispatchEvent(event);
+    };
+
+    dispatchDragOver();
+    dispatchDragOver();
+    expect(queryAllSpy).not.toHaveBeenCalled();
+  });
 });

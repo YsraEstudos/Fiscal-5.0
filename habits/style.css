@@ -1,0 +1,98 @@
+/* Custom Scrollbar for sleek UI */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb {
+    background: #334155;
+    border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #475569;
+}
+
+/* Glassmorphism style cards */
+.bg-slate-900\/40 {
+    background-color: rgba(15, 23, 42, 0.4);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
+/* Modals */
+.modal-open {
+    display: flex !important;
+    opacity: 1 !important;
+}
+
+.modal-open > div {
+    transform: scale(1) !important;
+}
+
+/* Habit Detailed Drawer slider */
+.drawer-open {
+    display: flex !important;
+    opacity: 1 !important;
+}
+
+.drawer-open > div {
+    transform: translateX(0) !important;
+}
+
+/* Custom chart bar styling */
+.chart-bar {
+    position: relative;
+    border-radius: 4px 4px 0 0;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.chart-bar:hover {
+    filter: brightness(1.2);
+}
+
+.chart-bar:hover .chart-tooltip {
+    opacity: 1;
+    transform: translate(-50%, -8px);
+}
+
+.chart-tooltip {
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translate(-50%, 0);
+    background: #0f172a;
+    border: 1px solid #334155;
+    color: #f8fafc;
+    font-size: 10px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.2s ease;
+}
+
+/* Micro-animations */
+@keyframes checkPop {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.15); }
+    100% { transform: scale(1); }
+}
+
+.animate-pop {
+    animation: checkPop 0.3s ease-out;
+}
+
+/* Day grid for consistency */
+.day-cell {
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}

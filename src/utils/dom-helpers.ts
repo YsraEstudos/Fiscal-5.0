@@ -80,11 +80,13 @@ export function filtrarPorTexto(elements: Iterable<Element> | ArrayLike<Element>
     const scored = [];
     const elementsArray = Array.from(elements);
     for (const el of elementsArray) {
-        if (!elementoVisivel(el)) continue;
         const t = normalizarTexto(getTextoElemento(el));
         if (!t) continue;
-        if (t === wanted) scored.push({ score: 100, el });
-        else if (t.includes(wanted)) scored.push({ score: 50, el });
+        let score = 0;
+        if (t === wanted) score = 100;
+        else if (t.includes(wanted)) score = 50;
+        if (score === 0 || !elementoVisivel(el)) continue;
+        scored.push({ score, el });
     }
     scored.sort((a, b) => b.score - a.score);
     return scored.map((x) => x.el);

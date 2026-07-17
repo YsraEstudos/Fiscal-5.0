@@ -21,11 +21,18 @@ export function clone<T>(obj: T): T {
     return JSON.parse(JSON.stringify(obj));
 }
 
+const HTML_ESCAPE_RE = /[&<>"']/g;
+const HTML_ESCAPE_MAP: Record<string, string> = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+};
+
 /** Escapa strings para exibição segura em HTML. */
 export function escapeHtml(str: string | null | undefined): string {
-    const div = document.createElement('div');
-    div.textContent = str ?? '';
-    return div.innerHTML;
+    return String(str ?? '').replace(HTML_ESCAPE_RE, (char) => HTML_ESCAPE_MAP[char]);
 }
 
 /** Promise que resolve após `ms` milissegundos. */
