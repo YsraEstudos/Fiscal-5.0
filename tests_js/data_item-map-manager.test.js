@@ -217,6 +217,22 @@ describe("data/item-map-manager", () => {
     expect(mod.getValorAcao("ncm", state)).toBeNull();
   });
 
+  it("getValorAcao retorna null para ncm e unspsc quando o item não os possui e não há fallback", () => {
+    state.itemMapAtivo = true;
+    state.itemAtualTelaId = "ITEM_SEM_DADOS";
+    state.itemMap = {
+      ITEM_SEM_DADOS: { ncm: null, nbs: null, cest: null, unspsc: null, lei116: null },
+    };
+    state.acoes = {
+      ncm: { ativo: true, seletor: "#txtNCMTIPI", valor: null, ordem: 3 },
+      unspsc: { ativo: true, seletor: "#txtCodigoUnspsc", valor: null, ordem: 8 },
+    };
+    mockBuscarElementoDeep.mockReturnValue(null);
+
+    expect(mod.getValorAcao("ncm", state)).toBeNull();
+    expect(mod.getValorAcao("unspsc", state)).toBeNull();
+  });
+
   it("aplicarJson trata erro e JSON vazio", () => {
     const erro = mod.aplicarJson("{");
     expect(erro.ok).toBe(false);

@@ -407,6 +407,54 @@ describe("workflow/handlers/ncm", () => {
     expect(mockInteragir).toHaveBeenCalledWith(abaFiscal, null, "abaFiscal");
   });
 
+  it("abaFiscal navega para aba Fiscal quando UNSPSC foi concluído em itemFlags mesmo com lupa na tela", async () => {
+    const abaFiscal = document.createElement("a");
+    const lupa = document.createElement("button");
+    mockBuscarElementoDeep.mockImplementation((sel) => {
+      if (sel === "text=Fiscal") return abaFiscal;
+      if (sel === "#ibutUNSPSC") return lupa;
+      return null;
+    });
+    mockEncontrarCampoNcmPreferido.mockReturnValue(null);
+
+    const estadoComUnspsc = {
+      itemAtualKey: "320780",
+      itemFlags: { "320780": { unspscFeito: true } },
+    };
+
+    const ok = await mod.abaFiscal(
+      estadoComUnspsc,
+      { textContent: "" },
+      {
+        getAcao: getAcaoFactory(),
+        workflowState: { isCompleta: () => false },
+        getModalUnspscContainer: () => null,
+        isModalUnspscAberto: () => false,
+      },
+    );
+    expect(ok).toBe(true);
+    expect(mockInteragir).toHaveBeenCalledWith(abaFiscal, null, "abaFiscal");
+  });
+
+  it("abaClassificacao não reabre quando UNSPSC já está concluído em itemFlags", async () => {
+    const aba = document.createElement("a");
+    mockBuscarElementoDeep.mockImplementation((sel) => {
+      if (sel === "text=Classificações") return aba;
+      return null;
+    });
+    const estadoComUnspsc = {
+      itemAtualKey: "320780",
+      itemFlags: { "320780": { unspscFeito: true } },
+    };
+    const ok = await mod.abaClassificacao(
+      estadoComUnspsc,
+      { textContent: "" },
+      { getAcao: getAcaoFactory(), workflowState: { isCompleta: () => false } },
+    );
+    expect(ok).toBe(false);
+    expect(mockInteragir).not.toHaveBeenCalledWith(aba, null, "abaClassificacao");
+  });
+
   it("lei116Servico preenche grupo e subgrupo quando valor válido", async () => {
     const campoGrupo = document.createElement("input");
     const campoSubgrupo = document.createElement("input");

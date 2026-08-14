@@ -167,8 +167,8 @@ describe("core/estado-manager", () => {
 
     const estado = get();
     expect(estado.globalActionDelayMs).toBe(3333);
-    expect(estado.acoes.ncm.valor).toBe("8471.30.12");
-    expect(estado.acoes.unspsc.valor).toBe("43211503");
+    expect(estado.acoes.ncm.valor).toBeNull();
+    expect(estado.acoes.unspsc.valor).toBeNull();
     expect(estado.acoes.prosseguir.ativo).toBe(false);
     expect(estado.acoes.confirmar.ativo).toBe(false);
   });
@@ -360,5 +360,31 @@ describe("core/estado-manager", () => {
 
     const estado = get();
     expect(estado.pausarEmReincidencia).toBe(false);
+  });
+
+  it("garante que ncm e unspsc inicializam sem valores fictícios/default (null)", () => {
+    const estado = get();
+    expect(estado.acoes.ncm.valor).toBeNull();
+    expect(estado.acoes.unspsc.valor).toBeNull();
+    expect(estado.acoes.ncm.valor).not.toBe("8471.30.12");
+    expect(estado.acoes.unspsc.valor).not.toBe("30103618");
+    expect(estado.acoes.unspsc.valor).not.toBe("43211503");
+  });
+
+  it("garante que migrações sem valores explícitos não injetam códigos fictícios", () => {
+    const amostras = [
+      {},
+      { tarefas: {} },
+      { tarefas: { ncm: { ativo: true }, unspsc: { ativo: true } } },
+      { tarefas: { ncm: { valor: "" }, unspsc: { valor: "" } } },
+    ];
+
+    amostras.forEach((raw) => {
+      localStorage.setItem(CONFIG.STORAGE_KEY, JSON.stringify(raw));
+      invalidar();
+      const estado = get();
+      expect(estado.acoes.ncm.valor).toBeNull();
+      expect(estado.acoes.unspsc.valor).toBeNull();
+    });
   });
 });

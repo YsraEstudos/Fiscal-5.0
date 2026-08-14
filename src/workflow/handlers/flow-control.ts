@@ -14,6 +14,7 @@ import * as ItemTrace from '../item-trace.ts';
 import * as Validador from '../../validation/validador.ts';
 import { elementoVisivel } from '../../utils/dom-helpers.ts';
 import { buscarElementoDeep } from '../../utils/selectors.ts';
+import { isUnspscConcluidoParaItem } from './unspsc/item-flags.ts';
 
 // ---------------------------------------------------------------------------
 // Tipos
@@ -71,10 +72,11 @@ export async function confirmar(estado: EstadoApp, status: HTMLElement | null, {
 export async function prosseguir(estado: EstadoApp, status: HTMLElement | null, { getAcao, getValorAcao, workflowState, itemJaTemUnspsc, marcarItemConcluido }: HandlerContext): Promise<boolean> {
     const acaoUnspscCheck = getAcao('unspsc', estado);
     if (acaoUnspscCheck.ativo) {
-        const itemKey = estado.itemAtualKey as string | undefined;
-        let unspscFeito = !!(itemKey && (estado.itemFlags as Record<string, Record<string, unknown>>)?.[itemKey]?.['unspscFeito']);
+        const itemKey = (estado.itemAtualKey as string | undefined)
+            || ((estado as unknown as Record<string, unknown>)['itemAtualTelaId'] as string | undefined);
+        let unspscFeito = isUnspscConcluidoParaItem(estado, workflowState);
 
-        if (!unspscFeito && !workflowState.isCompleta('selecionar') && itemJaTemUnspsc(estado)) {
+        if (!unspscFeito && itemJaTemUnspsc(estado)) {
             unspscFeito = true;
             if (itemKey) {
                 EstadoManager.update((e: EstadoApp) => {
@@ -88,7 +90,7 @@ export async function prosseguir(estado: EstadoApp, status: HTMLElement | null, 
             log(`ℹ️ UNSPSC já preenchido na tela para item ${itemKey || '-'}; liberando prosseguir`, 'info');
         }
 
-        if (!unspscFeito && !workflowState.isCompleta('selecionar')) return false;
+        if (!unspscFeito) return false;
     }
 
     const acaoProsseguir = getAcao('prosseguir', estado);

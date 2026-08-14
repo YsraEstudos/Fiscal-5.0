@@ -38,7 +38,11 @@ export function limparUnspscInlineFlags(estado: EstadoApp, extras: Partial<Unsps
     });
 }
 
-export function marcarUnspscInlineConcluido(estado: EstadoApp, valorUnspsc: unknown): void {
+export function marcarUnspscInlineConcluido(
+    estado: EstadoApp,
+    valorUnspsc: unknown,
+    workflowState?: { marcarCompleta?: (fase: string) => void }
+): void {
     updateUnspscItemFlags(estado, {
         unspscFeito: true,
         unspscModoDetectado: 'inline',
@@ -46,4 +50,16 @@ export function marcarUnspscInlineConcluido(estado: EstadoApp, valorUnspsc: unkn
         unspscInlineFallbackTentado: false,
         unspscInlineValorTentado: valorUnspsc == null ? null : String(valorUnspsc),
     });
+    workflowState?.marcarCompleta?.('selecionar');
 }
+
+export function isUnspscConcluidoParaItem(
+    estado: EstadoApp,
+    workflowState?: { isCompleta?: (fase: string) => boolean }
+): boolean {
+    const flags = getUnspscItemFlags(estado);
+    if (flags.unspscFeito === true) return true;
+    if (workflowState?.isCompleta?.('selecionar') === true) return true;
+    return false;
+}
+

@@ -633,12 +633,12 @@
   const ACOES_WORKFLOW = Object.freeze([
     { id: "atuar", nome: "Atuar no Item", seletor: 'input[name$="butAcao3"]', tipo: "click", ordem: 1 },
     { id: "abaFiscal", nome: "Aba Fiscal", seletor: "text=Fiscal", tipo: "click", ordem: 2 },
-    { id: "ncm", nome: "Preencher NCM", seletor: "#txtNCMTIPI, #txtNBS", tipo: "input", ordem: 3, valorPadrao: "8471.30.12" },
+    { id: "ncm", nome: "Preencher NCM", seletor: "#txtNCMTIPI, #txtNBS", tipo: "input", ordem: 3 },
     { id: "cest", nome: "Preencher CEST", seletor: "#txtCest", tipo: "custom", ordem: 4 },
     { id: "lei116Servico", nome: "Preencher Lei 116 (Serviço)", seletor: "input.Cat90, input.Cat91", tipo: "custom", ordem: 5 },
     { id: "abaClassificacao", nome: "Aba Classificações", seletor: "text=Classificações", tipo: "click", ordem: 6 },
     { id: "lupaUnspsc", nome: "Lupa UNSPSC", seletor: "#ibutUNSPSC", tipo: "click", ordem: 7 },
-    { id: "unspsc", nome: "Preencher UNSPSC", seletor: '#txtCodigoUnspsc, #txtCodUNSPSC, input[name$="txtCodigoUnspsc"], input[name$="txtCodUNSPSC"]', tipo: "input", ordem: 8, valorPadrao: "30103618" },
+    { id: "unspsc", nome: "Preencher UNSPSC", seletor: '#txtCodigoUnspsc, #txtCodUNSPSC, input[name$="txtCodigoUnspsc"], input[name$="txtCodUNSPSC"]', tipo: "input", ordem: 8 },
     { id: "pesquisar", nome: "Pesquisar", seletor: 'input[name*="butPesquisar"]', tipo: "click", ordem: 9 },
     { id: "resultado", nome: "Clique Resultado", seletor: 'a[id="txtDescricao"]', tipo: "click", ordem: 10 },
     { id: "selecionar", nome: "Selecionar UNSPSC", seletor: "#butFechar", tipo: "click", ordem: 11 },
@@ -682,7 +682,7 @@
       novo.acoes["ncm"] = {
         ativo: tarefas["ncm"].ativo ?? true,
         seletor: "#txtNCMTIPI",
-        valor: tarefas["ncm"].valor || "8471.30.12",
+        valor: tarefas["ncm"].valor || null,
         ordem: 3
       };
     }
@@ -690,7 +690,7 @@
       novo.acoes["unspsc"] = {
         ativo: tarefas["unspsc"].ativo ?? true,
         seletor: '#txtCodigoUnspsc, #txtCodUNSPSC, input[name$="txtCodigoUnspsc"], input[name$="txtCodUNSPSC"]',
-        valor: tarefas["unspsc"].valor || "43211503",
+        valor: tarefas["unspsc"].valor || null,
         ordem: 7
       };
     }
@@ -3264,6 +3264,46 @@
     }
     return true;
   }
+  function getItemKey(estado) {
+    const estadoAny = estado;
+    return String(estadoAny["itemAtualKey"] || estadoAny["itemAtualTelaId"] || "").trim() || null;
+  }
+  function getUnspscItemFlags(estado) {
+    const itemKey = getItemKey(estado);
+    if (!itemKey) return {};
+    const estadoAny = estado;
+    const itemFlags = estadoAny["itemFlags"];
+    return (itemFlags == null ? void 0 : itemFlags[itemKey]) || {};
+  }
+  function updateUnspscItemFlags(estado, patch) {
+    const itemKey = getItemKey(estado);
+    if (!itemKey) return;
+    update((e) => {
+      const eAny = e;
+      eAny["itemFlags"] = eAny["itemFlags"] || {};
+      const flags = eAny["itemFlags"];
+      const atual = flags[itemKey] || {};
+      flags[itemKey] = { ...atual, ...patch };
+    });
+  }
+  function marcarUnspscInlineConcluido(estado, valorUnspsc, workflowState2) {
+    var _a;
+    updateUnspscItemFlags(estado, {
+      unspscFeito: true,
+      unspscModoDetectado: "inline",
+      unspscInlinePostbackTentado: false,
+      unspscInlineFallbackTentado: false,
+      unspscInlineValorTentado: valorUnspsc == null ? null : String(valorUnspsc)
+    });
+    (_a = workflowState2 == null ? void 0 : workflowState2.marcarCompleta) == null ? void 0 : _a.call(workflowState2, "selecionar");
+  }
+  function isUnspscConcluidoParaItem(estado, workflowState2) {
+    var _a;
+    const flags = getUnspscItemFlags(estado);
+    if (flags.unspscFeito === true) return true;
+    if (((_a = workflowState2 == null ? void 0 : workflowState2.isCompleta) == null ? void 0 : _a.call(workflowState2, "selecionar")) === true) return true;
+    return false;
+  }
   let _atualizarBotaoToggle$1 = () => {
   };
   function setAtualizarBotaoToggle(fn) {
@@ -3294,12 +3334,11 @@
     return true;
   }
   async function prosseguir(estado, status, { getAcao: getAcao2, getValorAcao: getValorAcao2, workflowState: workflowState2, itemJaTemUnspsc: itemJaTemUnspsc2, marcarItemConcluido: marcarItemConcluido2 }) {
-    var _a, _b;
     const acaoUnspscCheck = getAcao2("unspsc", estado);
     if (acaoUnspscCheck.ativo) {
-      const itemKey2 = estado.itemAtualKey;
-      let unspscFeito = !!(itemKey2 && ((_b = (_a = estado.itemFlags) == null ? void 0 : _a[itemKey2]) == null ? void 0 : _b["unspscFeito"]));
-      if (!unspscFeito && !workflowState2.isCompleta("selecionar") && itemJaTemUnspsc2(estado)) {
+      const itemKey2 = estado.itemAtualKey || estado["itemAtualTelaId"];
+      let unspscFeito = isUnspscConcluidoParaItem(estado, workflowState2);
+      if (!unspscFeito && itemJaTemUnspsc2(estado)) {
         unspscFeito = true;
         if (itemKey2) {
           update((e) => {
@@ -3312,7 +3351,7 @@
         }
         log(`ℹ️ UNSPSC já preenchido na tela para item ${itemKey2 || "-"}; liberando prosseguir`, "info");
       }
-      if (!unspscFeito && !workflowState2.isCompleta("selecionar")) return false;
+      if (!unspscFeito) return false;
     }
     const acaoProsseguir = getAcao2("prosseguir", estado);
     if (!acaoProsseguir.ativo) return false;
@@ -4352,7 +4391,7 @@
     const acaoAbaClass = getAcao2("abaClassificacao", estado);
     if (!acaoAbaClass.ativo) return false;
     if (isAtivo("abaClassificacao")) return true;
-    if (workflowState2.isCompleta("selecionar")) return false;
+    if (isUnspscConcluidoParaItem(estado, workflowState2)) return false;
     if (isAtivo("posSelecionar")) return false;
     const acaoLupa = getAcao2("lupaUnspsc", estado);
     if (acaoLupa == null ? void 0 : acaoLupa.ativo) {
@@ -4524,7 +4563,8 @@
     const modalAberto = ctx.isModalUnspscAberto(acaoUnspsc.seletor, acaoSelecionar.seletor);
     const lupa = (acaoLupa == null ? void 0 : acaoLupa.ativo) ? buscarElementoDeep(acaoLupa.seletor) : null;
     const campoUnspsc = (acaoUnspsc == null ? void 0 : acaoUnspsc.ativo) ? modalDiv1 ? modalDiv1.querySelector(acaoUnspsc.seletor) : buscarElementoDeep(acaoUnspsc.seletor) : null;
-    if (!workflowState2.isCompleta("selecionar")) {
+    const unspscConcluido = isUnspscConcluidoParaItem(estado, workflowState2);
+    if (!unspscConcluido) {
       if (modalAberto || lupa && elementoVisivel(lupa) || campoUnspsc && elementoVisivel(campoUnspsc)) {
         return false;
       }
@@ -4537,37 +4577,6 @@
     set("abaFiscal", CONFIG.DELAYS.ABA_CLASSIFICACAO_COOLDOWN);
     await interagir(abaFiscalEl, null, "abaFiscal");
     return true;
-  }
-  function getItemKey(estado) {
-    const estadoAny = estado;
-    return String(estadoAny["itemAtualKey"] || estadoAny["itemAtualTelaId"] || "").trim() || null;
-  }
-  function getUnspscItemFlags(estado) {
-    const itemKey = getItemKey(estado);
-    if (!itemKey) return {};
-    const estadoAny = estado;
-    const itemFlags = estadoAny["itemFlags"];
-    return (itemFlags == null ? void 0 : itemFlags[itemKey]) || {};
-  }
-  function updateUnspscItemFlags(estado, patch) {
-    const itemKey = getItemKey(estado);
-    if (!itemKey) return;
-    update((e) => {
-      const eAny = e;
-      eAny["itemFlags"] = eAny["itemFlags"] || {};
-      const flags = eAny["itemFlags"];
-      const atual = flags[itemKey] || {};
-      flags[itemKey] = { ...atual, ...patch };
-    });
-  }
-  function marcarUnspscInlineConcluido(estado, valorUnspsc) {
-    updateUnspscItemFlags(estado, {
-      unspscFeito: true,
-      unspscModoDetectado: "inline",
-      unspscInlinePostbackTentado: false,
-      unspscInlineFallbackTentado: false,
-      unspscInlineValorTentado: valorUnspsc == null ? null : String(valorUnspsc)
-    });
   }
   function lerDescricaoUnspscInline() {
     var _a;
@@ -4779,7 +4788,7 @@
     const modo = obterModoUnspsc(estado, getAcao2, getUnspscModo);
     if (modo === "inline") {
       if (descricaoUnspscInlineDefinida()) {
-        marcarUnspscInlineConcluido(estado, valorUnspsc);
+        marcarUnspscInlineConcluido(estado, valorUnspsc, workflowState2);
         return false;
       }
       const flags = getUnspscItemFlags(estado);
@@ -4830,7 +4839,7 @@
     if (modo === "inline") {
       if (descricaoUnspscInlineDefinida()) {
         workflowState2.unspscValorDigitado = true;
-        marcarUnspscInlineConcluido(estado, valorUnspsc);
+        marcarUnspscInlineConcluido(estado, valorUnspsc, workflowState2);
         return false;
       }
       const flags = getUnspscItemFlags(estado);

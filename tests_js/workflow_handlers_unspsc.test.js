@@ -433,4 +433,38 @@ describe("workflow/handlers/unspsc", () => {
     expect(okResultado).toBe(false);
     expect(okSelecionar).toBe(false);
   });
+
+  it("unspsc inline com descrição definida sincroniza workflowState e marca concluído", async () => {
+    const campo = document.createElement("input");
+    campo.id = "txtCodUNSPSC";
+    campo.value = "30103618";
+    const descricao = document.createElement("input");
+    descricao.id = "txtUNSPSC";
+    descricao.value = "30103618 - PEÇAS DIVERSAS";
+    mockBuscarElementoDeep.mockImplementation((sel) => {
+      if (sel.includes("txtCodUNSPSC")) return campo;
+      if (sel.includes("txtUNSPSC")) return descricao;
+      return null;
+    });
+
+    const workflowState = workflowStateBase();
+    currentState = { itemAtualKey: "320780", itemFlags: {} };
+
+    const ok = await mod.unspsc(
+      currentState,
+      { textContent: "" },
+      {
+        getAcao: getAcaoFactory(),
+        workflowState,
+        getModalUnspscContainer: () => null,
+        valoresSaoIguais: () => true,
+        getValorAcao: () => "30103618",
+        getUnspscModo: () => "inline",
+      },
+    );
+
+    expect(ok).toBe(false);
+    expect(workflowState.marcarCompleta).toHaveBeenCalledWith("selecionar");
+    expect(currentState.itemFlags["320780"].unspscFeito).toBe(true);
+  });
 });

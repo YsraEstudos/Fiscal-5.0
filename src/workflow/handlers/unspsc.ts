@@ -134,7 +134,7 @@ export async function pesquisar(estado: EstadoApp, status: HTMLElement | null, {
     const modo = obterModoUnspsc(estado, getAcao, getUnspscModo);
     if (modo === 'inline') {
         if (descricaoUnspscInlineDefinida()) {
-            marcarUnspscInlineConcluido(estado, valorUnspsc);
+            marcarUnspscInlineConcluido(estado, valorUnspsc, workflowState);
             return false;
         }
 
@@ -198,7 +198,7 @@ export async function unspsc(estado: EstadoApp, status: HTMLElement | null, { ge
     if (modo === 'inline') {
         if (descricaoUnspscInlineDefinida()) {
             workflowState.unspscValorDigitado = true;
-            marcarUnspscInlineConcluido(estado, valorUnspsc);
+            marcarUnspscInlineConcluido(estado, valorUnspsc, workflowState);
             return false;
         }
 

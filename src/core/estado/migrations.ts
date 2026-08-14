@@ -39,7 +39,7 @@ function aplicarTarefasLegadas(novo: EstadoApp, tarefasRaw: unknown): void {
         novo.acoes['ncm'] = {
             ativo: tarefas['ncm'].ativo ?? true,
             seletor: '#txtNCMTIPI',
-            valor: tarefas['ncm'].valor || '8471.30.12',
+            valor: tarefas['ncm'].valor || null,
             ordem: 3,
         };
     }
@@ -47,7 +47,7 @@ function aplicarTarefasLegadas(novo: EstadoApp, tarefasRaw: unknown): void {
         novo.acoes['unspsc'] = {
             ativo: tarefas['unspsc'].ativo ?? true,
             seletor: '#txtCodigoUnspsc, #txtCodUNSPSC, input[name$="txtCodigoUnspsc"], input[name$="txtCodUNSPSC"]',
-            valor: tarefas['unspsc'].valor || '43211503',
+            valor: tarefas['unspsc'].valor || null,
             ordem: 7,
         };
     }

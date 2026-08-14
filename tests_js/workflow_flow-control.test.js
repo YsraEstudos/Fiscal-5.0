@@ -299,4 +299,24 @@ describe("workflow/handlers/flow-control", () => {
     expect(mockRegistrarConclusao).not.toHaveBeenCalled();
     expect(mockRegistrarEventoItem).not.toHaveBeenCalled();
   });
+
+  it("prosseguir avança quando unspscFeito está presente nas itemFlags mesmo sem workflowState.isCompleta", async () => {
+    const button = document.createElement("button");
+    mockBuscarElementoDeep.mockReturnValue(button);
+    const workflowState = { isCompleta: vi.fn(() => false), reset: vi.fn() };
+    const stateComFlags = {
+      ...state,
+      itemFlags: { "320780": { unspscFeito: true } },
+      acoes: { ...state.acoes, unspsc: { ativo: true, seletor: "#txtCodigoUnspsc" } },
+    };
+
+    const ok = await mod.prosseguir(
+      stateComFlags,
+      { textContent: "" },
+      buildCtx({ workflowState, itemJaTemUnspsc: vi.fn(() => false) }),
+    );
+
+    expect(ok).toBe(true);
+    expect(mockInteragir).toHaveBeenCalledWith(button, null, "prosseguir");
+  });
 });

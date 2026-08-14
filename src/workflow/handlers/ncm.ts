@@ -44,6 +44,8 @@ import {
     encontrarAbaClassificacao,
     encontrarAbaFiscal,
 } from './ncm/tabs.ts';
+import { isUnspscConcluidoParaItem } from './unspsc/item-flags.ts';
+
 
 // ---------------------------------------------------------------------------
 // Tipos auxiliares
@@ -131,7 +133,7 @@ export async function abaClassificacao(estado: EstadoApp, status: HTMLElement | 
 
     if (CooldownManager.isAtivo('abaClassificacao')) return true;
 
-    if (workflowState.isCompleta('selecionar')) return false;
+    if (isUnspscConcluidoParaItem(estado, workflowState)) return false;
     if (CooldownManager.isAtivo('posSelecionar')) return false;
 
     const acaoLupa = getAcao('lupaUnspsc', estado);
@@ -353,9 +355,10 @@ export async function abaFiscal(estado: EstadoApp, status: HTMLElement | null, c
 
     // Se UNSPSC ainda NÃO foi concluído e o modal/lupa/campo está visível,
     // não interromper o fluxo de UNSPSC indo para a aba Fiscal.
-    // Porém, se o UNSPSC JÁ foi concluído (selecionar completa), permitir
-    // navegar à aba Fiscal para preencher o NCM que ficou pendente.
-    if (!workflowState.isCompleta('selecionar')) {
+    // Porém, se o UNSPSC JÁ foi concluído (ou não há elementos de UNSPSC na tela),
+    // permitir navegar à aba Fiscal para preencher o NCM que ficou pendente.
+    const unspscConcluido = isUnspscConcluidoParaItem(estado, workflowState);
+    if (!unspscConcluido) {
         if (modalAberto || (lupa && elementoVisivel(lupa as HTMLElement)) || (campoUnspsc && elementoVisivel(campoUnspsc as HTMLElement))) {
             return false;
         }
